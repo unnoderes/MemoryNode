@@ -8,9 +8,18 @@ import {
   rejectProposal,
 } from "../../lib/api";
 
-const DEMO_TRANSCRIPT = `This project must use Qwen Cloud instead of OpenAI APIs.
-We decided to use FastAPI, SQLite, and Next.js for the MVP.
-Keep approved memories auditable and revocable.`;
+const DEMO_TRANSCRIPT = `这个项目必须使用 Qwen Cloud，而不是 OpenAI API。
+我们已经决定 MVP 使用 FastAPI、SQLite 和 Next.js。
+已批准的记忆必须可审计、可解释，并且可以撤销。`;
+
+const MEMORY_TYPE_LABELS = {
+  user_preference: "用户偏好",
+  project_constraint: "项目约束",
+  project_decision: "项目决策",
+  recurring_workflow: "重复工作流",
+  known_pitfall: "已知坑点",
+  fact: "事实",
+};
 
 export default function ProposalsPage() {
   const [actorId, setActorId] = useState("demo-user");
@@ -48,39 +57,39 @@ export default function ProposalsPage() {
     event.preventDefault();
     const text = transcript.trim();
     if (!text) {
-      setError("Transcript is required.");
+      setError("请输入原始记录。");
       return;
     }
     await run(async () => {
       const body = await extractProposals({ actorId, projectId, transcript: text });
-      setMessage(`Extracted ${(body.proposals || []).length} proposal(s).`);
+      setMessage(`已抽取 ${(body.proposals || []).length} 条记忆提案。`);
       setTranscript("");
     });
   }
 
   return (
     <main>
-      <h1>Proposals</h1>
-      <p className="muted">Extract creates pending proposals; it does not approve memories.</p>
+      <h1>记忆提案</h1>
+      <p className="muted">抽取只会创建待审核提案，不会自动批准为长期记忆。</p>
 
       <form onSubmit={onExtract}>
         <div className="two-col">
           <label>
-            actor_id
+            用户 ID
             <input value={actorId} onChange={(event) => setActorId(event.target.value)} />
           </label>
           <label>
-            project_id
+            项目 ID
             <input value={projectId} onChange={(event) => setProjectId(event.target.value)} />
           </label>
         </div>
         <label>
-          Raw transcript
+          原始记录
           <textarea value={transcript} onChange={(event) => setTranscript(event.target.value)} />
         </label>
         <div className="row">
           <button disabled={busy} type="submit">
-            Extract
+            抽取提案
           </button>
         </div>
       </form>
@@ -89,28 +98,28 @@ export default function ProposalsPage() {
       {message ? <p className="notice">{message}</p> : null}
 
       <section className="grid">
-        <h2>Pending proposals</h2>
-        {proposals.length === 0 ? <p className="empty">No pending proposals.</p> : null}
+        <h2>待审核提案</h2>
+        {proposals.length === 0 ? <p className="empty">暂无待审核提案。</p> : null}
         {proposals.map((proposal) => (
           <article className="card grid" key={proposal.id}>
             <div>
               <strong>{proposal.content}</strong>
               <p className="meta">
-                {proposal.type} | confidence {proposal.confidence}
+                {MEMORY_TYPE_LABELS[proposal.type] || proposal.type} | 置信度 {proposal.confidence}
               </p>
             </div>
             {proposal.source_quote ? <p className="pre">{proposal.source_quote}</p> : null}
             {proposal.reason ? <p className="muted">{proposal.reason}</p> : null}
             <div className="row">
               <button disabled={busy} onClick={() => run(() => approveProposal(proposal.id))}>
-                Approve
+                批准
               </button>
               <button
                 className="secondary"
                 disabled={busy}
                 onClick={() => run(() => rejectProposal(proposal.id))}
               >
-                Reject
+                拒绝
               </button>
             </div>
           </article>

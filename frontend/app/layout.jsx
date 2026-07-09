@@ -6,11 +6,11 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="zh-CN">
       <body>
         <nav className="top-nav">
-          <Link href="/proposals">Proposals</Link>
-          <Link href="/memories">Memories</Link>
+          <Link href="/proposals">记忆提案</Link>
+          <Link href="/memories">记忆库</Link>
         </nav>
         {children}
         <style>{`

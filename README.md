@@ -2,14 +2,14 @@
 
 MemoryNode is a governed memory layer for AI agents.
 
-Current phase: Phase 3. The backend supports manual proposal review, memory
+Current phase: Phase 4. The backend supports manual proposal review, memory
 lifecycle transitions, SQLite storage, SQLite FTS5 search, and Qwen-backed
-proposal extraction.
+proposal extraction. The frontend dashboard is wired to the MVP memory APIs.
 
 ## Structure
 
 - `backend/` - FastAPI backend
-- `frontend/` - frontend app skeleton
+- `frontend/` - Next.js dashboard
 - `sdk/python/` - Python SDK placeholder directory
 - `docs/` - project documents
 
@@ -29,6 +29,32 @@ proposal extraction.
 Not implemented yet:
 
 - SDK, MCP, hooks, auth, Docker
+
+## Dashboard
+
+Start the backend first:
+
+```bash
+cd backend
+uvicorn app.main:app --reload
+```
+
+Then start the frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The dashboard uses `NEXT_PUBLIC_API_URL` and defaults to
+`http://localhost:8000`.
+
+Pages:
+
+- `http://localhost:3000/proposals` - extract transcript proposals, then approve or reject pending proposals.
+- `http://localhost:3000/memories` - search active memories.
+- `http://localhost:3000/memories/<id>` - explain and revoke a memory.
 
 ## Qwen Extraction
 
@@ -54,6 +80,9 @@ QWEN_API_KEY=...
 QWEN_BASE_URL=...
 QWEN_MODEL=...
 ```
+
+Without those `QWEN_*` values, the extract step cannot call Qwen. Backend tests
+still cover lifecycle behavior with mocked extraction.
 
 ## Start
 

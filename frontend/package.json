@@ -1,0 +1,13 @@
+{
+  "name": "memorynode-frontend",
+  "private": true,
+  "scripts": {
+    "dev": "next dev"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "tailwindcss": "latest"
+  }
+}

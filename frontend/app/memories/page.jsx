@@ -5,7 +5,7 @@ import { useState } from "react";
 import { searchMemories } from "../../lib/api";
 
 export default function MemoriesPage() {
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState("Qwen Cloud");
   const [memories, setMemories] = useState([]);
   const [searched, setSearched] = useState(false);
   const [busy, setBusy] = useState(false);

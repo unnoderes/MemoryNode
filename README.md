@@ -2,7 +2,7 @@
 
 MemoryNode is a governed memory layer for AI agents.
 
-Current phase: Phase 4. The backend supports manual proposal review, memory
+Current phase: Phase 4.5. The backend supports manual proposal review, memory
 lifecycle transitions, SQLite storage, SQLite FTS5 search, and Qwen-backed
 proposal extraction. The frontend dashboard is wired to the MVP memory APIs.
 
@@ -47,6 +47,13 @@ npm install
 npm run dev
 ```
 
+Frontend build check:
+
+```bash
+cd frontend
+npm run build
+```
+
 The dashboard uses `NEXT_PUBLIC_API_URL` and defaults to
 `http://localhost:8000`.
 
@@ -55,6 +62,16 @@ Pages:
 - `http://localhost:3000/proposals` - extract transcript proposals, then approve or reject pending proposals.
 - `http://localhost:3000/memories` - search active memories.
 - `http://localhost:3000/memories/<id>` - explain and revoke a memory.
+
+Minimal demo flow:
+
+1. Start the backend.
+2. Start the frontend.
+3. Open `http://localhost:3000/proposals`.
+4. Paste or use the demo transcript and click Extract.
+5. Approve useful pending proposals.
+6. Open `http://localhost:3000/memories` and search for `Qwen Cloud`.
+7. Open a memory detail page to explain or revoke it.
 
 ## Qwen Extraction
 
@@ -99,6 +116,7 @@ Frontend:
 cd frontend
 npm install
 npm run dev
+npm run build
 ```
 
 ## Test

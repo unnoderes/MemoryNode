@@ -8,10 +8,14 @@ import {
   rejectProposal,
 } from "../../lib/api";
 
+const DEMO_TRANSCRIPT = `This project must use Qwen Cloud instead of OpenAI APIs.
+We decided to use FastAPI, SQLite, and Next.js for the MVP.
+Keep approved memories auditable and revocable.`;
+
 export default function ProposalsPage() {
   const [actorId, setActorId] = useState("demo-user");
   const [projectId, setProjectId] = useState("memorynode-demo");
-  const [transcript, setTranscript] = useState("");
+  const [transcript, setTranscript] = useState(DEMO_TRANSCRIPT);
   const [proposals, setProposals] = useState([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -57,6 +61,7 @@ export default function ProposalsPage() {
   return (
     <main>
       <h1>Proposals</h1>
+      <p className="muted">Extract creates pending proposals; it does not approve memories.</p>
 
       <form onSubmit={onExtract}>
         <div className="two-col">

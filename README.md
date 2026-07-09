@@ -93,11 +93,14 @@ approve proposals or create memories.
 Real Qwen calls require:
 
 ```bash
+MEMORYNODE_DB_PATH=./memorynode.db
 QWEN_API_KEY=...
 QWEN_BASE_URL=...
 QWEN_MODEL=...
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
+Copy `.env.example` to `.env` in the project root for local demo settings.
 Without those `QWEN_*` values, the extract step cannot call Qwen. Backend tests
 still cover lifecycle behavior with mocked extraction.
 

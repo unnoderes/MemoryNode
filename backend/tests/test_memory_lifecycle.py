@@ -186,28 +186,21 @@ def test_extract_malformed_model_output_returns_502(monkeypatch):
 def test_qwen_responses_wire_parses_output_text(monkeypatch):
     calls = []
 
-    class FakeResponse:
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return {
-                "output_text": (
-                    '{"proposals":[{"content":"Use Qwen Cloud.","type":"project_constraint",'
-                    '"confidence":0.9,"source_quote":"Use Qwen Cloud.","reason":"Project constraint."}]}'
-                )
-            }
-
-    def fake_post(url, headers, json, timeout):
-        calls.append({"url": url, "headers": headers, "json": json, "timeout": timeout})
-        return FakeResponse()
+    def fake_post_json(url, api_key, body):
+        calls.append({"url": url, "api_key": api_key, "body": body})
+        return {
+            "output_text": (
+                '{"proposals":[{"content":"Use Qwen Cloud.","type":"project_constraint",'
+                '"confidence":0.9,"source_quote":"Use Qwen Cloud.","reason":"Project constraint."}]}'
+            )
+        }
 
     monkeypatch.setenv("QWEN_API_KEY", "test-key")
     monkeypatch.setenv("QWEN_BASE_URL", "https://example.com")
     monkeypatch.setenv("QWEN_MODEL", "gpt-5.5")
     monkeypatch.setenv("QWEN_WIRE_API", "responses")
     monkeypatch.setenv("QWEN_REASONING_EFFORT", "medium")
-    monkeypatch.setattr("app.qwen.httpx.post", fake_post)
+    monkeypatch.setattr("app.qwen._post_json", fake_post_json)
 
     proposals = extract_memory_proposals(
         actor_id="demo-user",
@@ -216,6 +209,7 @@ def test_qwen_responses_wire_parses_output_text(monkeypatch):
     )
 
     assert calls[0]["url"] == "https://example.com/v1/responses"
-    assert calls[0]["json"]["model"] == "gpt-5.5"
-    assert calls[0]["json"]["reasoning"] == {"effort": "medium"}
+    assert calls[0]["api_key"] == "test-key"
+    assert calls[0]["body"]["model"] == "gpt-5.5"
+    assert calls[0]["body"]["reasoning"] == {"effort": "medium"}
     assert proposals[0]["content"] == "Use Qwen Cloud."

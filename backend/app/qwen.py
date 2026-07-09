@@ -1,8 +1,8 @@
 import json
 import os
 from typing import List
-
-import httpx
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 
 __all__ = ["extract_memory_proposals"]
@@ -60,6 +60,17 @@ def _response_text(data):
             if part.get("type") in {"output_text", "text"} and isinstance(part.get("text"), str):
                 return part["text"]
     raise KeyError("output_text")
+
+
+def _post_json(url: str, api_key: str, body: dict):
+    request = Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        method="POST",
+    )
+    with urlopen(request, timeout=30) as response:
+        return json.loads(response.read().decode("utf-8"))
 
 
 def _validate(data):
@@ -120,16 +131,13 @@ def extract_memory_proposals(actor_id: str, project_id: str, messages: List[dict
         if reasoning_effort:
             body["reasoning"] = {"effort": reasoning_effort}
     try:
-        response = httpx.post(
+        data = _post_json(
             _responses_url(base_url) if wire_api == "responses" else _chat_url(base_url),
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json=body,
-            timeout=30,
+            api_key,
+            body,
         )
-        response.raise_for_status()
-        data = response.json()
         content = _response_text(data) if wire_api == "responses" else data["choices"][0]["message"]["content"]
-    except (httpx.HTTPError, KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+    except (HTTPError, URLError, TimeoutError, KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
         raise _QwenError(502, "Qwen request failed") from exc
 
     try:

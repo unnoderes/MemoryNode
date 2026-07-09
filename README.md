@@ -2,9 +2,24 @@
 
 MemoryNode is a governed memory layer for AI agents.
 
+It is not a chat app or agent framework. The MVP focuses on one contract:
+turn raw agent interactions into reviewable memories that can be approved,
+searched, explained, and revoked.
+
 Current phase: Phase 4.5. The backend supports manual proposal review, memory
 lifecycle transitions, SQLite storage, SQLite FTS5 search, and Qwen-backed
 proposal extraction. The frontend dashboard is wired to the MVP memory APIs.
+
+MVP workflow:
+
+```text
+extract -> approve/reject -> search -> explain -> revoke
+```
+
+Submission docs:
+
+- [Architecture](docs/architecture.md)
+- [Demo script](docs/demo-script.md)
 
 ## Structure
 

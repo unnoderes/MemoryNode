@@ -3,7 +3,10 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from sqlalchemy.orm import Session
+
+load_dotenv()
 
 from .db import get_db, init_db
 from .schemas import DecisionRequest, ProposalCreate, ProposalExtractRequest

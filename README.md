@@ -97,7 +97,18 @@ MEMORYNODE_DB_PATH=./memorynode.db
 QWEN_API_KEY=...
 QWEN_BASE_URL=...
 QWEN_MODEL=...
+QWEN_WIRE_API=chat
+QWEN_REASONING_EFFORT=medium
 NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+For an OpenAI-compatible Responses API relay, set:
+
+```bash
+QWEN_BASE_URL=https://rehdasu.cn
+QWEN_MODEL=gpt-5.5
+QWEN_WIRE_API=responses
+QWEN_REASONING_EFFORT=medium
 ```
 
 Copy `.env.example` to `.env` in the project root for local demo settings.

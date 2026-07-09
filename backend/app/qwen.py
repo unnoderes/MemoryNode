@@ -29,13 +29,37 @@ def _config():
     model = os.getenv("QWEN_MODEL")
     if not api_key or not base_url or not model:
         raise _QwenError(503, "Qwen config missing: set QWEN_API_KEY, QWEN_BASE_URL, QWEN_MODEL")
-    return api_key, base_url.rstrip("/"), model
+    wire_api = os.getenv("QWEN_WIRE_API", "chat").strip().lower()
+    if wire_api not in {"chat", "responses"}:
+        raise _QwenError(503, "QWEN_WIRE_API must be chat or responses")
+    reasoning_effort = os.getenv("QWEN_REASONING_EFFORT", "medium").strip()
+    return api_key, base_url.rstrip("/"), model, wire_api, reasoning_effort
 
 
 def _chat_url(base_url: str) -> str:
     if base_url.endswith("/chat/completions"):
         return base_url
-    return f"{base_url}/chat/completions"
+    if base_url.endswith("/v1"):
+        return f"{base_url}/chat/completions"
+    return f"{base_url}/v1/chat/completions"
+
+
+def _responses_url(base_url: str) -> str:
+    if base_url.endswith("/responses"):
+        return base_url
+    if base_url.endswith("/v1"):
+        return f"{base_url}/responses"
+    return f"{base_url}/v1/responses"
+
+
+def _response_text(data):
+    if isinstance(data.get("output_text"), str):
+        return data["output_text"]
+    for item in data.get("output", []):
+        for part in item.get("content", []):
+            if part.get("type") in {"output_text", "text"} and isinstance(part.get("text"), str):
+                return part["text"]
+    raise KeyError("output_text")
 
 
 def _validate(data):
@@ -56,7 +80,7 @@ def _validate(data):
 
 
 def extract_memory_proposals(actor_id: str, project_id: str, messages: List[dict]):
-    api_key, base_url, model = _config()
+    api_key, base_url, model, wire_api, reasoning_effort = _config()
     prompt = (
         "Extract candidate long-term memories from the messages. "
         "Return strict JSON only: {\"proposals\":[{\"content\":\"...\",\"type\":\"fact\","
@@ -78,15 +102,33 @@ def extract_memory_proposals(actor_id: str, project_id: str, messages: List[dict
             },
         ],
     }
+    if wire_api == "responses":
+        body = {
+            "model": model,
+            "input": [
+                {"role": "system", "content": prompt},
+                {
+                    "role": "user",
+                    "content": json.dumps(
+                        {"actor_id": actor_id, "project_id": project_id, "messages": messages},
+                        ensure_ascii=False,
+                    ),
+                },
+            ],
+            "text": {"format": {"type": "json_object"}},
+        }
+        if reasoning_effort:
+            body["reasoning"] = {"effort": reasoning_effort}
     try:
         response = httpx.post(
-            _chat_url(base_url),
+            _responses_url(base_url) if wire_api == "responses" else _chat_url(base_url),
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json=body,
             timeout=30,
         )
         response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
+        data = response.json()
+        content = _response_text(data) if wire_api == "responses" else data["choices"][0]["message"]["content"]
     except (httpx.HTTPError, KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
         raise _QwenError(502, "Qwen request failed") from exc
 

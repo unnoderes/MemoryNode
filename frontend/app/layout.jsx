@@ -508,6 +508,9 @@ export default function RootLayout({ children }) {
 
           /* Responsive main container adjustments */
           @media (max-width: 768px) {
+            .app-container {
+              flex-direction: column;
+            }
             .sidebar {
               position: relative;
               width: 100%;

@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import HTTPException
@@ -85,6 +86,7 @@ def get_proposal(db: Session, proposal_id: str):
 
 
 def get_memory(db: Session, memory_id: str):
+    expire_due_memories(db)
     memory = db.query(models.Memory).get(memory_id)
     if memory is None:
         not_found("memory")
@@ -187,7 +189,10 @@ def approve_proposal(
     actor_id: str,
     note: Optional[str],
     supersede_memory_id: Optional[str] = None,
+    expires_at: Optional[datetime] = None,
 ):
+    expire_due_memories(db)
+    validate_expires_at(expires_at)
     proposal = get_proposal(db, proposal_id)
     if proposal.status != "pending":
         conflict("only pending proposals can be approved")
@@ -218,6 +223,7 @@ def approve_proposal(
         content=proposal.content,
         type=proposal.type,
         supersedes_memory_id=supersede_memory_id,
+        expires_at=expires_at,
     )
     event = models.MemoryEvent(
         memory_id=memory_id,
@@ -292,17 +298,62 @@ def fts_query(q: str):
     return " ".join(tokens)
 
 
+def utc_datetime(value: datetime) -> datetime:
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+
+def validate_expires_at(expires_at: Optional[datetime]):
+    if expires_at is None:
+        return
+    if expires_at.tzinfo is None or expires_at.utcoffset() is None:
+        bad_request("expires_at must include a timezone")
+    if expires_at <= models.now():
+        bad_request("expires_at must be in the future")
+
+
+def expire_due_memories(db: Session):
+    # ponytail: expires on relevant requests; add a scheduled worker only when prompt expiry is required.
+    now = models.now()
+    due_memories = [
+        memory
+        for memory in db.query(models.Memory)
+        .filter(
+            models.Memory.status == "active",
+            models.Memory.expires_at.isnot(None),
+        )
+        .all()
+        if utc_datetime(memory.expires_at) <= now
+    ]
+    if not due_memories:
+        return
+    for memory in due_memories:
+        memory.status = "expired"
+        memory.updated_at = now
+        db.add(
+            models.MemoryEvent(
+                memory_id=memory.id,
+                proposal_id=memory.proposal_id,
+                event_type="expire",
+                actor_id="system",
+            )
+        )
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+
 def memory_is_visible(memory, now):
     if memory.status != "active":
         return False
     if memory.expires_at is None:
         return True
-    if memory.expires_at.tzinfo is None:
-        now = now.replace(tzinfo=None)
-    return memory.expires_at > now
+    return utc_datetime(memory.expires_at) > now
 
 
 def search_memories(db: Session, q: str, include_inactive: bool = False):
+    expire_due_memories(db)
     rows = db.execute(
         text(
             "SELECT memory_id, bm25(memory_fts) AS score "
@@ -323,6 +374,7 @@ def search_memories(db: Session, q: str, include_inactive: bool = False):
 
 
 def related_memories(db: Session, proposal_id: str):
+    expire_due_memories(db)
     proposal = get_proposal(db, proposal_id)
     source = db.query(models.MemorySource).get(proposal.source_id)
     if source is None:

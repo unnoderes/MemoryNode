@@ -19,6 +19,10 @@ const STATUS_LABELS = {
   expired: "已过期",
 };
 
+function formatExpiresAt(value) {
+  return new Date(value).toLocaleString("zh-CN", { dateStyle: "medium", timeStyle: "short" });
+}
+
 export default function MemoriesPage() {
   const [q, setQ] = useState("Qwen Cloud");
   const [memories, setMemories] = useState([]);
@@ -169,6 +173,7 @@ export default function MemoriesPage() {
 
               <div className="memory-card-body">
                 <p className="memory-content-text">{memory.content}</p>
+                {memory.expires_at ? <p className="memory-expiry">到期于 {formatExpiresAt(memory.expires_at)}</p> : null}
               </div>
 
               <div className="memory-card-footer">
@@ -316,6 +321,12 @@ export default function MemoriesPage() {
           font-weight: 500;
           color: var(--text-primary);
           line-height: 1.5;
+        }
+
+        .memory-expiry {
+          margin: 10px 0 0;
+          color: var(--text-muted);
+          font-size: 12px;
         }
 
         .memory-card-footer {

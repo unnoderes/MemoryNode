@@ -87,6 +87,7 @@ def post_approve(
             payload.actor_id,
             payload.note,
             payload.supersede_memory_id,
+            payload.expires_at,
         )
     )
 

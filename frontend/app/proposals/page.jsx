@@ -32,6 +32,7 @@ export default function ProposalsPage() {
   const [relatedByProposal, setRelatedByProposal] = useState({});
   const [relatedLoading, setRelatedLoading] = useState({});
   const [supersedeByProposal, setSupersedeByProposal] = useState({});
+  const [expiresByProposal, setExpiresByProposal] = useState({});
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -195,12 +196,27 @@ export default function ProposalsPage() {
                 </div>
 
                 <div className="proposal-actions">
+                  <label className="expiration-input">
+                    到期时间（可选）
+                    <input
+                      type="datetime-local"
+                      value={expiresByProposal[proposal.id] || ""}
+                      onChange={(event) => setExpiresByProposal((current) => ({
+                        ...current,
+                        [proposal.id]: event.target.value,
+                      }))}
+                    />
+                    <small>到期后将从默认检索中移除，审计记录仍会保留。</small>
+                  </label>
                   <button
                     disabled={busy}
                     onClick={() => run(() => approveProposal(
                       proposal.id,
                       "reviewer",
                       supersedeByProposal[proposal.id],
+                      expiresByProposal[proposal.id]
+                        ? new Date(expiresByProposal[proposal.id]).toISOString()
+                        : null,
                     ))}
                   >
                     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -380,9 +396,24 @@ export default function ProposalsPage() {
 
         .proposal-actions {
           display: flex;
+          flex-wrap: wrap;
+          align-items: end;
           gap: 12px;
           border-top: 1px solid var(--border-color);
           padding-top: 16px;
+        }
+
+        .expiration-input {
+          display: grid;
+          gap: 6px;
+          min-width: min(100%, 230px);
+          color: var(--text-secondary);
+          font-size: 12px;
+        }
+
+        .expiration-input small {
+          color: var(--text-muted);
+          line-height: 1.4;
         }
 
         .related-review {

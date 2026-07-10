@@ -1,5 +1,6 @@
 import os
 import tempfile
+from datetime import timedelta
 from pathlib import Path
 
 os.environ["MEMORYNODE_DB_PATH"] = str(Path(tempfile.mkdtemp()) / "test.db")
@@ -310,3 +311,86 @@ def test_init_db_adds_supersedes_column_to_existing_database(monkeypatch, tmp_pa
         assert "supersedes_memory_id" in columns
     finally:
         db.close()
+
+
+def set_memory_expiry(memory_id, expires_at):
+    db = session_local()
+    try:
+        memory = db.query(models.Memory).get(memory_id)
+        memory.expires_at = expires_at
+        db.commit()
+    finally:
+        db.close()
+
+
+def test_approval_validates_and_persists_optional_expiry():
+    with TestClient(app) as client:
+        proposal = create_proposal(client, "This decision needs a quarterly review.")
+        expires_at = (models.now() + timedelta(days=1)).isoformat()
+        approved = client.post(
+            f"/v1/proposals/{proposal['id']}/approve",
+            json={"expires_at": expires_at},
+        )
+        assert approved.status_code == 200
+        assert approved.json()["expires_at"] is not None
+
+        normal = create_proposal(client, "This decision has no expiry.")
+        assert client.post(f"/v1/proposals/{normal['id']}/approve").json()["expires_at"] is None
+
+        for invalid_expiry in ("2020-01-01T00:00:00Z", models.now().isoformat(), "2099-01-01T00:00:00"):
+            invalid = create_proposal(client, f"Invalid expiry {invalid_expiry}.")
+            response = client.post(
+                f"/v1/proposals/{invalid['id']}/approve",
+                json={"expires_at": invalid_expiry},
+            )
+            assert response.status_code == 400
+
+
+def test_due_memory_expires_once_and_is_auditable():
+    with TestClient(app) as client:
+        proposal = create_proposal(client, "An expiring deployment decision.")
+        memory = client.post(
+            f"/v1/proposals/{proposal['id']}/approve",
+            json={"expires_at": (models.now() + timedelta(days=1)).isoformat()},
+        ).json()
+        set_memory_expiry(memory["id"], models.now() - timedelta(seconds=1))
+
+        assert client.get("/v1/memories/search", params={"q": "deployment"}).json()["memories"] == []
+        inactive = client.get(
+            "/v1/memories/search",
+            params={"q": "deployment", "include_inactive": "true"},
+        ).json()["memories"]
+        assert inactive[0]["status"] == "expired"
+
+        detail = client.get(f"/v1/memories/{memory['id']}/explain").json()
+        assert detail["memory"]["status"] == "expired"
+        assert [event["event_type"] for event in detail["events"]].count("expire") == 1
+
+
+def test_expiry_never_reactivates_or_supersedes_inactive_memory():
+    with TestClient(app) as client:
+        revoked_proposal = create_proposal(client, "A revoked expiring decision.")
+        revoked = client.post(
+            f"/v1/proposals/{revoked_proposal['id']}/approve",
+            json={"expires_at": (models.now() + timedelta(days=1)).isoformat()},
+        ).json()
+        client.post(f"/v1/memories/{revoked['id']}/revoke")
+        set_memory_expiry(revoked["id"], models.now() - timedelta(seconds=1))
+        revoked_detail = client.get(f"/v1/memories/{revoked['id']}/explain").json()
+        assert [event["event_type"] for event in revoked_detail["events"]].count("expire") == 0
+
+        target_proposal = create_proposal(client, "An expired supersession target.")
+        target = client.post(
+            f"/v1/proposals/{target_proposal['id']}/approve",
+            json={"expires_at": (models.now() + timedelta(days=1)).isoformat()},
+        ).json()
+        set_memory_expiry(target["id"], models.now() - timedelta(seconds=1))
+        replacement = create_proposal(client, "A replacement for expired target.")
+        response = client.post(
+            f"/v1/proposals/{replacement['id']}/approve",
+            json={"supersede_memory_id": target["id"]},
+        )
+        assert response.status_code == 409
+        detail = client.get(f"/v1/memories/{target['id']}/explain").json()
+        assert detail["memory"]["status"] == "expired"
+        assert [event["event_type"] for event in detail["events"]].count("expire") == 1

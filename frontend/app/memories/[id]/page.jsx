@@ -26,7 +26,12 @@ const EVENT_LABELS = {
   revoke: "人工撤销",
   supersede: "替代旧记忆",
   superseded: "已被替代",
+  expire: "记忆到期",
 };
+
+function formatExpiresAt(value) {
+  return new Date(value).toLocaleString("zh-CN", { dateStyle: "medium", timeStyle: "short" });
+}
 
 export default function MemoryDetailPage() {
   const pathname = usePathname();
@@ -163,6 +168,12 @@ export default function MemoryDetailPage() {
                     <span className="dossier-label">归属项目</span>
                     <div className="dossier-value" style={{ fontFamily: 'monospace' }}>
                       {proposal?.project_id || "default"}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="dossier-label">到期时间</span>
+                    <div className="dossier-value">
+                      {memory.expires_at ? formatExpiresAt(memory.expires_at) : "未设置到期时间"}
                     </div>
                   </div>
                 </div>
@@ -383,7 +394,7 @@ export default function MemoryDetailPage() {
 
         .dossier-grid-two {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
           gap: 16px;
           background: rgba(255, 255, 255, 0.01);
           border: 1px solid var(--border-color);
@@ -466,6 +477,10 @@ export default function MemoryDetailPage() {
           background: var(--text-muted);
         }
 
+        .timeline-dot.dot-expire {
+          background: var(--text-muted);
+        }
+
         .timeline-line {
           width: 2px;
           flex: 1;
@@ -506,6 +521,11 @@ export default function MemoryDetailPage() {
         }
 
         .badge-event-reject {
+          background: rgba(100, 116, 139, 0.15);
+          color: var(--text-muted);
+        }
+
+        .badge-event-expire {
           background: rgba(100, 116, 139, 0.15);
           color: var(--text-muted);
         }

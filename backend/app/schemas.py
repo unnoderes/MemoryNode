@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -47,3 +48,4 @@ class DecisionRequest(BaseModel):
     actor_id: str = "reviewer"
     note: Optional[str] = None
     supersede_memory_id: Optional[str] = None
+    expires_at: Optional[datetime] = None

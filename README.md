@@ -6,9 +6,10 @@ It is not a chat app or agent framework. The MVP focuses on one contract:
 turn raw agent interactions into reviewable memories that can be approved,
 searched, explained, and revoked.
 
-Current phase: Phase 4.5. The backend supports manual proposal review, memory
-lifecycle transitions, SQLite storage, SQLite FTS5 search, and Qwen-backed
-proposal extraction. The frontend dashboard is wired to the MVP memory APIs.
+Current phase: governed-memory demo readiness. The backend supports manual
+proposal review, lifecycle transitions, supervised supersession, optional
+expiry, SQLite storage, SQLite FTS5 search, and Qwen-backed proposal
+extraction. The frontend dashboard is wired to the MVP memory APIs.
 
 MVP workflow:
 
@@ -36,10 +37,17 @@ Submission docs:
 - `GET /v1/proposals?status=pending`
 - `POST /v1/proposals/{id}/approve`
 - `POST /v1/proposals/{id}/reject`
+- `GET /v1/proposals/{id}/related-memories` for reviewer-selected replacement candidates
 - `POST /v1/memories/{id}/revoke`
 - `GET /v1/memories/search?q=...` using SQLite FTS5
 - `GET /v1/memories/{id}`
 - `GET /v1/memories/{id}/explain`
+
+Approved memories are `active` by default. A reviewer can approve a proposal
+with an optional future `expires_at`, or select an eligible related active
+memory as `supersede_memory_id`. Supersession revokes the old memory and leaves
+an auditable two-way link. Expiry is refreshed on relevant lifecycle, search,
+related-memory, and detail requests; it is not a background scheduler.
 
 Not implemented yet:
 
@@ -74,9 +82,9 @@ The dashboard uses `NEXT_PUBLIC_API_URL` and defaults to
 
 Pages:
 
-- `http://localhost:3000/proposals` - extract transcript proposals, then approve or reject pending proposals.
-- `http://localhost:3000/memories` - search active memories.
-- `http://localhost:3000/memories/<id>` - explain and revoke a memory.
+- `http://localhost:3000/proposals` - extract transcript proposals, review related-memory candidates, set optional expiry, then approve, reject, or approve and replace.
+- `http://localhost:3000/memories` - search active memories and show expiry metadata.
+- `http://localhost:3000/memories/<id>` - explain source, rationale, audit events, expiry, supersession links, and revoke an active memory.
 
 Minimal demo flow:
 
@@ -84,9 +92,11 @@ Minimal demo flow:
 2. Start the frontend.
 3. Open `http://localhost:3000/proposals`.
 4. Paste or use the demo transcript and click Extract.
-5. Approve useful pending proposals.
+5. Approve useful pending proposals. When replacing a decision, load related
+   candidates and explicitly select the old memory before approving.
 6. Open `http://localhost:3000/memories` and search for `Qwen Cloud`.
-7. Open a memory detail page to explain or revoke it.
+7. Open a memory detail page to explain or revoke it. Expired and superseded
+   memories remain explainable but are excluded from default search.
 
 ## Qwen Extraction
 

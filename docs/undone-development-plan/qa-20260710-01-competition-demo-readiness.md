@@ -34,16 +34,16 @@
 
 | ID | 区域 | 类型 | 场景 | 前置条件 | 步骤 | 预期结果 | 实际结果 | 结果 | 证据 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| QA-01 | Backend | Regression | 后端测试 | 依赖已安装 | `cd backend`; `python -m pytest -q` | 全部通过 | 待填写 | not-run | 待填写 | 记录测试数与失败信息 |
-| QA-02 | Frontend | Build | 生产构建 | 依赖已安装 | `cd frontend`; `npm run build` | 构建、类型检查、静态页面生成通过 | 待填写 | not-run | 待填写 | 记录 Next.js 输出摘要 |
-| QA-03 | Extraction | Smoke | 真实模型抽取 | 后端使用安全本地 `.env` 启动；不可显示密钥 | 通过 `/proposals` 提交演示文本 | 生成 pending 提案；无自动批准 | 待填写 | not-run | 待填写 | 仅记录模型是否可达与错误摘要 |
-| QA-04 | Review | E2E | 批准与拒绝 | 至少有两条 pending 提案 | 批准一条，拒绝一条 | 仅批准项创建 active memory；拒绝项不可搜索 | 待填写 | not-run | 待填写 | 记录记忆与提案 ID 的末尾片段即可 |
-| QA-05 | Retrieval | E2E | 搜索、解释与撤销 | 有一条 active memory | 搜索，进入详情，查看来源与事件，撤销后再次搜索 | 详情显示来源/理由/事件；撤销项从默认搜索消失 | 待填写 | not-run | 待填写 | 截图不得包含密钥 |
-| QA-06 | Supersession | E2E | 相关记忆与受控替代 | 同项目、同类型有一条 active memory 和一条 pending 提案 | 加载相关记忆，选择旧记忆，批准并替代 | 新记忆 active；旧记忆 revoked；新旧详情可相互追溯 | 待填写 | not-run | 待填写 | 验证审计事件 |
-| QA-07 | Expiration | Regression | 到期状态、搜索与事件 | 使用测试覆盖或隔离数据，避免等待真实时间 | 运行到期测试；必要时用隔离数据库触发相关请求 | 仅 active 记忆到期一次；变为 expired；默认搜索排除 | 待填写 | not-run | 待填写 | 不手改用户真实数据库 |
-| QA-08 | Failure UX | Smoke | 抽取失败提示 | 不改动用户密钥或正常配置 | 复核后端和前端已有错误路径；可引用自动化测试 | 失败信息清晰；不会创建已批准记忆 | 待填写 | not-run | 待填写 | 无安全方法验证时标记 blocked |
-| QA-09 | Responsive UI | Manual | Dashboard 桌面和移动端 | 后端与前端本地运行 | 浏览器检查 1280px 和 390px 下 proposals、memories、detail | 文字、操作、关联候选、时间线不溢出或重叠 | 待填写 | not-run | 待填写 | 记录截图路径或人工检查说明 |
-| QA-10 | Docs | Release-check | 文档与代码一致 | QA-01 至 QA-09 已执行或明确 blocked | 检查 README、architecture、demo-script、AGENTS | 已实现功能、端点、状态和演示叙事无过时描述 | 待填写 | not-run | 待填写 | 记录更新文件 |
+| QA-01 | Backend | Regression | 后端测试 | 依赖已安装 | `cd backend`; `python -m pytest -q` | 全部通过 | 12 passed in 4.91s | pass | 2026-07-10 本地命令输出 | 覆盖生命周期、抽取、替代、到期 |
+| QA-02 | Frontend | Build | 生产构建 | 依赖已安装 | `cd frontend`; `npm.cmd run build` | 构建、类型检查、静态页面生成通过 | Next.js 16.2.10 构建、类型检查和 4 个路由生成通过 | pass | 2026-07-10 本地命令输出；`/proposals`、`/memories` 静态，`/memories/[id]` 动态 | `npm.ps1` 受执行策略阻止，等价的 `npm.cmd` 成功 |
+| QA-03 | Extraction | Smoke | 真实模型抽取 | 后端使用安全本地 `.env` 启动；不可显示密钥 | 通过 `/proposals` 提交演示文本 | 生成 pending 提案；无自动批准 | 隔离数据库请求返回 HTTP 200、1 条 `pending` 提案 | pass | 2026-07-10 `POST /v1/proposals/extract`；仅记录状态、计数和状态值 | 未显示配置、密钥或模型响应内容 |
+| QA-04 | Review | E2E | 批准与拒绝 | 至少有两条 pending 提案 | 批准一条，拒绝一条 | 仅批准项创建 active memory；拒绝项不可搜索 | 批准项为 `active`（memory 尾段 `84dc1556`）；拒绝项为 `rejected`；批准搜索 1 条、拒绝搜索 0 条 | pass | 2026-07-10 隔离 API E2E 输出 | 未使用用户数据库 |
+| QA-05 | Retrieval | E2E | 搜索、解释与撤销 | 有一条 active memory | 搜索，进入详情，查看来源与事件，撤销后再次搜索 | 详情显示来源/理由/事件；撤销项从默认搜索消失 | explain 含 source、reason、1 个事件；撤销后状态为 `revoked`，默认搜索 0 条 | pass | 2026-07-10 隔离 API E2E 输出 | 验证记忆尾段 `84dc1556` |
+| QA-06 | Supersession | E2E | 相关记忆与受控替代 | 同项目、同类型有一条 active memory 和一条 pending 提案 | 加载相关记忆，选择旧记忆，批准并替代 | 新记忆 active；旧记忆 revoked；新旧详情可相互追溯 | 相关候选 1 条；新记忆 `active`（`03e06196`），旧记忆 `revoked`（`8cdfa207`）；双向链接存在；事件为 `approve,supersede` 与 `approve,superseded` | pass | 2026-07-10 隔离 API E2E 输出 | 候选由 API 按 actor/project/type 返回，替代由 reviewer 显式选择 |
+| QA-07 | Expiration | Regression | 到期状态、搜索与事件 | 使用测试覆盖或隔离数据，避免等待真实时间 | 运行到期测试；必要时用隔离数据库触发相关请求 | 仅 active 记忆到期一次；变为 expired；默认搜索排除 | 隔离记忆初始 `active`，到期后 `expired`（`8587cfe3`）；默认搜索 0 条，含 inactive 搜索显示 `expired`，`expire` 事件恰为 1 个 | pass | 2026-07-10 隔离 API E2E；QA-01 到期测试通过 | 到期通过相关请求刷新，不是后台定时任务 |
+| QA-08 | Failure UX | Smoke | 抽取失败提示 | 不改动用户密钥或正常配置 | 复核后端和前端已有错误路径；可引用自动化测试 | 失败信息清晰；不会创建已批准记忆 | 后端空消息和畸形模型输出测试通过（400/502）；前端 `request` 将 API detail 抛出，提案页显示错误且没有自动批准路径 | pass | `backend/tests/test_memory_lifecycle.py` 中相关测试；QA-01 通过 | 未改动正常模型配置以制造失败 |
+| QA-09 | Responsive UI | Manual | Dashboard 桌面和移动端 | 后端与前端本地运行 | 浏览器检查 1280px 和 390px 下 proposals、memories、detail | 文字、操作、关联候选、时间线不溢出或重叠 | 1280px 基础页面布局可见；390x844 下 sidebar 与 main 保持横向 flex，主内容被裁切并横向溢出 | fail | 2026-07-10 隔离本地浏览器截图；`frontend/app/layout.jsx:125,510` | 隔离前端在 3001 端口受 CORS 限制，无法加载动态 QA 数据；移动布局故障本身可复现且不依赖数据 |
+| QA-10 | Docs | Release-check | 文档与代码一致 | QA-01 至 QA-09 已执行或明确 blocked | 检查 README、architecture、demo-script、AGENTS | 已实现功能、端点、状态和演示叙事无过时描述 | README、architecture、demo-script、AGENTS 已同步替代、到期、审计与已知移动端限制 | pass | 2026-07-10 文档与 `backend/app/main.py`、`backend/app/services.py`、前端页面复核 | 未将相关候选描述为自动冲突裁决，也未将到期描述为后台任务 |
 
 ## 文档锁定要求
 
@@ -98,12 +98,22 @@ docs/undone-development-plan/bugtriage-20260710-01-<short-name>.md
 
 执行完成时，替换本文件中的“待填写”项，并在此处写入：
 
-```text
-结论：
-阻塞项：
-已创建 bug 卡：
-文档更新：
+结论：not-ready
+
+阻塞项：QA-09 为 P1 移动端横向溢出，阻塞竞赛演示录制与发布；详情、关联候选和时间线尚未能在 390px 下完整验证。
+
+已创建 bug 卡：`docs/undone-development-plan/bugtriage-20260710-01-mobile-layout.md`。
+
+文档更新：`README.md`、`docs/architecture.md`、`docs/demo-script.md`、`AGENTS.md` 已同步受控替代、可选到期、审计与请求驱动到期边界；demo script 已限制在缺陷关闭前使用桌面布局。
+
 下一步一键提示词：
+
+```text
+Read AGENTS.md and docs/undone-development-plan/bugtriage-20260710-01-mobile-layout.md.
+Fix only BUG-20260710-01 in frontend/app/layout.jsx. Do not change product APIs,
+dependencies, .env, databases, or unrelated styling. Run backend pytest, frontend
+build, and browser QA at 390px and 1280px with isolated data. Commit and push the
+focused fix, then hand off to QA regression.
 ```
 
 若有 bug，下一步提示词必须指向相应 bug 卡。若 `release-ready`，下一步提示词应要求执行截图、录制与最终 release-check，而不是新增功能。

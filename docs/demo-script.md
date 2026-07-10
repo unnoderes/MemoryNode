@@ -40,15 +40,21 @@ extract -> approve/reject -> search -> explain -> revoke
 10. Return to `/memories`, search again, and show the revoked memory no longer
     appears in default search.
 
+Do this segment on the desktop layout until the mobile QA issue is closed.
+
 ## 2:15-2:45 Architecture
 
 The dashboard is a thin Next.js client. It calls the FastAPI backend, which owns
 the lifecycle rules and audit trail. Qwen extraction proposes candidate memories,
 but SQLite remains the source of truth. SQLite FTS5 powers MVP search without a
-vector database.
+vector database. For an optional governance extension, load related memories
+for a pending decision, explicitly select the record being replaced, and show
+the two linked audit trails. An expiry can be pre-seeded and shown as an
+`expired` detail state; do not wait for an expiry during a live recording.
 
 ## 2:45-3:00 Closing
 
 MemoryNode makes agent memory auditable: every durable memory has source
 evidence, a review decision, search visibility, explanation, and revocation.
-Next steps are a thin Python SDK and a stronger hosted demo configuration.
+Supersession and expiry retain their audit trail rather than silently replacing
+or deleting past decisions.

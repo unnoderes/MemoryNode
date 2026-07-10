@@ -20,7 +20,10 @@ The MVP backend and dashboard are working, but the product is still visually and
   - search approved memory
   - explain memory with source and events
   - revoke memory
-- Basic Next.js dashboard, now translated to Chinese.
+  - reviewer-selected supersession with linked audit events
+  - optional expiry with request-driven transition to `expired`
+- Next.js dashboard, now translated to Chinese, including related-memory review
+  and optional expiry input.
 - Submission docs:
   - `docs/architecture.md`
   - `docs/demo-script.md`
@@ -28,8 +31,11 @@ The MVP backend and dashboard are working, but the product is still visually and
 ## Known Gaps
 
 - The dashboard is functional but too plain for a competitive submission.
-- No conflict detection yet.
-- No memory expiration UI yet.
+- There is no automatic semantic-conflict arbitration: related memories are
+  candidates for an explicit reviewer decision.
+- Expiry refresh is request-driven; there is no background scheduler.
+- Mobile layout has a release-blocking overflow issue tracked in
+  `docs/undone-development-plan/bugtriage-20260710-01-mobile-layout.md`.
 - No SDK, MCP adapter, hooks, auth, Docker, or deployment story yet.
 - Qwen Cloud quota is not approved yet; local testing currently uses a relay configured in `.env`.
 

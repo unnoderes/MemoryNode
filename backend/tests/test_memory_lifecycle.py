@@ -5,7 +5,7 @@ from pathlib import Path
 os.environ["MEMORYNODE_DB_PATH"] = str(Path(tempfile.mkdtemp()) / "test.db")
 
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
 
 from app.db import init_db, session_local
 from app.main import app
@@ -213,3 +213,100 @@ def test_qwen_responses_wire_parses_output_text(monkeypatch):
     assert calls[0]["body"]["model"] == "gpt-5.5"
     assert calls[0]["body"]["reasoning"] == {"effort": "medium"}
     assert proposals[0]["content"] == "Use Qwen Cloud."
+
+
+def create_proposal(client, content, **overrides):
+    payload = {
+        "actor_id": "demo-user",
+        "project_id": "memorynode-demo",
+        "content": content,
+        "type": "project_decision",
+    }
+    payload.update(overrides)
+    response = client.post("/v1/proposals", json=payload)
+    assert response.status_code == 200
+    return response.json()
+
+
+def test_related_memories_and_supervised_supersession():
+    with TestClient(app) as client:
+        previous_proposal = create_proposal(client, "The MVP backend uses SQLite.")
+        previous = client.post(f"/v1/proposals/{previous_proposal['id']}/approve").json()
+        replacement_proposal = create_proposal(client, "The MVP backend uses PostgreSQL.")
+
+        related = client.get(
+            f"/v1/proposals/{replacement_proposal['id']}/related-memories"
+        )
+        assert related.status_code == 200
+        assert [item["id"] for item in related.json()["memories"]] == [previous["id"]]
+
+        replacement = client.post(
+            f"/v1/proposals/{replacement_proposal['id']}/approve",
+            json={"actor_id": "reviewer", "note": "Database decision updated.", "supersede_memory_id": previous["id"]},
+        )
+        assert replacement.status_code == 200
+        assert replacement.json()["status"] == "active"
+        assert replacement.json()["supersedes_memory_id"] == previous["id"]
+
+        search = client.get("/v1/memories/search", params={"q": "backend"})
+        assert [item["id"] for item in search.json()["memories"]] == [replacement.json()["id"]]
+
+        new_detail = client.get(f"/v1/memories/{replacement.json()['id']}/explain").json()
+        old_detail = client.get(f"/v1/memories/{previous['id']}/explain").json()
+        assert new_detail["supersedes"]["id"] == previous["id"]
+        assert old_detail["superseded_by"]["id"] == replacement.json()["id"]
+        assert {event["event_type"] for event in new_detail["events"]} == {"approve", "supersede"}
+        assert old_detail["memory"]["status"] == "revoked"
+        assert [event["event_type"] for event in old_detail["events"]] == ["approve", "superseded"]
+
+
+def test_supersession_rejects_invalid_targets_and_normal_approval_has_no_relation():
+    with TestClient(app) as client:
+        normal_proposal = create_proposal(client, "A normal decision.")
+        normal = client.post(f"/v1/proposals/{normal_proposal['id']}/approve")
+        assert normal.status_code == 200
+        assert normal.json()["supersedes_memory_id"] is None
+
+        proposal = create_proposal(client, "A replacement decision.")
+        actor_target = create_proposal(client, "Other actor.", actor_id="other")
+        project_target = create_proposal(client, "Other project.", project_id="other-project")
+        type_target = create_proposal(client, "Other type.", type="fact")
+        inactive_target = create_proposal(client, "Inactive target.")
+        targets = [
+            client.post(f"/v1/proposals/{actor_target['id']}/approve").json(),
+            client.post(f"/v1/proposals/{project_target['id']}/approve").json(),
+            client.post(f"/v1/proposals/{type_target['id']}/approve").json(),
+            client.post(f"/v1/proposals/{inactive_target['id']}/approve").json(),
+            {"id": "mem_missing"},
+        ]
+        client.post(f"/v1/memories/{targets[3]['id']}/revoke")
+
+        for target in targets:
+            response = client.post(
+                f"/v1/proposals/{proposal['id']}/approve",
+                json={"supersede_memory_id": target["id"]},
+            )
+            assert response.status_code == 409
+
+
+def test_init_db_adds_supersedes_column_to_existing_database(monkeypatch, tmp_path):
+    old_db = tmp_path / "old.db"
+    old_engine = create_engine(f"sqlite:///{old_db}")
+    with old_engine.begin() as conn:
+        conn.execute(
+            text(
+                "CREATE TABLE memories ("
+                "id VARCHAR PRIMARY KEY, proposal_id VARCHAR NOT NULL, content TEXT NOT NULL, "
+                "type VARCHAR NOT NULL, status VARCHAR NOT NULL, expires_at DATETIME, "
+                "created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL)"
+            )
+        )
+
+    monkeypatch.setenv("MEMORYNODE_DB_PATH", str(old_db))
+    init_db()
+    db = session_local()
+    try:
+        columns = {row[1] for row in db.execute(text("PRAGMA table_info(memories)"))}
+        assert "supersedes_memory_id" in columns
+    finally:
+        db.close()

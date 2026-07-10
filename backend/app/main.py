@@ -19,6 +19,7 @@ from .services import (
     list_proposals,
     memory_dict,
     proposal_dict,
+    related_memories,
     reject_proposal,
     revoke_memory,
     search_memories,
@@ -67,6 +68,11 @@ def get_proposals(
     return {"proposals": [proposal_dict(item) for item in list_proposals(db, status)]}
 
 
+@app.get("/v1/proposals/{proposal_id}/related-memories")
+def get_related_memories(proposal_id: str, db: Session = Depends(get_db)):
+    return {"memories": [memory_dict(item) for item in related_memories(db, proposal_id)]}
+
+
 @app.post("/v1/proposals/{proposal_id}/approve")
 def post_approve(
     proposal_id: str,
@@ -74,7 +80,15 @@ def post_approve(
     db: Session = Depends(get_db),
 ):
     payload = payload or DecisionRequest()
-    return memory_dict(approve_proposal(db, proposal_id, payload.actor_id, payload.note))
+    return memory_dict(
+        approve_proposal(
+            db,
+            proposal_id,
+            payload.actor_id,
+            payload.note,
+            payload.supersede_memory_id,
+        )
+    )
 
 
 @app.post("/v1/proposals/{proposal_id}/reject")

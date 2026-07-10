@@ -38,11 +38,15 @@ export function listProposals(status = "pending") {
   return request(`/v1/proposals?status=${encodeURIComponent(status)}`);
 }
 
-export function approveProposal(id, actorId = "reviewer") {
+export function approveProposal(id, actorId = "reviewer", supersedeMemoryId = null) {
   return request(`/v1/proposals/${encodeURIComponent(id)}/approve`, {
     method: "POST",
-    body: JSON.stringify({ actor_id: actorId }),
+    body: JSON.stringify({ actor_id: actorId, supersede_memory_id: supersedeMemoryId }),
   });
+}
+
+export function relatedMemories(id) {
+  return request(`/v1/proposals/${encodeURIComponent(id)}/related-memories`);
 }
 
 export function rejectProposal(id, actorId = "reviewer") {

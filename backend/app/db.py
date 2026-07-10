@@ -32,6 +32,10 @@ def init_db():
     from . import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine())
+    with engine().begin() as conn:
+        columns = {row[1] for row in conn.execute(text("PRAGMA table_info(memories)"))}
+        if "supersedes_memory_id" not in columns:
+            conn.execute(text("ALTER TABLE memories ADD COLUMN supersedes_memory_id VARCHAR"))
     rebuild_fts()
 
 

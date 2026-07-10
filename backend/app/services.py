@@ -52,6 +52,7 @@ def memory_dict(memory, score: Optional[float] = None):
     data = {
         "id": memory.id,
         "proposal_id": memory.proposal_id,
+        "supersedes_memory_id": memory.supersedes_memory_id,
         "content": memory.content,
         "type": memory.type,
         "status": memory.status,
@@ -180,10 +181,33 @@ def list_proposals(db: Session, status: Optional[str] = None):
     return query.all()
 
 
-def approve_proposal(db: Session, proposal_id: str, actor_id: str, note: Optional[str]):
+def approve_proposal(
+    db: Session,
+    proposal_id: str,
+    actor_id: str,
+    note: Optional[str],
+    supersede_memory_id: Optional[str] = None,
+):
     proposal = get_proposal(db, proposal_id)
     if proposal.status != "pending":
         conflict("only pending proposals can be approved")
+
+    previous = None
+    if supersede_memory_id:
+        previous = db.query(models.Memory).get(supersede_memory_id)
+        if previous is None or previous.status != "active":
+            conflict("supersession target must be an active memory")
+        source = db.query(models.MemorySource).get(proposal.source_id)
+        previous_proposal = get_proposal(db, previous.proposal_id)
+        previous_source = db.query(models.MemorySource).get(previous_proposal.source_id)
+        if source is None or previous_source is None:
+            not_found("source")
+        if (
+            source.actor_id != previous_source.actor_id
+            or source.project_id != previous_source.project_id
+            or proposal.type != previous.type
+        ):
+            conflict("supersession target must match proposal actor, project, and type")
 
     proposal.status = "approved"
     proposal.decided_at = models.now()
@@ -193,6 +217,7 @@ def approve_proposal(db: Session, proposal_id: str, actor_id: str, note: Optiona
         proposal_id=proposal.id,
         content=proposal.content,
         type=proposal.type,
+        supersedes_memory_id=supersede_memory_id,
     )
     event = models.MemoryEvent(
         memory_id=memory_id,
@@ -201,9 +226,35 @@ def approve_proposal(db: Session, proposal_id: str, actor_id: str, note: Optiona
         actor_id=actor_id,
         note=note,
     )
-    db.add_all([memory, event])
+    changes = [memory, event]
+    if previous:
+        previous.status = "revoked"
+        previous.updated_at = models.now()
+        changes.extend(
+            [
+                models.MemoryEvent(
+                    memory_id=memory_id,
+                    proposal_id=proposal.id,
+                    event_type="supersede",
+                    actor_id=actor_id,
+                    note=note,
+                ),
+                models.MemoryEvent(
+                    memory_id=previous.id,
+                    proposal_id=previous.proposal_id,
+                    event_type="superseded",
+                    actor_id=actor_id,
+                    note=note,
+                ),
+            ]
+        )
+    db.add_all(changes)
     sync_memory_fts(db, memory_id, memory.content)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(memory)
     return memory
 
@@ -271,6 +322,27 @@ def search_memories(db: Session, q: str, include_inactive: bool = False):
     return results
 
 
+def related_memories(db: Session, proposal_id: str):
+    proposal = get_proposal(db, proposal_id)
+    source = db.query(models.MemorySource).get(proposal.source_id)
+    if source is None:
+        not_found("source")
+    # ponytail: scans active project memories; add ranked retrieval only when memory volume needs it.
+    return (
+        db.query(models.Memory)
+        .join(models.MemoryProposal, models.Memory.proposal_id == models.MemoryProposal.id)
+        .join(models.MemorySource, models.MemoryProposal.source_id == models.MemorySource.id)
+        .filter(
+            models.Memory.status == "active",
+            models.Memory.type == proposal.type,
+            models.MemorySource.actor_id == source.actor_id,
+            models.MemorySource.project_id == source.project_id,
+        )
+        .order_by(models.Memory.created_at.desc())
+        .all()
+    )
+
+
 def revoke_memory(db: Session, memory_id: str, actor_id: str, note: Optional[str]):
     memory = get_memory(db, memory_id)
     if memory.status != "active":
@@ -308,9 +380,21 @@ def explain_memory(db: Session, memory_id: str):
         .order_by(models.MemoryEvent.created_at.asc())
         .all()
     )
+    supersedes = (
+        db.query(models.Memory).get(memory.supersedes_memory_id)
+        if memory.supersedes_memory_id
+        else None
+    )
+    superseded_by = (
+        db.query(models.Memory)
+        .filter(models.Memory.supersedes_memory_id == memory.id)
+        .first()
+    )
     return {
         "source": source_dict(source),
         "proposal": proposal_dict(proposal),
         "memory": memory_dict(memory),
         "events": [event_dict(event) for event in events],
+        "supersedes": memory_dict(supersedes) if supersedes else None,
+        "superseded_by": memory_dict(superseded_by) if superseded_by else None,
     }

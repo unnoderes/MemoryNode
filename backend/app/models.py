@@ -50,6 +50,7 @@ class Memory(Base):
 
     id = Column(String, primary_key=True, default=lambda: new_id("mem"))
     proposal_id = Column(String, ForeignKey("memory_proposals.id"), nullable=False)
+    supersedes_memory_id = Column(String, ForeignKey("memories.id"), nullable=True)
     content = Column(Text, nullable=False)
     type = Column(String, nullable=False)
     status = Column(String, nullable=False, default="active")

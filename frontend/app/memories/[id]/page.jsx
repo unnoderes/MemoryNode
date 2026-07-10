@@ -24,6 +24,8 @@ const EVENT_LABELS = {
   approve: "核准批准",
   reject: "安全拒绝",
   revoke: "人工撤销",
+  supersede: "替代旧记忆",
+  superseded: "已被替代",
 };
 
 export default function MemoryDetailPage() {
@@ -120,6 +122,21 @@ export default function MemoryDetailPage() {
               </button>
             ) : null}
           </div>
+
+          {detail.supersedes || detail.superseded_by ? (
+            <div className="supersession-links">
+              {detail.supersedes ? (
+                <span>
+                  替代自 <Link href={`/memories/${detail.supersedes.id}`}>{detail.supersedes.content}</Link>
+                </span>
+              ) : null}
+              {detail.superseded_by ? (
+                <span>
+                  已被替代 <Link href={`/memories/${detail.superseded_by.id}`}>{detail.superseded_by.content}</Link>
+                </span>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="detail-layout">
             {/* Left Column: Dossier Details */}
@@ -281,6 +298,22 @@ export default function MemoryDetailPage() {
           grid-template-columns: 1.4fr 1fr;
           gap: 32px;
           align-items: start;
+        }
+
+        .supersession-links {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 16px;
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          padding: 12px 16px;
+          color: var(--text-secondary);
+          font-size: 13px;
+        }
+
+        .supersession-links a {
+          color: var(--color-primary);
+          overflow-wrap: anywhere;
         }
 
         .dossier-column {

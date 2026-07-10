@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   approveProposal,
   extractProposals,
   listProposals,
+  relatedMemories,
   rejectProposal,
 } from "../../lib/api";
 
@@ -27,6 +29,9 @@ export default function ProposalsPage() {
   const [transcript, setTranscript] = useState(DEMO_TRANSCRIPT);
   const [proposals, setProposals] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [relatedByProposal, setRelatedByProposal] = useState({});
+  const [relatedLoading, setRelatedLoading] = useState({});
+  const [supersedeByProposal, setSupersedeByProposal] = useState({});
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -65,6 +70,19 @@ export default function ProposalsPage() {
       setMessage(`已成功从输入记录中抽取并生成 ${(body.proposals || []).length} 条待审核提案。`);
       setTranscript("");
     });
+  }
+
+  async function loadRelated(proposalId) {
+    setError("");
+    setRelatedLoading((current) => ({ ...current, [proposalId]: true }));
+    try {
+      const body = await relatedMemories(proposalId);
+      setRelatedByProposal((current) => ({ ...current, [proposalId]: body.memories || [] }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRelatedLoading((current) => ({ ...current, [proposalId]: false }));
+    }
   }
 
   return (
@@ -140,12 +158,55 @@ export default function ProposalsPage() {
                   </div>
                 ) : null}
 
+                <div className="related-review">
+                  {relatedByProposal[proposal.id] === undefined ? (
+                    <button
+                      className="secondary"
+                      disabled={busy || relatedLoading[proposal.id]}
+                      onClick={() => loadRelated(proposal.id)}
+                    >
+                      {relatedLoading[proposal.id] ? "正在加载相关记忆..." : "查看相关记忆"}
+                    </button>
+                  ) : relatedByProposal[proposal.id].length === 0 ? (
+                    <p className="muted">没有同项目、同类型的有效记忆候选。</p>
+                  ) : (
+                    <fieldset className="related-list">
+                      <legend>相关记忆候选</legend>
+                      {relatedByProposal[proposal.id].map((memory) => (
+                        <label className="related-memory" key={memory.id}>
+                          <input
+                            type="radio"
+                            name={`supersede-${proposal.id}`}
+                            checked={supersedeByProposal[proposal.id] === memory.id}
+                            onChange={() => setSupersedeByProposal((current) => ({
+                              ...current,
+                              [proposal.id]: memory.id,
+                            }))}
+                          />
+                          <span className="related-memory-body">
+                            <span>{memory.content}</span>
+                            <small>{MEMORY_TYPE_LABELS[memory.type] || memory.type} · {memory.status} · {memory.created_at}</small>
+                          </span>
+                          <Link href={`/memories/${memory.id}`} className="related-detail-link">详情</Link>
+                        </label>
+                      ))}
+                    </fieldset>
+                  )}
+                </div>
+
                 <div className="proposal-actions">
-                  <button disabled={busy} onClick={() => run(() => approveProposal(proposal.id))}>
+                  <button
+                    disabled={busy}
+                    onClick={() => run(() => approveProposal(
+                      proposal.id,
+                      "reviewer",
+                      supersedeByProposal[proposal.id],
+                    ))}
+                  >
                     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
-                    核准入库
+                    {supersedeByProposal[proposal.id] ? "批准并替代" : "批准"}
                   </button>
                   <button
                     className="secondary"
@@ -324,12 +385,75 @@ export default function ProposalsPage() {
           padding-top: 16px;
         }
 
+        .related-review {
+          border-top: 1px solid var(--border-color);
+          padding-top: 16px;
+        }
+
+        .related-list {
+          border: 0;
+          padding: 0;
+          margin: 0;
+          display: grid;
+          gap: 8px;
+        }
+
+        .related-list legend {
+          color: var(--text-secondary);
+          font-size: 12px;
+          font-weight: 700;
+          margin-bottom: 8px;
+        }
+
+        .related-memory {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          align-items: start;
+          gap: 10px;
+          border: 1px solid var(--border-color);
+          border-radius: 6px;
+          padding: 10px;
+          cursor: pointer;
+        }
+
+        .related-memory input {
+          margin-top: 3px;
+        }
+
+        .related-memory-body {
+          display: grid;
+          gap: 4px;
+          min-width: 0;
+          overflow-wrap: anywhere;
+          font-size: 13px;
+        }
+
+        .related-memory small {
+          color: var(--text-muted);
+          font-size: 11px;
+        }
+
+        .related-detail-link {
+          color: var(--color-primary);
+          font-size: 12px;
+          white-space: nowrap;
+        }
+
         @media (max-width: 1024px) {
           .proposals-layout {
             grid-template-columns: 1fr;
           }
           .proposals-sidebar {
             position: static;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .related-memory {
+            grid-template-columns: auto minmax(0, 1fr);
+          }
+          .related-detail-link {
+            grid-column: 2;
           }
         }
       `}</style>

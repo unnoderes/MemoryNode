@@ -138,7 +138,7 @@ export default function MemoriesPage() {
           </label>
           <div className="search-bar-row">
             <div className="input-with-icon">
-              <svg className="input-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <svg className="input-search-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
@@ -165,7 +165,7 @@ export default function MemoriesPage() {
         </form>
 
         <div className="search-info-tip">
-          <svg className="tip-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <svg className="tip-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span>默认配置下，安全检索仅返回当前<strong>生效中 (Active)</strong>的记忆。已到期、已替换或撤销的记忆对大模型推理不可见，可通过 UUID 进入详情页审计。</span>
@@ -198,7 +198,7 @@ export default function MemoriesPage() {
 
           {!searched ? (
             <div className="empty-workbench-state">
-              <svg className="workbench-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
+              <svg className="workbench-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <h3>长期记忆库检索准备就绪</h3>
@@ -208,7 +208,7 @@ export default function MemoriesPage() {
             </div>
           ) : memories.length === 0 ? (
             <div className="empty-workbench-state">
-              <svg className="workbench-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
+              <svg className="workbench-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <h3>未找到匹配的记忆记录</h3>
@@ -333,7 +333,7 @@ export default function MemoriesPage() {
             </div>
           ) : (
             <div className="empty-audit-detail">
-              <svg className="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
+              <svg className="empty-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <h3>待选定记忆审计</h3>
@@ -429,8 +429,16 @@ export default function MemoriesPage() {
         }
 
         .tip-icon {
+          width: 18px;
+          height: 18px;
           color: var(--color-accent);
           flex-shrink: 0;
+        }
+        .empty-icon {
+          width: 48px;
+          height: 48px;
+          color: var(--text-muted);
+          opacity: 0.4;
         }
 
         .search-suggestions {

@@ -289,20 +289,20 @@ export default function MemoryDetailPage() {
         }
 
         .banner-active {
-          background: rgba(16, 185, 129, 0.04);
-          border: 1px solid rgba(16, 185, 129, 0.2);
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.2);
           color: var(--color-primary-hover);
         }
 
         .banner-revoked {
-          background: rgba(244, 63, 94, 0.04);
-          border: 1px solid rgba(244, 63, 94, 0.2);
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.12);
           color: var(--color-danger-hover);
         }
 
         .banner-expired {
-          background: rgba(148, 163, 184, 0.04);
-          border: 1px solid rgba(148, 163, 184, 0.2);
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.12);
           color: var(--text-secondary);
         }
 
@@ -323,17 +323,17 @@ export default function MemoryDetailPage() {
         }
 
         .icon-box-active {
-          background: rgba(16, 185, 129, 0.1);
+          background: rgba(255, 255, 255, 0.1);
           color: var(--color-primary);
         }
 
         .icon-box-revoked {
-          background: rgba(244, 63, 94, 0.1);
+          background: rgba(255, 255, 255, 0.08);
           color: var(--color-danger);
         }
 
         .icon-box-expired {
-          background: rgba(148, 163, 184, 0.1);
+          background: rgba(255, 255, 255, 0.06);
           color: var(--text-muted);
         }
 
@@ -376,16 +376,16 @@ export default function MemoryDetailPage() {
           font-weight: 700;
           padding: 2px 8px;
           border-radius: 4px;
-          background: rgba(6, 182, 212, 0.08);
+          background: rgba(255, 255, 255, 0.06);
           color: var(--color-accent-hover);
-          border: 1px solid rgba(6, 182, 212, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.15);
           text-transform: uppercase;
         }
 
         .supersede-badge.superseded-by {
-          background: rgba(245, 158, 11, 0.08);
-          color: #fbbf24;
-          border: 1px solid rgba(245, 158, 11, 0.2);
+          background: rgba(255, 255, 255, 0.04);
+          color: #a3a3a3;
+          border: 1px solid rgba(255, 255, 255, 0.12);
         }
 
         .supersede-link-item a {
@@ -500,7 +500,7 @@ export default function MemoryDetailPage() {
         }
 
         .source-quote {
-          background: #050813;
+          background: #0a0a0a;
           border-left: 3px solid var(--color-accent);
           border-radius: 0 8px 8px 0;
           font-size: 13.5px;
@@ -571,12 +571,12 @@ export default function MemoryDetailPage() {
 
         .timeline-dot.dot-approve {
           background: var(--color-primary);
-          box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+          box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
         }
 
         .timeline-dot.dot-revoke {
           background: var(--color-danger);
-          box-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
+          box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
         }
 
         .timeline-dot.dot-reject {
@@ -617,22 +617,22 @@ export default function MemoryDetailPage() {
         }
 
         .badge-event-approve {
-          background: rgba(16, 185, 129, 0.15);
+          background: rgba(255, 255, 255, 0.12);
           color: var(--color-primary-hover);
         }
 
         .badge-event-revoke {
-          background: rgba(244, 63, 94, 0.15);
+          background: rgba(255, 255, 255, 0.1);
           color: var(--color-danger-hover);
         }
 
         .badge-event-reject {
-          background: rgba(148, 163, 184, 0.15);
+          background: rgba(255, 255, 255, 0.08);
           color: #cbd5e1;
         }
 
         .badge-event-expire {
-          background: rgba(148, 163, 184, 0.15);
+          background: rgba(255, 255, 255, 0.08);
           color: var(--text-muted);
         }
 

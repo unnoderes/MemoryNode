@@ -373,8 +373,8 @@ export default function MemoriesPage() {
           color: var(--color-accent);
           font-weight: 700;
           letter-spacing: 0.05em;
-          background: rgba(6, 182, 212, 0.08);
-          border: 1px solid rgba(6, 182, 212, 0.2);
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.15);
           padding: 2px 8px;
           border-radius: 4px;
         }
@@ -407,7 +407,7 @@ export default function MemoriesPage() {
 
         .btn-search {
           background: var(--color-accent);
-          color: #050814;
+          color: #0a0a0a;
         }
 
         .btn-search:hover {
@@ -461,8 +461,8 @@ export default function MemoriesPage() {
         }
 
         .suggestion-tag:hover {
-          background: rgba(6, 182, 212, 0.08);
-          border-color: rgba(6, 182, 212, 0.3);
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(255, 255, 255, 0.2);
           color: var(--color-accent-hover);
         }
 
@@ -502,7 +502,7 @@ export default function MemoriesPage() {
 
         .compact-memory-item.selected {
           border-color: var(--color-accent);
-          background: rgba(6, 182, 212, 0.05);
+          background: rgba(255, 255, 255, 0.05);
           box-shadow: inset 0 0 10px rgba(6, 182, 212, 0.03);
         }
 
@@ -517,8 +517,8 @@ export default function MemoriesPage() {
           font-size: 10px;
           font-weight: 700;
           color: var(--color-accent-hover);
-          background: rgba(6, 182, 212, 0.08);
-          border: 1px solid rgba(6, 182, 212, 0.2);
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.15);
           padding: 1px 6px;
           border-radius: 4px;
         }
@@ -655,7 +655,7 @@ export default function MemoriesPage() {
         }
 
         .source-quote {
-          background: #050813;
+          background: #0a0a0a;
           border-left: 3px solid var(--color-accent);
           border-radius: 0 8px 8px 0;
           font-size: 13px;
@@ -681,22 +681,22 @@ export default function MemoriesPage() {
         }
 
         .badge-event-approve {
-          background: rgba(16, 185, 129, 0.15);
+          background: rgba(255, 255, 255, 0.12);
           color: var(--color-primary-hover);
         }
 
         .badge-event-revoke {
-          background: rgba(244, 63, 94, 0.15);
+          background: rgba(255, 255, 255, 0.1);
           color: var(--color-danger-hover);
         }
 
         .badge-event-reject {
-          background: rgba(148, 163, 184, 0.15);
+          background: rgba(255, 255, 255, 0.08);
           color: #cbd5e1;
         }
 
         .badge-event-expire {
-          background: rgba(148, 163, 184, 0.15);
+          background: rgba(255, 255, 255, 0.08);
           color: var(--text-muted);
         }
 

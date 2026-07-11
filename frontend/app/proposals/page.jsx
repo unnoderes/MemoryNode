@@ -121,7 +121,7 @@ export default function ProposalsPage() {
           </svg>
         </div>
         <div>
-          <h4 style={{ fontWeight: 700, marginBottom: '4px', color: '#a5f3fc' }}>可信记忆准入屏障 (Human-in-the-Loop Barrier)</h4>
+          <h4 style={{ fontWeight: 700, marginBottom: '4px', color: '#ffffff' }}>可信记忆准入屏障 (Human-in-the-Loop Barrier)</h4>
           <p style={{ fontSize: '13px', opacity: 0.95, lineHeight: '1.5' }}>
             AI 代理无法直接写入长期记忆库。所有提取的内容默认为<strong>隔离的临时拟案 (Proposals)</strong>，必须经由人类审计员审核授权后，方能转化为有效的<strong>长期认知资产</strong>。
           </p>
@@ -403,7 +403,7 @@ export default function ProposalsPage() {
         }
 
         .extractor-toggle-btn:hover {
-          background: rgba(6, 182, 212, 0.05);
+          background: rgba(255, 255, 255, 0.05);
           color: var(--color-accent-hover);
           box-shadow: none;
           transform: none;
@@ -459,7 +459,7 @@ export default function ProposalsPage() {
 
         .compact-proposal-item.selected {
           border-color: var(--color-accent);
-          background: rgba(6, 182, 212, 0.05);
+          background: rgba(255, 255, 255, 0.05);
           box-shadow: inset 0 0 10px rgba(6, 182, 212, 0.03);
         }
 
@@ -474,8 +474,8 @@ export default function ProposalsPage() {
           font-size: 10px;
           font-weight: 700;
           color: var(--color-accent-hover);
-          background: rgba(6, 182, 212, 0.08);
-          border: 1px solid rgba(6, 182, 212, 0.2);
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.15);
           padding: 1px 6px;
           border-radius: 4px;
         }
@@ -573,7 +573,7 @@ export default function ProposalsPage() {
         }
 
         .source-quote {
-          background: #050813;
+          background: #0a0a0a;
           border-left: 3px solid var(--color-accent);
           border-radius: 0 8px 8px 0;
           font-size: 13.5px;
@@ -629,8 +629,8 @@ export default function ProposalsPage() {
         }
 
         .related-memory.selected {
-          border-color: rgba(16, 185, 129, 0.3);
-          background: rgba(16, 185, 129, 0.04);
+          border-color: rgba(255, 255, 255, 0.25);
+          background: rgba(255, 255, 255, 0.08);
         }
 
         .related-memory input {
@@ -719,12 +719,12 @@ export default function ProposalsPage() {
 
         .btn-approve {
           background: var(--color-primary);
-          color: #050814;
+          color: #0a0a0a;
         }
 
         .btn-approve:hover {
           background: var(--color-primary-hover);
-          box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);
+          box-shadow: 0 4px 15px rgba(255, 255, 255, 0.15);
         }
 
         .btn-reject {
@@ -735,7 +735,7 @@ export default function ProposalsPage() {
         .btn-reject:hover {
           color: #ffffff;
           border-color: var(--color-danger);
-          background: rgba(244, 63, 94, 0.08);
+          background: rgba(255, 255, 255, 0.05);
           box-shadow: none;
         }
 
@@ -755,7 +755,7 @@ export default function ProposalsPage() {
         }
 
         .banner-icon-container {
-          background: rgba(6, 182, 212, 0.1);
+          background: rgba(255, 255, 255, 0.08);
           border-radius: 8px;
           padding: 8px;
           display: flex;

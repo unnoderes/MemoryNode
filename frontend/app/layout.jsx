@@ -84,35 +84,35 @@ export default function RootLayout({ children }) {
 
         <style>{`
           :root {
-            --bg-main: #050814;
-            --bg-card: #0b1126;
-            --bg-sidebar: #070b1a;
-            --border-color: #1b2640;
-            --border-color-hover: #31426e;
+            --bg-main: #0a0a0a;
+            --bg-card: #161616;
+            --bg-sidebar: #0f0f0f;
+            --border-color: #262626;
+            --border-color-hover: #404040;
 
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
+            --text-primary: #f5f5f5;
+            --text-secondary: #a3a3a3;
+            --text-muted: #737373;
 
-            --color-primary: #10b981; /* Emerald Green */
-            --color-primary-hover: #34d399;
-            --color-primary-glow: rgba(16, 185, 129, 0.12);
+            --color-primary: #ffffff; /* Monochrome White */
+            --color-primary-hover: #e5e5e5;
+            --color-primary-glow: rgba(255, 255, 255, 0.08);
 
-            --color-accent: #06b6d4; /* Cyan */
-            --color-accent-hover: #22d3ee;
-            --color-accent-glow: rgba(6, 182, 212, 0.12);
+            --color-accent: #ffffff; /* Monochrome Accent */
+            --color-accent-hover: #e5e5e5;
+            --color-accent-glow: rgba(255, 255, 255, 0.08);
 
-            --color-danger: #f43f5e; /* Coral Red */
-            --color-danger-hover: #fb7185;
-            --color-danger-glow: rgba(244, 63, 94, 0.12);
+            --color-danger: #d4d4d4; /* Grayscale Danger */
+            --color-danger-hover: #ffffff;
+            --color-danger-glow: rgba(255, 255, 255, 0.08);
 
-            --color-warning: #f59e0b; /* Amber */
-            --color-warning-glow: rgba(245, 158, 11, 0.12);
+            --color-warning: #a3a3a3; /* Grayscale Warning */
+            --color-warning-glow: rgba(255, 255, 255, 0.08);
 
-            --color-info: #3b82f6;
+            --color-info: #737373;
 
-            --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
-            --card-shadow-hover: 0 12px 30px -4px rgba(0, 0, 0, 0.5), 0 0 15px 0 rgba(6, 182, 212, 0.05);
+            --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6);
+            --card-shadow-hover: 0 12px 30px -4px rgba(0, 0, 0, 0.8), 0 0 15px 0 rgba(255, 255, 255, 0.02);
           }
 
           * {
@@ -122,7 +122,7 @@ export default function RootLayout({ children }) {
           }
 
           body {
-            background: radial-gradient(circle at 80% 20%, #0d1730 0%, #050814 60%);
+            background: radial-gradient(circle at 80% 20%, #171717 0%, #0a0a0a 60%);
             color: var(--text-primary);
             font-family: 'Plus Jakarta Sans', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
             -webkit-font-smoothing: antialiased;
@@ -146,14 +146,14 @@ export default function RootLayout({ children }) {
             height: 6px;
           }
           ::-webkit-scrollbar-track {
-            background: #050814;
+            background: #0a0a0a;
           }
           ::-webkit-scrollbar-thumb {
-            background: #1b2640;
+            background: #262626;
             border-radius: 4px;
           }
           ::-webkit-scrollbar-thumb:hover {
-            background: #31426e;
+            background: #404040;
           }
 
           /* Layout structure */
@@ -231,7 +231,7 @@ export default function RootLayout({ children }) {
             font-weight: 800;
             color: var(--text-primary);
             letter-spacing: -0.03em;
-            background: linear-gradient(135deg, #ffffff 0%, #a5f3fc 100%);
+            background: linear-gradient(135deg, #ffffff 0%, #a3a3a3 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
           }
@@ -249,7 +249,7 @@ export default function RootLayout({ children }) {
             transition: all 0.3s ease;
           }
           .narrative-widget:hover {
-            border-color: rgba(6, 182, 212, 0.15);
+            border-color: rgba(255, 255, 255, 0.1);
             background: rgba(255, 255, 255, 0.025);
           }
           .widget-title {
@@ -268,8 +268,8 @@ export default function RootLayout({ children }) {
           .step-num {
             width: 18px;
             height: 18px;
-            background: rgba(6, 182, 212, 0.1);
-            border: 1px solid rgba(6, 182, 212, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             color: var(--color-accent-hover);
             border-radius: 50%;
             display: flex;
@@ -319,8 +319,8 @@ export default function RootLayout({ children }) {
           .nav-item.active {
             color: var(--text-primary);
             background-color: rgba(6, 182, 212, 0.06);
-            border: 1px solid rgba(6, 182, 212, 0.15);
-            box-shadow: inset 0 0 12px rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.05);
           }
           .nav-icon {
             width: 18px;
@@ -381,12 +381,12 @@ export default function RootLayout({ children }) {
             padding: 10px 20px;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             background: var(--color-primary);
-            color: #04120c;
+            color: #000000;
           }
           button:hover {
             background: var(--color-primary-hover);
             transform: translateY(-1px);
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.15);
           }
           button:active {
             transform: translateY(0);
@@ -412,11 +412,11 @@ export default function RootLayout({ children }) {
 
           button.danger {
             background: var(--color-danger);
-            color: #ffffff;
+            color: #000000;
           }
           button.danger:hover {
             background: var(--color-danger-hover);
-            box-shadow: 0 4px 15px rgba(244, 63, 94, 0.25);
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.12);
           }
 
           /* Forms & inputs */
@@ -432,7 +432,7 @@ export default function RootLayout({ children }) {
           }
 
           input, textarea, select {
-            background: #080c18;
+            background: #121212;
             border: 1px solid var(--border-color);
             border-radius: 8px;
             color: var(--text-primary);
@@ -443,7 +443,7 @@ export default function RootLayout({ children }) {
           input:focus, textarea:focus, select:focus {
             border-color: var(--color-accent);
             box-shadow: 0 0 0 3px var(--color-accent-glow);
-            background: #090e1f;
+            background: #161616;
           }
           input::placeholder, textarea::placeholder {
             color: var(--text-muted);
@@ -533,7 +533,7 @@ export default function RootLayout({ children }) {
           }
 
           .pre {
-            background: #060913;
+            background: #0a0a0a;
             border: 1px solid rgba(255, 255, 255, 0.03);
             border-radius: 8px;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -557,24 +557,24 @@ export default function RootLayout({ children }) {
             text-transform: uppercase;
           }
           .badge-pending {
-            background: rgba(245, 158, 11, 0.08);
-            color: #fbbf24;
-            border: 1px solid rgba(245, 158, 11, 0.2);
+            background: rgba(255, 255, 255, 0.04);
+            color: #a3a3a3;
+            border: 1px solid rgba(255, 255, 255, 0.1);
           }
           .badge-active {
-            background: rgba(16, 185, 129, 0.08);
-            color: var(--color-primary-hover);
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
           }
           .badge-revoked {
-            background: rgba(244, 63, 94, 0.08);
-            color: var(--color-danger-hover);
-            border: 1px solid rgba(244, 63, 94, 0.2);
+            background: rgba(255, 255, 255, 0.02);
+            color: #737373;
+            border: 1px solid rgba(255, 255, 255, 0.05);
           }
           .badge-expired {
-            background: rgba(100, 116, 139, 0.08);
-            color: #94a3b8;
-            border: 1px solid rgba(100, 116, 139, 0.2);
+            background: rgba(255, 255, 255, 0.03);
+            color: #888888;
+            border: 1px solid rgba(255, 255, 255, 0.08);
           }
 
           /* Notifications / Banners */
@@ -590,21 +590,21 @@ export default function RootLayout({ children }) {
           }
 
           .notice {
-            background: rgba(16, 185, 129, 0.05);
-            border: 1px solid rgba(16, 185, 129, 0.15);
-            color: var(--color-primary-hover);
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
           }
 
           .error {
-            background: rgba(244, 63, 94, 0.05);
-            border: 1px solid rgba(244, 63, 94, 0.15);
-            color: var(--color-danger-hover);
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #d4d4d4;
           }
 
           .governance-banner {
-            background: rgba(6, 182, 212, 0.04);
-            border: 1px solid rgba(6, 182, 212, 0.15);
-            color: #a5f3fc;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
           }
 
           .empty {

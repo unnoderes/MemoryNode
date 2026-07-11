@@ -119,6 +119,15 @@ node_modules, or .next. Record only observed evidence and stop if any release bl
 
 若有 bug，下一步提示词必须指向相应 bug 卡。若 `release-ready`，下一步提示词应要求执行截图、录制与最终 release-check，而不是新增功能。
 
+## 最终发布检查（2026-07-11）
+
+- 结论：`release-ready`，未观察到发布阻塞项。
+- 后端：`12 passed in 3.52s`。
+- 前端：Next.js 16.2.10 生产构建、类型检查和 4 个路由生成通过。
+- 截图：使用隔离 SQLite 演示数据，在 390x844 与 1280x844 下记录 `/proposals`、`/memories`、`/memories/[id]`；捕获前检查均无横向文档溢出。
+- 录制：`docs/demo-assets/final-20260711/approved-demo-flow.mp4`，H.264、1280x720、20 秒、600 帧；依次记录待审核提案、已批准检索结果、解释与审计、撤销状态、撤销后默认检索无结果。
+- 隐私：产物仅含合成演示内容，未包含 `.env`、API key、数据库、缓存、`node_modules` 或 `.next`。
+
 ## 提交与推送
 
 本任务产生的 QA 报告、bug 卡和文档更新通过验证后使用一个 coherent commit：

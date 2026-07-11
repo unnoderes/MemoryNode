@@ -78,7 +78,7 @@ export default function MemoryDetailPage() {
             </svg>
             <span>返回记忆库</span>
           </Link>
-          <h1 style={{ marginTop: '8px' }}>可信记忆审计与归档</h1>
+          <h1 style={{ marginTop: '12px' }}>可信记忆审计流水档案</h1>
         </div>
       </header>
 
@@ -86,7 +86,7 @@ export default function MemoryDetailPage() {
 
       {!detail && !error ? (
         <div className="empty" style={{ padding: '60px 0' }}>
-          <svg className="animate-spin empty-icon" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite', color: 'var(--color-primary)' }}>
+          <svg className="animate-spin empty-icon" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite', color: 'var(--color-accent)' }}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
           <span style={{ marginTop: '12px' }}>正在加载记忆档案与可信审计追踪...</span>
@@ -98,32 +98,36 @@ export default function MemoryDetailPage() {
           {/* Top Status & Operation Panel */}
           <div className={`status-banner-card banner-${memory.status}`}>
             <div className="banner-text-wrapper">
-              <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                {memory.status === 'active' ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                )}
-              </svg>
+              <div className={`banner-status-icon-box icon-box-${memory.status}`}>
+                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  {memory.status === 'active' ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  ) : memory.status === 'revoked' ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  )}
+                </svg>
+              </div>
               <div>
                 <span className="banner-title">
-                  当前记忆状态: {STATUS_LABELS[memory.status] || memory.status}
+                  记忆当前状态: {STATUS_LABELS[memory.status] || memory.status}
                 </span>
-                <p style={{ fontSize: '13px', opacity: 0.8, marginTop: '2px' }}>
+                <p style={{ fontSize: '13px', opacity: 0.9, marginTop: '4px', lineHeight: '1.4' }}>
                   {memory.status === 'active'
                     ? "该记忆体目前在系统中为生效活跃状态，对大语言模型上下文检索可见并作为运行约束。"
                     : memory.status === 'revoked'
                     ? "该记忆体已被人工撤销，已对外部 API 及推理屏蔽。审计日志及历史记录已归档以备合规性核验。"
-                    : "该记忆已到期，不再在大语言模型推理中激活。"}
+                    : "该记忆已到期，不再在大语言模型推理中激活，当前仅留作合规审计。"}
                 </p>
               </div>
             </div>
             {memory.status === "active" ? (
-              <button className="danger" disabled={busy} onClick={onRevoke}>
+              <button className="danger btn-revoke-action" disabled={busy} onClick={onRevoke}>
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                 </svg>
-                {busy ? "正在撤销..." : "撤销此记忆"}
+                {busy ? "正在撤销..." : "撤销此条记忆"}
               </button>
             ) : null}
           </div>
@@ -131,14 +135,22 @@ export default function MemoryDetailPage() {
           {detail.supersedes || detail.superseded_by ? (
             <div className="supersession-links">
               {detail.supersedes ? (
-                <span>
-                  替代自 <Link href={`/memories/${detail.supersedes.id}`}>{detail.supersedes.content}</Link>
-                </span>
+                <div className="supersede-link-item">
+                  <span className="supersede-badge">替代自旧实体</span>
+                  <Link href={`/memories/${detail.supersedes.id}`}>
+                    <span>{detail.supersedes.content}</span>
+                    <small>UUID: {detail.supersedes.id.substring(0, 8)}... ↗</small>
+                  </Link>
+                </div>
               ) : null}
               {detail.superseded_by ? (
-                <span>
-                  已被替代 <Link href={`/memories/${detail.superseded_by.id}`}>{detail.superseded_by.content}</Link>
-                </span>
+                <div className="supersede-link-item">
+                  <span className="supersede-badge superseded-by">已被新实体替代</span>
+                  <Link href={`/memories/${detail.superseded_by.id}`}>
+                    <span>{detail.superseded_by.content}</span>
+                    <small>UUID: {detail.superseded_by.id.substring(0, 8)}... ↗</small>
+                  </Link>
+                </div>
               ) : null}
             </div>
           ) : null}
@@ -148,46 +160,46 @@ export default function MemoryDetailPage() {
             <section className="dossier-column">
               <div className="dossier-card">
                 <div className="dossier-header-row">
-                  <span className="dossier-section-title">记忆体元档案</span>
+                  <span className="dossier-section-title">记忆元档案</span>
                   <span className="dossier-id">UUID: {memory.id}</span>
                 </div>
                 
                 <div className="dossier-content-block">
-                  <span className="dossier-label">核定记忆文本</span>
+                  <span className="dossier-label">核定记忆文本 (Approved Memory Text)</span>
                   <div className="dossier-value memory-text">{memory.content}</div>
                 </div>
 
                 <div className="dossier-grid-two">
-                  <div>
-                    <span className="dossier-label">类别分区</span>
-                    <div className="dossier-value" style={{ fontWeight: 600 }}>
+                  <div className="dossier-grid-item">
+                    <span className="dossier-label">分类分区</span>
+                    <div className="dossier-value highlight-type">
                       {MEMORY_TYPE_LABELS[memory.type] || memory.type}
                     </div>
                   </div>
-                  <div>
-                    <span className="dossier-label">归属项目</span>
-                    <div className="dossier-value" style={{ fontFamily: 'monospace' }}>
+                  <div className="dossier-grid-item">
+                    <span className="dossier-label">归属项目空间</span>
+                    <div className="dossier-value code-font">
                       {proposal?.project_id || "default"}
                     </div>
                   </div>
-                  <div>
-                    <span className="dossier-label">到期时间</span>
+                  <div className="dossier-grid-item">
+                    <span className="dossier-label">到期生命周期</span>
                     <div className="dossier-value">
-                      {memory.expires_at ? formatExpiresAt(memory.expires_at) : "未设置到期时间"}
+                      {memory.expires_at ? formatExpiresAt(memory.expires_at) : "永久有效 (未设置到期)"}
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="dossier-card">
-                <span className="dossier-section-title">可信溯源：原始会话摘录证据</span>
+                <span className="dossier-section-title">来源证据：原始会话摘录 (Evidence)</span>
                 <blockquote className="pre source-quote">
                   {proposal?.source_quote || "暂无来源会话摘录证据。"}
                 </blockquote>
               </div>
 
               <div className="dossier-card">
-                <span className="dossier-section-title">模型抽取及写入理由</span>
+                <span className="dossier-section-title">模型抽取理由与推理 (Model Rationale)</span>
                 <div className="dossier-reason-box">
                   {proposal?.reason || "暂无大模型写入理由。"}
                 </div>
@@ -198,7 +210,7 @@ export default function MemoryDetailPage() {
             <aside>
               <div className="timeline-card">
                 <div className="timeline-header-row">
-                  <span className="dossier-section-title">生命周期审计轨迹流水</span>
+                  <span className="dossier-section-title">生命周期合规审计流水 (Audit Trail)</span>
                   <span className="timeline-count">共 {events.length} 个记录</span>
                 </div>
 
@@ -217,7 +229,7 @@ export default function MemoryDetailPage() {
                             <span className={`timeline-event-badge badge-event-${event.event_type}`}>
                               {EVENT_LABELS[event.event_type] || event.event_type}
                             </span>
-                            <span className="timeline-actor">由 <strong>{event.actor_id}</strong> 触发</span>
+                            <span className="timeline-actor">操作员: <strong>{event.actor_id}</strong></span>
                           </div>
                           <div className="timeline-time">{event.created_at}</div>
                           {event.note ? (
@@ -258,10 +270,11 @@ export default function MemoryDetailPage() {
           font-size: 14px;
           color: var(--text-secondary);
           transition: all 0.2s ease;
+          font-weight: 500;
         }
 
         .back-link:hover {
-          color: var(--text-primary);
+          color: var(--color-accent);
           text-decoration: none;
         }
 
@@ -272,36 +285,66 @@ export default function MemoryDetailPage() {
           align-items: center;
           justify-content: space-between;
           gap: 20px;
+          box-shadow: var(--card-shadow);
         }
 
         .banner-active {
-          background: rgba(16, 185, 129, 0.05);
-          border: 1px solid rgba(16, 185, 129, 0.15);
+          background: rgba(16, 185, 129, 0.04);
+          border: 1px solid rgba(16, 185, 129, 0.2);
           color: var(--color-primary-hover);
         }
 
         .banner-revoked {
-          background: rgba(239, 68, 68, 0.05);
-          border: 1px solid rgba(239, 68, 68, 0.15);
+          background: rgba(244, 63, 94, 0.04);
+          border: 1px solid rgba(244, 63, 94, 0.2);
           color: var(--color-danger-hover);
         }
 
         .banner-expired {
-          background: rgba(100, 116, 139, 0.05);
-          border: 1px solid rgba(100, 116, 139, 0.15);
+          background: rgba(148, 163, 184, 0.04);
+          border: 1px solid rgba(148, 163, 184, 0.2);
           color: var(--text-secondary);
         }
 
         .banner-text-wrapper {
           display: flex;
           align-items: center;
-          gap: 16px;
+          gap: 18px;
+        }
+
+        .banner-status-icon-box {
+          width: 40px;
+          height: 40px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .icon-box-active {
+          background: rgba(16, 185, 129, 0.1);
+          color: var(--color-primary);
+        }
+
+        .icon-box-revoked {
+          background: rgba(244, 63, 94, 0.1);
+          color: var(--color-danger);
+        }
+
+        .icon-box-expired {
+          background: rgba(148, 163, 184, 0.1);
+          color: var(--text-muted);
         }
 
         .banner-title {
           font-weight: 700;
           font-size: 16px;
           display: block;
+        }
+
+        .btn-revoke-action {
+          flex-shrink: 0;
         }
 
         .detail-layout {
@@ -313,18 +356,56 @@ export default function MemoryDetailPage() {
 
         .supersession-links {
           display: flex;
-          flex-wrap: wrap;
-          gap: 16px;
+          flex-direction: column;
+          gap: 12px;
           border: 1px solid var(--border-color);
-          border-radius: 8px;
-          padding: 12px 16px;
-          color: var(--text-secondary);
-          font-size: 13px;
+          border-radius: 12px;
+          padding: 16px 20px;
+          background: rgba(255, 255, 255, 0.005);
         }
 
-        .supersession-links a {
-          color: var(--color-primary);
-          overflow-wrap: anywhere;
+        .supersede-link-item {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+
+        .supersede-badge {
+          font-size: 10px;
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: 4px;
+          background: rgba(6, 182, 212, 0.08);
+          color: var(--color-accent-hover);
+          border: 1px solid rgba(6, 182, 212, 0.2);
+          text-transform: uppercase;
+        }
+
+        .supersede-badge.superseded-by {
+          background: rgba(245, 158, 11, 0.08);
+          color: #fbbf24;
+          border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .supersede-link-item a {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: var(--text-primary);
+          font-weight: 500;
+          font-size: 13.5px;
+        }
+
+        .supersede-link-item a:hover {
+          color: var(--color-accent-hover);
+          text-decoration: underline;
+        }
+
+        .supersede-link-item small {
+          color: var(--text-muted);
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          font-size: 11px;
         }
 
         .dossier-column {
@@ -341,6 +422,7 @@ export default function MemoryDetailPage() {
           display: flex;
           flex-direction: column;
           gap: 16px;
+          box-shadow: var(--card-shadow);
         }
 
         .dossier-header-row {
@@ -353,8 +435,8 @@ export default function MemoryDetailPage() {
         }
 
         .dossier-section-title {
-          font-size: 13px;
-          font-weight: 700;
+          font-size: 11px;
+          font-weight: 800;
           color: var(--text-primary);
           text-transform: uppercase;
           letter-spacing: 0.08em;
@@ -381,35 +463,58 @@ export default function MemoryDetailPage() {
         }
 
         .dossier-value {
-          font-size: 14px;
-          color: var(--text-primary);
+          font-size: 14.5px;
+          color: var(--text-secondary);
         }
 
         .dossier-value.memory-text {
           font-size: 18px;
-          font-weight: 600;
+          font-weight: 700;
           color: var(--text-primary);
           line-height: 1.5;
         }
 
         .dossier-grid-two {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
           gap: 16px;
-          background: rgba(255, 255, 255, 0.01);
+          background: rgba(255, 255, 255, 0.008);
           border: 1px solid var(--border-color);
           border-radius: 8px;
           padding: 16px;
+        }
+
+        .dossier-grid-item {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .highlight-type {
+          font-weight: 700;
+          color: var(--color-accent-hover);
+        }
+
+        .code-font {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        .source-quote {
+          background: #050813;
+          border-left: 3px solid var(--color-accent);
+          border-radius: 0 8px 8px 0;
+          font-size: 13.5px;
+          line-height: 1.6;
         }
 
         .dossier-reason-box {
           background: rgba(255, 255, 255, 0.01);
           border: 1px solid var(--border-color);
           border-radius: 8px;
-          padding: 14px;
+          padding: 14px 16px;
           font-size: 13.5px;
           color: var(--text-secondary);
-          line-height: 1.5;
+          line-height: 1.6;
         }
 
         .timeline-card {
@@ -419,6 +524,7 @@ export default function MemoryDetailPage() {
           padding: 24px;
           display: flex;
           flex-direction: column;
+          box-shadow: var(--card-shadow);
         }
 
         .timeline-header-row {
@@ -470,7 +576,7 @@ export default function MemoryDetailPage() {
 
         .timeline-dot.dot-revoke {
           background: var(--color-danger);
-          box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+          box-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
         }
 
         .timeline-dot.dot-reject {
@@ -516,17 +622,17 @@ export default function MemoryDetailPage() {
         }
 
         .badge-event-revoke {
-          background: rgba(239, 68, 68, 0.15);
+          background: rgba(244, 63, 94, 0.15);
           color: var(--color-danger-hover);
         }
 
         .badge-event-reject {
-          background: rgba(100, 116, 139, 0.15);
-          color: var(--text-muted);
+          background: rgba(148, 163, 184, 0.15);
+          color: #cbd5e1;
         }
 
         .badge-event-expire {
-          background: rgba(100, 116, 139, 0.15);
+          background: rgba(148, 163, 184, 0.15);
           color: var(--text-muted);
         }
 
@@ -544,10 +650,10 @@ export default function MemoryDetailPage() {
         .timeline-note {
           font-size: 13px;
           color: var(--text-secondary);
-          background: rgba(255, 255, 255, 0.02);
+          background: rgba(255, 255, 255, 0.01);
           border: 1px solid var(--border-color);
           border-radius: 6px;
-          padding: 8px 10px;
+          padding: 8px 12px;
           margin-top: 4px;
           line-height: 1.4;
         }

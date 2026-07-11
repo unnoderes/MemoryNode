@@ -57,24 +57,30 @@ export default function MemoriesPage() {
   return (
     <div className="workbench-container">
       <header className="page-header">
-        <h1>记忆检索工作台</h1>
-        <p className="muted">输入检索关键词，在长期记忆资产库中执行语义与关键词搜索，并进行记忆血缘溯源与审计。</p>
+        <h1>长期记忆库检索</h1>
+        <p className="muted">在已授权的长期记忆资产中执行精确及全文检索。系统默认仅返回状态为“生效中”的活跃记忆实体。</p>
       </header>
 
       {/* Workbench Toolbar */}
       <div className="search-card">
         <form onSubmit={onSearch}>
-          <label htmlFor="search-input">
-            检索关键词
+          <label htmlFor="search-input" className="search-label-row">
+            <span>检索关键词 (Search Query)</span>
+            <span className="engine-badge">SQLite FTS5 检索引擎已就绪</span>
           </label>
           <div className="search-bar-row">
-            <input
-              id="search-input"
-              value={q}
-              onChange={(event) => setQ(event.target.value)}
-              placeholder="输入查询内容，例如 Qwen Cloud..."
-            />
-            <button disabled={busy} type="submit">
+            <div className="input-with-icon">
+              <svg className="input-search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                id="search-input"
+                value={q}
+                onChange={(event) => setQ(event.target.value)}
+                placeholder="输入检索内容，例如 Qwen Cloud..."
+              />
+            </div>
+            <button disabled={busy} type="submit" className="btn-search">
               {busy ? (
                 <>
                   <svg className="animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}><path strokeLinecap="round" strokeLinejoin="round" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
@@ -83,15 +89,22 @@ export default function MemoriesPage() {
               ) : (
                 <>
                   <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                  <span>检索记忆</span>
+                  <span>执行检索</span>
                 </>
               )}
             </button>
           </div>
         </form>
 
+        <div className="search-info-tip">
+          <svg className="tip-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>默认配置下，安全检索仅返回当前<strong>生效中 (Active)</strong>的记忆。已到期、已替换或撤销的记忆对大模型推理不可见，可通过 UUID 进入详情页审计。</span>
+        </div>
+
         <div className="search-suggestions">
-          <span className="suggestion-label">推荐快捷查询:</span>
+          <span className="suggestion-label">快捷检索词:</span>
           {["Qwen Cloud", "FastAPI", "SQLite", "Next.js"].map((term) => (
             <button
               key={term}
@@ -129,7 +142,7 @@ export default function MemoriesPage() {
           <svg className="workbench-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          <h3>欢迎使用记忆检索工作台</h3>
+          <h3>长期记忆库检索准备就绪</h3>
           <p style={{ maxWidth: '420px', fontSize: '13px', opacity: 0.8 }}>
             在上方输入对话上下文或核心概念，检索机制将查找关联的记忆链条。点击推荐项可快速体验。
           </p>
@@ -165,21 +178,21 @@ export default function MemoriesPage() {
                 </div>
                 {typeof memory.score === "number" ? (
                   <div className="memory-score-badge">
-                    <span className="score-label">匹配度</span>
-                    <span className="score-val">{(memory.score * 100).toFixed(0)}%</span>
+                    <span className="score-label">匹配评分</span>
+                    <span className="score-val">{(memory.score * 100).toFixed(0)}</span>
                   </div>
                 ) : null}
               </div>
 
               <div className="memory-card-body">
                 <p className="memory-content-text">{memory.content}</p>
-                {memory.expires_at ? <p className="memory-expiry">到期于 {formatExpiresAt(memory.expires_at)}</p> : null}
+                {memory.expires_at ? <p className="memory-expiry">到期生命周期: {formatExpiresAt(memory.expires_at)}</p> : null}
               </div>
 
               <div className="memory-card-footer">
-                <span className="memory-id-tag">UUID: {memory.id.substring(0, 8)}...</span>
+                <span className="memory-id-tag" title={memory.id}>UUID: {memory.id.substring(0, 8)}...</span>
                 <Link href={`/memories/${memory.id}`} className="audit-link">
-                  <span>可信审计</span>
+                  <span>可信审计与归档</span>
                   <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
@@ -205,15 +218,79 @@ export default function MemoriesPage() {
           display: flex;
           flex-direction: column;
           gap: 16px;
+          box-shadow: var(--card-shadow);
+        }
+
+        .search-label-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          width: 100%;
+        }
+
+        .engine-badge {
+          font-size: 10px;
+          color: var(--color-accent);
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          background: rgba(6, 182, 212, 0.08);
+          border: 1px solid rgba(6, 182, 212, 0.2);
+          padding: 2px 8px;
+          border-radius: 4px;
         }
 
         .search-bar-row {
           display: flex;
           gap: 12px;
+          position: relative;
         }
 
-        .search-bar-row input {
+        .input-with-icon {
+          position: relative;
           flex: 1;
+        }
+
+        .input-search-icon {
+          position: absolute;
+          left: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 18px;
+          height: 18px;
+          color: var(--text-muted);
+          pointer-events: none;
+        }
+
+        .input-with-icon input {
+          padding-left: 44px;
+        }
+
+        .btn-search {
+          background: var(--color-accent);
+          color: #050814;
+        }
+
+        .btn-search:hover {
+          background: var(--color-accent-hover);
+          box-shadow: 0 4px 15px var(--color-accent-glow);
+        }
+
+        .search-info-tip {
+          font-size: 12px;
+          color: var(--text-secondary);
+          background: rgba(255, 255, 255, 0.01);
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          padding: 10px 14px;
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          line-height: 1.4;
+        }
+
+        .tip-icon {
+          color: var(--color-accent);
+          flex-shrink: 0;
         }
 
         .search-suggestions {
@@ -244,9 +321,9 @@ export default function MemoriesPage() {
         }
 
         .suggestion-tag:hover {
-          background: rgba(16, 185, 129, 0.08);
-          border-color: rgba(16, 185, 129, 0.3);
-          color: var(--color-primary-hover);
+          background: rgba(6, 182, 212, 0.08);
+          border-color: rgba(6, 182, 212, 0.3);
+          color: var(--color-accent-hover);
         }
 
         .memory-results-grid {
@@ -265,13 +342,14 @@ export default function MemoriesPage() {
           justify-content: space-between;
           gap: 18px;
           min-height: 180px;
-          transition: all 0.2s ease;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: var(--card-shadow);
         }
 
         .memory-result-card:hover {
           border-color: var(--border-color-hover);
           transform: translateY(-2px);
-          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+          box-shadow: var(--card-shadow-hover);
         }
 
         .memory-card-top {
@@ -301,8 +379,8 @@ export default function MemoriesPage() {
           align-items: center;
           gap: 6px;
           font-size: 11px;
-          background: rgba(59, 130, 246, 0.08);
-          border: 1px solid rgba(59, 130, 246, 0.15);
+          background: rgba(6, 182, 212, 0.08);
+          border: 1px solid rgba(6, 182, 212, 0.15);
           padding: 2px 8px;
           border-radius: 4px;
         }
@@ -312,13 +390,13 @@ export default function MemoriesPage() {
         }
 
         .score-val {
-          color: #60a5fa;
+          color: var(--color-accent-hover);
           font-weight: 700;
         }
 
         .memory-content-text {
           font-size: 15px;
-          font-weight: 500;
+          font-weight: 600;
           color: var(--text-primary);
           line-height: 1.5;
         }
@@ -327,6 +405,7 @@ export default function MemoriesPage() {
           margin: 10px 0 0;
           color: var(--text-muted);
           font-size: 12px;
+          line-height: 1.4;
         }
 
         .memory-card-footer {
@@ -366,20 +445,21 @@ export default function MemoriesPage() {
           flex-direction: column;
           align-items: center;
           gap: 12px;
+          background: rgba(255, 255, 255, 0.005);
         }
 
         .workbench-icon {
           width: 48px;
           height: 48px;
           color: var(--text-muted);
-          opacity: 0.5;
+          opacity: 0.4;
         }
 
         .workbench-error-state {
           text-align: center;
           padding: 40px 20px;
-          background: rgba(239, 68, 68, 0.04);
-          border: 1px solid rgba(239, 68, 68, 0.15);
+          background: rgba(244, 63, 94, 0.04);
+          border: 1px solid rgba(244, 63, 94, 0.15);
           border-radius: 12px;
           color: var(--text-primary);
           display: flex;
@@ -405,6 +485,11 @@ export default function MemoriesPage() {
           }
           .search-bar-row button {
             width: 100%;
+          }
+          .search-info-tip {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
           }
         }
       `}</style>

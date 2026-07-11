@@ -221,7 +221,7 @@ export default function ProposalsPage() {
                     >
                       <div className="compact-item-header">
                         <span className="compact-item-type">{typeLabels[proposal.type] || proposal.type}</span>
-                        <span className="compact-item-conf">{(proposal.confidence * 100).toFixed(0)}% {t("把握", "confidence")}</span>
+                        <span className="compact-item-conf">{(proposal.confidence * 100).toFixed(0)}% {t("置信度/说服力", "confidence")}</span>
                       </div>
                       <p className="compact-item-text">{proposal.content}</p>
                     </div>
@@ -247,7 +247,7 @@ export default function ProposalsPage() {
                     <div className="confidence-track" style={{ width: '60px', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
                       <div className="confidence-bar" style={{ height: '100%', background: 'linear-gradient(90deg, var(--color-accent) 0%, var(--color-primary) 100%)', width: `${selectedProposal.confidence * 100}%` }}></div>
                     </div>
-                    <span className="confidence-text">{t("AI 判断把握", "AI confidence")}：{(selectedProposal.confidence * 100).toFixed(0)}%</span>
+                    <span className="confidence-text">{t("置信度/说服力", "Confidence/Persuasiveness")}：{(selectedProposal.confidence * 100).toFixed(0)}%</span>
                   </div>
                 </div>
               </div>

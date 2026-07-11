@@ -244,8 +244,22 @@ export default function ProposalsPage() {
                     {typeLabels[selectedProposal.type] || selectedProposal.type}
                   </span>
                   <div className="confidence-indicator" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                    <div className="confidence-track" style={{ width: '60px', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div className="confidence-bar" style={{ height: '100%', background: 'linear-gradient(90deg, var(--color-accent) 0%, var(--color-primary) 100%)', width: `${selectedProposal.confidence * 100}%` }}></div>
+                    <div className="confidence-blocks" style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
+                      {Array.from({ length: 10 }).map((_, idx) => {
+                        const isActive = idx < Math.round(selectedProposal.confidence * 10);
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              width: '4px',
+                              height: '8px',
+                              borderRadius: '1px',
+                              background: isActive ? 'var(--text-primary)' : 'rgba(255, 255, 255, 0.05)',
+                              transition: 'all 0.2s ease',
+                            }}
+                          />
+                        );
+                      })}
                     </div>
                     <span className="confidence-text">{t("置信度/说服力", "Confidence/Persuasiveness")}：{(selectedProposal.confidence * 100).toFixed(0)}%</span>
                   </div>

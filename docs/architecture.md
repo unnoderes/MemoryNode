@@ -66,3 +66,4 @@ client contracts thin while replacing storage/search internals:
 - Move durable records from SQLite to Postgres.
 - Add pgvector or Qwen embeddings for semantic search.
 - Keep approval, explanation, revocation, and audit events as first-class rules.
+

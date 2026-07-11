@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   approveProposal,
   extractProposals,
@@ -30,6 +30,9 @@ const MEMORY_TYPE_LABELS = {
 
 export default function ProposalsPage() {
   const { language, t } = useLanguage();
+  const languageRef = useRef(language);
+  languageRef.current = language;
+  const currentT = (zh, en) => languageRef.current === "zh" ? zh : en;
   const typeLabels = language === "zh" ? MEMORY_TYPE_LABELS : {
     user_preference: "User preference", project_constraint: "Project constraint",
     project_decision: "Project decision", recurring_workflow: "Recurring workflow",
@@ -43,6 +46,10 @@ export default function ProposalsPage() {
   const [transcript, setTranscript] = useState(DEMO_TRANSCRIPT);
   const [proposals, setProposals] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [extractStartedAt, setExtractStartedAt] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [newProposalIds, setNewProposalIds] = useState([]);
   const [relatedByProposal, setRelatedByProposal] = useState({});
   const [relatedLoading, setRelatedLoading] = useState({});
   const [supersedeByProposal, setSupersedeByProposal] = useState({});
@@ -58,6 +65,20 @@ export default function ProposalsPage() {
       ? (language === "zh" ? DEMO_TRANSCRIPT : DEMO_TRANSCRIPT_EN)
       : current);
   }, [language]);
+
+  useEffect(() => {
+    if (!extracting) return;
+    const updateElapsed = () => setElapsedSeconds(Math.floor((Date.now() - extractStartedAt) / 1000));
+    updateElapsed();
+    const timer = setInterval(updateElapsed, 1000);
+    return () => clearInterval(timer);
+  }, [extracting, extractStartedAt]);
+
+  useEffect(() => {
+    if (newProposalIds.length === 0) return;
+    const timer = setTimeout(() => setNewProposalIds([]), 600);
+    return () => clearTimeout(timer);
+  }, [newProposalIds]);
 
   async function refresh() {
     const body = await listProposals();
@@ -92,20 +113,43 @@ export default function ProposalsPage() {
 
   async function onExtract(event) {
     event.preventDefault();
+    if (extracting) return;
     const text = transcript.trim();
     if (!text) {
       setError(t("请输入原始记录。", "Enter a conversation first."));
       return;
     }
-    await run(async () => {
+    setExtracting(true);
+    setExtractStartedAt(Date.now());
+    setElapsedSeconds(0);
+    setError("");
+    setMessage("");
+    try {
       const body = await extractProposals({ actorId, projectId, transcript: text });
-      setMessage(t(
-        `已提取 ${(body.proposals || []).length} 条内容，请确认是否保存。`,
-        `Found ${(body.proposals || []).length} suggested memories. Review them before saving.`,
+      const extracted = body.proposals || [];
+      setNewProposalIds(extracted.map((proposal) => proposal.id));
+      await refresh();
+      if (extracted.length === 0) {
+        setMessage(currentT(
+          "没有提取到记忆提案。原始输入已保留，你可以修改后重试。",
+          "No memory suggestions were found. Your conversation is still here so you can edit and retry.",
+        ));
+      } else {
+        setMessage(currentT(
+          `已提取 ${extracted.length} 条内容，结果不会自动保存，请确认后处理。`,
+          `Found ${extracted.length} suggested memories. Nothing is saved automatically; review each one first.`,
+        ));
+        setTranscript("");
+        setExtractExpanded(false);
+      }
+    } catch (err) {
+      setError(currentT(
+        `提取失败：${err.message}。原始输入已保留，请重试。`,
+        `Extraction failed: ${err.message}. Your conversation is still here; please retry.`,
       ));
-      setTranscript("");
-      setExtractExpanded(false); // Collapse extractor after success
-    });
+    } finally {
+      setExtracting(false);
+    }
   }
 
   async function loadRelated(proposalId) {
@@ -191,9 +235,15 @@ export default function ProposalsPage() {
                     placeholder={t("粘贴一段对话，例如：这个项目必须使用 Qwen Cloud。", "Paste a conversation, for example: This project must use Qwen Cloud.")}
                   />
                 </label>
-                <button disabled={busy} type="submit" style={{ width: '100%' }}>
-                  {busy ? t("正在提取…", "Extracting…") : t("提取记忆提案", "Extract Memory Suggestions")}
+                <button disabled={busy || extracting} type="submit" style={{ width: '100%' }} aria-busy={extracting}>
+                  {extracting ? <span className="extract-spinner" aria-hidden="true" /> : null}
+                  {extracting
+                    ? t(`正在提取… 已等待 ${elapsedSeconds} 秒`, `Extracting… ${elapsedSeconds}s elapsed`)
+                    : t("提取记忆提案", "Extract Memory Suggestions")}
                 </button>
+                <p className="extract-safety-note">
+                  {t("提取结果只会进入待审核列表，不会自动保存。", "Extracted results only enter the review queue and are never saved automatically.")}
+                </p>
               </form>
             </div>
           </div>
@@ -201,7 +251,17 @@ export default function ProposalsPage() {
           {/* Proposals List */}
           <div className="proposals-list-section">
             <h2>{t("等待你确认", "Waiting for Review")} ({proposals.length})</h2>
-            {proposals.length === 0 ? (
+            {extracting ? (
+              <div className="proposal-skeletons" aria-hidden="true">
+                {[0, 1, 2].map((item) => (
+                  <div className="proposal-skeleton" key={item}>
+                    <span className="skeleton-line skeleton-label" />
+                    <span className="skeleton-line" />
+                    <span className="skeleton-line skeleton-short" />
+                  </div>
+                ))}
+              </div>
+            ) : proposals.length === 0 ? (
               <div className="empty">
                 <svg className="empty-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -216,7 +276,7 @@ export default function ProposalsPage() {
                   return (
                     <div
                       key={proposal.id}
-                      className={`compact-proposal-item ${isSelected ? 'selected' : ''}`}
+                      className={`compact-proposal-item ${isSelected ? 'selected' : ''} ${newProposalIds.includes(proposal.id) ? 'new-proposal' : ''}`}
                       onClick={() => setSelectedId(proposal.id)}
                     >
                       <div className="compact-item-header">
@@ -292,7 +352,7 @@ export default function ProposalsPage() {
                       <button
                         type="button"
                         className="secondary btn-sm"
-                        disabled={busy || relatedLoading[selectedId]}
+                        disabled={busy || extracting || relatedLoading[selectedId]}
                         onClick={() => loadRelated(selectedId)}
                       >
                         {relatedLoading[selectedId] ? t("查找中…", "Searching…") : t("查找相关记忆", "Find Related Memories")}
@@ -350,7 +410,7 @@ export default function ProposalsPage() {
                     <div className="action-buttons-group">
                       <button
                         className="btn-approve"
-                        disabled={busy}
+                        disabled={busy || extracting}
                         onClick={() => run(() => approveProposal(
                           selectedId,
                           "reviewer",
@@ -368,7 +428,7 @@ export default function ProposalsPage() {
 
                       <button
                         className="secondary btn-reject"
-                        disabled={busy}
+                        disabled={busy || extracting}
                         onClick={() => run(() => rejectProposal(selectedId))}
                       >
                         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -472,6 +532,68 @@ export default function ProposalsPage() {
           display: flex;
           flex-direction: column;
           gap: 12px;
+        }
+
+        .extract-safety-note {
+          color: var(--text-muted);
+          font-size: 12px;
+          line-height: 1.5;
+          margin-top: -8px;
+          text-align: center;
+        }
+
+        .extract-spinner {
+          width: 15px;
+          height: 15px;
+          border: 2px solid rgba(0, 0, 0, 0.25);
+          border-top-color: currentColor;
+          border-radius: 50%;
+          animation: extract-spin 0.8s linear infinite;
+        }
+
+        @keyframes extract-spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .proposal-skeletons {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          pointer-events: none;
+        }
+
+        .proposal-skeleton {
+          background: var(--bg-card);
+          border: 1px solid var(--border-color);
+          border-radius: 10px;
+          padding: 14px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .skeleton-line {
+          height: 11px;
+          width: 100%;
+          border-radius: 4px;
+          background: linear-gradient(90deg, #242424 25%, #333 50%, #242424 75%);
+          background-size: 200% 100%;
+          animation: skeleton-shimmer 1.4s ease-in-out infinite;
+        }
+
+        .skeleton-label { width: 28%; height: 8px; }
+        .skeleton-short { width: 68%; }
+
+        @keyframes skeleton-shimmer {
+          to { background-position: -200% 0; }
+        }
+
+        .compact-proposal-item.new-proposal {
+          animation: proposal-fade-in 0.5s ease-out;
+        }
+
+        @keyframes proposal-fade-in {
+          from { opacity: 0; transform: translateY(4px); }
         }
 
         .compact-proposal-list {
@@ -829,6 +951,14 @@ export default function ProposalsPage() {
           }
           .expiration-input input {
             max-width: 100%;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .extract-spinner,
+          .skeleton-line,
+          .compact-proposal-item.new-proposal {
+            animation: none;
           }
         }
       `}</style>

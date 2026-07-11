@@ -69,7 +69,7 @@ export default function RootLayout({ children }) {
                 </div>
               </div>
             </div>
-            
+
             <div className="sidebar-footer">
               <button className="language-toggle" type="button" onClick={() => setLanguage(language === "zh" ? "en" : "zh")}>
                 {language === "zh" ? "EN  English" : "中  中文"}
@@ -127,7 +127,10 @@ export default function RootLayout({ children }) {
           }
 
           body {
-            background: radial-gradient(circle at 80% 20%, #171717 0%, #0a0a0a 60%);
+            background-color: #0a0a0a;
+            background-image:
+              repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 1px, transparent 1px, transparent 24px),
+              radial-gradient(circle at 80% 20%, #171717 0%, #0a0a0a 60%);
             color: var(--text-primary);
             font-family: 'Plus Jakarta Sans', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
             -webkit-font-smoothing: antialiased;
@@ -468,7 +471,7 @@ export default function RootLayout({ children }) {
           input::placeholder, textarea::placeholder {
             color: var(--text-muted);
           }
-          
+
           textarea {
             min-height: 120px;
             resize: vertical;
@@ -639,7 +642,7 @@ export default function RootLayout({ children }) {
             gap: 14px;
             background: rgba(255, 255, 255, 0.005);
           }
-          
+
           .empty-icon {
             width: 44px;
             height: 44px;

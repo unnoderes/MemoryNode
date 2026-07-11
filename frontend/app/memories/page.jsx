@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { searchMemories, explainMemory, revokeMemory } from "../../lib/api";
+import { useLanguage } from "../../lib/language";
 
 const MEMORY_TYPE_LABELS = {
   user_preference: "用户偏好",
@@ -28,11 +29,22 @@ const EVENT_LABELS = {
   expire: "已到期",
 };
 
-function formatExpiresAt(value) {
-  return new Date(value).toLocaleString("zh-CN", { dateStyle: "medium", timeStyle: "short" });
+function formatExpiresAt(value, language) {
+  return new Date(value).toLocaleString(language === "zh" ? "zh-CN" : "en-US", { dateStyle: "medium", timeStyle: "short" });
 }
 
 export default function MemoriesPage() {
+  const { language, t } = useLanguage();
+  const typeLabels = language === "zh" ? MEMORY_TYPE_LABELS : {
+    user_preference: "User preference", project_constraint: "Project constraint",
+    project_decision: "Project decision", recurring_workflow: "Recurring workflow",
+    known_pitfall: "Known pitfall", fact: "Fact",
+  };
+  const statusLabels = language === "zh" ? STATUS_LABELS : { active: "Active", revoked: "Revoked", expired: "Expired" };
+  const eventLabels = language === "zh" ? EVENT_LABELS : {
+    approve: "Approved", reject: "Rejected", revoke: "Revoked",
+    supersede: "Replaced old memory", superseded: "Replaced", expire: "Expired",
+  };
   const [q, setQ] = useState("Qwen Cloud");
   const [memories, setMemories] = useState([]);
   const [searched, setSearched] = useState(false);
@@ -69,7 +81,7 @@ export default function MemoriesPage() {
     event.preventDefault();
     const term = q.trim();
     if (!term) {
-      setError("请输入搜索关键词。");
+      setError(t("请输入搜索关键词。", "Enter a search term."));
       return;
     }
     await triggerSearch(term);
@@ -125,16 +137,16 @@ export default function MemoriesPage() {
   return (
     <div className="workbench-container">
       <header className="page-header">
-        <h1>查找记忆</h1>
-        <p className="muted">搜索已经批准并且仍然有效的长期记忆。</p>
+        <h1>{t("查找记忆", "Search Memories")}</h1>
+        <p className="muted">{t("搜索已经批准并且仍然有效的长期记忆。", "Search approved memories that are still active.")}</p>
       </header>
 
       {/* Workbench Toolbar */}
       <div className="search-card">
         <form onSubmit={onSearch}>
           <label htmlFor="search-input" className="search-label-row">
-            <span>搜索关键词</span>
-            <span className="engine-badge">搜索服务已就绪</span>
+            <span>{t("搜索关键词", "Search Term")}</span>
+            <span className="engine-badge">{t("搜索服务已就绪", "Search ready")}</span>
           </label>
           <div className="search-bar-row">
             <div className="input-with-icon">
@@ -145,19 +157,19 @@ export default function MemoriesPage() {
                 id="search-input"
                 value={q}
                 onChange={(event) => setQ(event.target.value)}
-                placeholder="输入关键词，例如 Qwen Cloud…"
+                placeholder={t("输入关键词，例如 Qwen Cloud…", "Enter a term, for example Qwen Cloud…")}
               />
             </div>
             <button disabled={busy} type="submit" className="btn-search">
               {busy ? (
                 <>
                   <svg className="animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}><path strokeLinecap="round" strokeLinejoin="round" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                  <span>正在搜索…</span>
+                  <span>{t("正在搜索…", "Searching…")}</span>
                 </>
               ) : (
                 <>
                   <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                  <span>搜索</span>
+                  <span>{t("搜索", "Search")}</span>
                 </>
               )}
             </button>
@@ -168,11 +180,11 @@ export default function MemoriesPage() {
           <svg className="tip-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span>这里只显示当前<strong>生效中</strong>的记忆。已到期、被替换或已撤销的记忆不会参与默认搜索，但仍可通过详情页查看历史。</span>
+          <span>{t("这里只显示当前生效中的记忆。已到期、被替换或已撤销的记忆不会参与默认搜索，但仍可通过详情页查看历史。", "Default search shows active memories only. Expired, replaced, and revoked memories stay out of retrieval but keep their history.")}</span>
         </div>
 
         <div className="search-suggestions">
-          <span className="suggestion-label">试试这些关键词：</span>
+          <span className="suggestion-label">{t("试试这些关键词：", "Try these:")}</span>
           {["Qwen Cloud", "FastAPI", "SQLite", "Next.js"].map((term) => (
             <button
               key={term}
@@ -194,16 +206,16 @@ export default function MemoriesPage() {
       <div className="soc-layout">
         {/* Left Column: Search Results */}
         <div className="soc-left-panel">
-          <h2>搜索结果 ({memories.length})</h2>
+          <h2>{t("搜索结果", "Results")} ({memories.length})</h2>
 
           {!searched ? (
             <div className="empty-workbench-state">
               <svg className="workbench-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <h3>输入关键词开始搜索</h3>
+              <h3>{t("输入关键词开始搜索", "Enter a term to start searching")}</h3>
               <p style={{ maxWidth: '420px', fontSize: '13px', opacity: 0.8 }}>
-                你可以搜索项目决定、使用偏好、工作流程或其他已经保存的内容。
+                {t("你可以搜索项目决定、使用偏好、工作流程或其他已经保存的内容。", "Search project decisions, preferences, workflows, or any other saved memory.")}
               </p>
             </div>
           ) : memories.length === 0 ? (
@@ -211,9 +223,9 @@ export default function MemoriesPage() {
               <svg className="workbench-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <h3>没有找到相关记忆</h3>
+              <h3>{t("没有找到相关记忆", "No matching memories")}</h3>
               <p style={{ maxWidth: '420px', fontSize: '13px', opacity: 0.8 }}>
-                没有与 <strong>“{q}”</strong> 匹配的结果。可以换一个更短的关键词，或前往“审核新记忆”添加内容。
+                {t(`没有与“${q}”匹配的结果。可以换一个更短的关键词，或前往“审核新记忆”添加内容。`, `No results matched “${q}”. Try a shorter term or add content from Review Memories.`)}
               </p>
             </div>
           ) : (
@@ -228,10 +240,10 @@ export default function MemoriesPage() {
                   >
                     <div className="compact-item-header">
                       <span className={`badge badge-${memory.status}`}>
-                        {STATUS_LABELS[memory.status] || memory.status}
+                        {statusLabels[memory.status] || memory.status}
                       </span>
                       <span className="compact-item-type">
-                        {MEMORY_TYPE_LABELS[memory.type] || memory.type}
+                        {typeLabels[memory.type] || memory.type}
                       </span>
                     </div>
                     <p className="compact-item-text">{memory.content}</p>
@@ -249,30 +261,30 @@ export default function MemoriesPage() {
               <svg className="animate-spin empty-icon" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite', color: 'var(--color-accent)' }}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              <p style={{ marginTop: '12px' }}>正在加载记忆详情和历史记录…</p>
+              <p style={{ marginTop: '12px' }}>{t("正在加载记忆详情和历史记录…", "Loading memory details and history…")}</p>
             </div>
           ) : selectedDetail ? (
             <div className="audit-detail-card">
               <div className="detail-card-header">
-                <span className="detail-section-label">记忆详情</span>
+                <span className="detail-section-label">{t("记忆详情", "Memory Details")}</span>
                 <div className={`status-banner-card banner-${selectedDetail.memory.status}`} style={{ padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: '700', fontSize: '13.5px' }}>状态：{STATUS_LABELS[selectedDetail.memory.status] || selectedDetail.memory.status}</span>
+                  <span style={{ fontWeight: '700', fontSize: '13.5px' }}>{t("状态", "Status")}：{statusLabels[selectedDetail.memory.status] || selectedDetail.memory.status}</span>
                   {selectedDetail.memory.status === "active" && (
                     <button className="danger btn-sm" disabled={busy} onClick={onRevoke} style={{ padding: '4px 10px', fontSize: '11px' }}>
-                      撤销这条记忆
+                      {t("撤销这条记忆", "Revoke Memory")}
                     </button>
                   )}
                 </div>
                 <h2>{selectedDetail.memory.content}</h2>
                 <div className="detail-meta-row">
                   <span className="badge badge-type">
-                    {MEMORY_TYPE_LABELS[selectedDetail.memory.type] || selectedDetail.memory.type}
+                    {typeLabels[selectedDetail.memory.type] || selectedDetail.memory.type}
                   </span>
                   <span className="conf-badge">
                     ID：{selectedDetail.memory.id.substring(0, 8)}…
                   </span>
                   <Link href={`/memories/${selectedDetail.memory.id}`} className="audit-link-nav">
-                    查看完整记录 ↗
+                    {t("查看完整记录", "View Full History")} ↗
                   </Link>
                 </div>
               </div>
@@ -280,7 +292,7 @@ export default function MemoriesPage() {
               <div className="detail-body">
                 {selectedDetail.proposal?.source_quote && (
                   <div className="detail-field">
-                    <div className="detail-field-title">来自哪句话</div>
+                    <div className="detail-field-title">{t("来自哪句话", "Source Quote")}</div>
                     <blockquote className="pre source-quote" style={{ fontSize: '12.5px', padding: '10px 12px' }}>
                       {selectedDetail.proposal.source_quote}
                     </blockquote>
@@ -289,7 +301,7 @@ export default function MemoriesPage() {
 
                 {selectedDetail.proposal?.reason && (
                   <div className="detail-field">
-                    <div className="detail-field-title">为什么建议记住</div>
+                    <div className="detail-field-title">{t("为什么建议记住", "Why Remember This")}</div>
                     <div className="proposal-reason-box" style={{ fontSize: '12.5px', padding: '10px 12px' }}>
                       {selectedDetail.proposal.reason}
                     </div>
@@ -298,32 +310,32 @@ export default function MemoriesPage() {
 
                 <div className="dossier-grid-two" style={{ gridTemplateColumns: '1fr 1fr', padding: '12px', gap: '10px' }}>
                   <div className="dossier-grid-item">
-                    <span className="dossier-label">所属项目</span>
+                    <span className="dossier-label">{t("所属项目", "Project")}</span>
                     <div className="dossier-value code-font" style={{ fontSize: '12px' }}>{selectedDetail.proposal?.project_id || "default"}</div>
                   </div>
                   <div className="dossier-grid-item">
-                    <span className="dossier-label">到期时间</span>
+                    <span className="dossier-label">{t("到期时间", "Expires")}</span>
                     <div className="dossier-value" style={{ fontSize: '12px' }}>
-                      {selectedDetail.memory.expires_at ? formatExpiresAt(selectedDetail.memory.expires_at) : "永久有效"}
+                      {selectedDetail.memory.expires_at ? formatExpiresAt(selectedDetail.memory.expires_at, language) : t("永久有效", "No expiry")}
                     </div>
                   </div>
                 </div>
 
                 {selectedDetail.events && selectedDetail.events.length > 0 && (
                   <div className="detail-field">
-                    <div className="detail-field-title">变更记录</div>
+                    <div className="detail-field-title">{t("变更记录", "History")}</div>
                     <div className="timeline-mini" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
                       {selectedDetail.events.slice(0, 3).map((event) => (
                         <div key={event.id} style={{ display: 'flex', gap: '10px', fontSize: '12px', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '6px' }}>
                           <span className={`timeline-event-badge badge-event-${event.event_type}`} style={{ fontSize: '9px', padding: '1px 4px' }}>
-                            {EVENT_LABELS[event.event_type] || event.event_type}
+                            {eventLabels[event.event_type] || event.event_type}
                           </span>
                           <span style={{ color: 'var(--text-secondary)' }}>{event.actor_id} · {event.created_at.split(' ')[0]}</span>
                         </div>
                       ))}
                       {selectedDetail.events.length > 3 && (
                         <Link href={`/memories/${selectedDetail.memory.id}`} style={{ fontSize: '11px', color: 'var(--color-accent)', fontWeight: '600', marginTop: '2px' }}>
-                          查看全部 {selectedDetail.events.length} 条记录…
+                          {t(`查看全部 ${selectedDetail.events.length} 条记录…`, `View all ${selectedDetail.events.length} events…`)}
                         </Link>
                       )}
                     </div>
@@ -336,8 +348,8 @@ export default function MemoriesPage() {
               <svg className="empty-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <h3>请选择一条记忆</h3>
-              <p>点击左侧搜索结果，即可在这里查看来源、保存理由和变更记录。</p>
+              <h3>{t("请选择一条记忆", "Select a Memory")}</h3>
+              <p>{t("点击左侧搜索结果，即可在这里查看来源、保存理由和变更记录。", "Select a result on the left to see its source, reason, and history.")}</p>
             </div>
           )}
         </div>

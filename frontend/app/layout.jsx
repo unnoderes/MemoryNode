@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLanguage } from "../lib/language";
 
 export default function RootLayout({ children }) {
   const pathname = usePathname();
+  const { language, setLanguage, t } = useLanguage();
 
   const isProposals = pathname.startsWith("/proposals");
   const isMemories = pathname.startsWith("/memories");
@@ -12,8 +14,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="zh-CN">
       <head>
-        <title>MemoryNode - AI 记忆管理</title>
-        <meta name="description" content="提取、审核、查找和管理 AI 记忆" />
+        <title>{t("MemoryNode - AI 记忆管理", "MemoryNode - AI Memory Management")}</title>
+        <meta name="description" content={t("提取、审核、查找和管理 AI 记忆", "Extract, review, search, and manage AI memories")} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet" />
@@ -26,52 +28,55 @@ export default function RootLayout({ children }) {
                 <span className="logo-pulse"></span>
                 <span className="logo-text">MemoryNode</span>
               </div>
-              <div className="sidebar-subtitle">AI 记忆管理</div>
+              <div className="sidebar-subtitle">{t("AI 记忆管理", "AI Memory Management")}</div>
               <nav className="nav-links">
                 <Link href="/proposals" className={`nav-item ${isProposals ? "active" : ""}`}>
                   <svg className="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <span>审核新记忆</span>
+                  <span>{t("审核新记忆", "Review Memories")}</span>
                 </Link>
                 <Link href="/memories" className={`nav-item ${isMemories ? "active" : ""}`}>
                   <svg className="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  <span>查找记忆</span>
+                  <span>{t("查找记忆", "Search Memories")}</span>
                 </Link>
               </nav>
 
               <div className="narrative-widget">
-                <div className="widget-title">记忆如何保存</div>
+                <div className="widget-title">{t("记忆如何保存", "How memories are saved")}</div>
                 <div className="widget-step">
                   <span className="step-num">1</span>
                   <div>
-                    <strong>AI 提取候选内容</strong>
-                    <p>模型先整理出可能值得记住的内容，不会直接保存</p>
+                    <strong>{t("AI 提取候选内容", "AI suggests memories")}</strong>
+                    <p>{t("模型先整理出可能值得记住的内容，不会直接保存", "The model suggests what may be worth remembering, but saves nothing yet")}</p>
                   </div>
                 </div>
                 <div className="widget-step">
                   <span className="step-num">2</span>
                   <div>
-                    <strong>由你确认是否保存</strong>
-                    <p>你可以批准、拒绝、替换旧记忆或设置到期时间</p>
+                    <strong>{t("由你确认是否保存", "You decide what to save")}</strong>
+                    <p>{t("你可以批准、拒绝、替换旧记忆或设置到期时间", "Approve, reject, replace an old memory, or set an expiry")}</p>
                   </div>
                 </div>
                 <div className="widget-step">
                   <span className="step-num">3</span>
                   <div>
-                    <strong>每次变化都有记录</strong>
-                    <p>随时查看记忆的来源、处理人和变更历史</p>
+                    <strong>{t("每次变化都有记录", "Every change is recorded")}</strong>
+                    <p>{t("随时查看记忆的来源、处理人和变更历史", "See where a memory came from, who handled it, and how it changed")}</p>
                   </div>
                 </div>
               </div>
             </div>
             
             <div className="sidebar-footer">
+              <button className="language-toggle" type="button" onClick={() => setLanguage(language === "zh" ? "en" : "zh")}>
+                {language === "zh" ? "EN  English" : "中  中文"}
+              </button>
               <div className="status-indicator">
                 <span className="status-dot"></span>
-                <span>服务运行正常</span>
+                <span>{t("服务运行正常", "Service online")}</span>
               </div>
               <div className="version-info">SQLite + Qwen</div>
             </div>
@@ -340,6 +345,21 @@ export default function RootLayout({ children }) {
             padding-top: 20px;
             font-size: 12px;
             color: var(--text-muted);
+          }
+          .language-toggle {
+            width: 100%;
+            margin-bottom: 16px;
+            padding: 8px 12px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            font-size: 12px;
+          }
+          .language-toggle:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.03);
+            border-color: var(--border-color-hover);
+            box-shadow: none;
           }
           .status-indicator {
             display: flex;

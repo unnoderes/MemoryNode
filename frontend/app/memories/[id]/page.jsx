@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { explainMemory, revokeMemory } from "../../../lib/api";
+import { useLanguage } from "../../../lib/language";
 
 const MEMORY_TYPE_LABELS = {
   user_preference: "用户偏好",
@@ -29,11 +30,22 @@ const EVENT_LABELS = {
   expire: "已到期",
 };
 
-function formatExpiresAt(value) {
-  return new Date(value).toLocaleString("zh-CN", { dateStyle: "medium", timeStyle: "short" });
+function formatExpiresAt(value, language) {
+  return new Date(value).toLocaleString(language === "zh" ? "zh-CN" : "en-US", { dateStyle: "medium", timeStyle: "short" });
 }
 
 export default function MemoryDetailPage() {
+  const { language, t } = useLanguage();
+  const typeLabels = language === "zh" ? MEMORY_TYPE_LABELS : {
+    user_preference: "User preference", project_constraint: "Project constraint",
+    project_decision: "Project decision", recurring_workflow: "Recurring workflow",
+    known_pitfall: "Known pitfall", fact: "Fact",
+  };
+  const statusLabels = language === "zh" ? STATUS_LABELS : { active: "Active", revoked: "Revoked", expired: "Expired" };
+  const eventLabels = language === "zh" ? EVENT_LABELS : {
+    approve: "Approved", reject: "Rejected", revoke: "Revoked",
+    supersede: "Replaced old memory", superseded: "Replaced", expire: "Expired",
+  };
   const pathname = usePathname();
   const id = decodeURIComponent(pathname.split("/").filter(Boolean).pop() || "");
   const [detail, setDetail] = useState(null);
@@ -76,9 +88,9 @@ export default function MemoryDetailPage() {
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
-            <span>返回记忆库</span>
+            <span>{t("返回记忆库", "Back to Memories")}</span>
           </Link>
-          <h1 style={{ marginTop: '12px' }}>记忆详情</h1>
+          <h1 style={{ marginTop: '12px' }}>{t("记忆详情", "Memory Details")}</h1>
         </div>
       </header>
 
@@ -89,7 +101,7 @@ export default function MemoryDetailPage() {
           <svg className="animate-spin empty-icon" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite', color: 'var(--color-accent)' }}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          <span style={{ marginTop: '12px' }}>正在加载记忆详情和历史记录…</span>
+          <span style={{ marginTop: '12px' }}>{t("正在加载记忆详情和历史记录…", "Loading memory details and history…")}</span>
         </div>
       ) : null}
 
@@ -111,14 +123,14 @@ export default function MemoryDetailPage() {
               </div>
               <div>
                 <span className="banner-title">
-                  当前状态：{STATUS_LABELS[memory.status] || memory.status}
+                  {t("当前状态", "Status")}：{statusLabels[memory.status] || memory.status}
                 </span>
                 <p style={{ fontSize: '13px', opacity: 0.9, marginTop: '4px', lineHeight: '1.4' }}>
                   {memory.status === 'active'
-                    ? "这条记忆当前有效，会出现在默认搜索结果中。"
+                    ? t("这条记忆当前有效，会出现在默认搜索结果中。", "This memory is active and appears in default search.")
                     : memory.status === 'revoked'
-                    ? "这条记忆已被撤销，不会再出现在默认搜索中，但来源和历史记录仍然保留。"
-                    : "这条记忆已经到期，不会再出现在默认搜索中，但仍可查看和追溯。"}
+                    ? t("这条记忆已被撤销，不会再出现在默认搜索中，但来源和历史记录仍然保留。", "This memory was revoked. It no longer appears in default search, but its source and history remain available.")
+                    : t("这条记忆已经到期，不会再出现在默认搜索中，但仍可查看和追溯。", "This memory has expired. It no longer appears in default search, but remains available for review.")}
                 </p>
               </div>
             </div>
@@ -127,7 +139,7 @@ export default function MemoryDetailPage() {
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                 </svg>
-                {busy ? "正在撤销…" : "撤销这条记忆"}
+                {busy ? t("正在撤销…", "Revoking…") : t("撤销这条记忆", "Revoke Memory")}
               </button>
             ) : null}
           </div>
@@ -136,19 +148,19 @@ export default function MemoryDetailPage() {
             <div className="supersession-links">
               {detail.supersedes ? (
                 <div className="supersede-link-item">
-                  <span className="supersede-badge">替换了这条旧记忆</span>
+                  <span className="supersede-badge">{t("替换了这条旧记忆", "Replaced this older memory")}</span>
                   <Link href={`/memories/${detail.supersedes.id}`}>
                     <span>{detail.supersedes.content}</span>
-                    <small>ID：{detail.supersedes.id.substring(0, 8)}… ↗</small>
+                    <small>ID: {detail.supersedes.id.substring(0, 8)}… ↗</small>
                   </Link>
                 </div>
               ) : null}
               {detail.superseded_by ? (
                 <div className="supersede-link-item">
-                  <span className="supersede-badge superseded-by">后来被这条新记忆替换</span>
+                  <span className="supersede-badge superseded-by">{t("后来被这条新记忆替换", "Later replaced by this memory")}</span>
                   <Link href={`/memories/${detail.superseded_by.id}`}>
                     <span>{detail.superseded_by.content}</span>
-                    <small>ID：{detail.superseded_by.id.substring(0, 8)}… ↗</small>
+                    <small>ID: {detail.superseded_by.id.substring(0, 8)}… ↗</small>
                   </Link>
                 </div>
               ) : null}
@@ -160,48 +172,48 @@ export default function MemoryDetailPage() {
             <section className="dossier-column">
               <div className="dossier-card">
                 <div className="dossier-header-row">
-                  <span className="dossier-section-title">记忆内容</span>
-                  <span className="dossier-id">ID：{memory.id}</span>
+                  <span className="dossier-section-title">{t("记忆内容", "Memory")}</span>
+                  <span className="dossier-id">ID: {memory.id}</span>
                 </div>
                 
                 <div className="dossier-content-block">
-                  <span className="dossier-label">保存的内容</span>
+                  <span className="dossier-label">{t("保存的内容", "Saved Content")}</span>
                   <div className="dossier-value memory-text">{memory.content}</div>
                 </div>
 
                 <div className="dossier-grid-two">
                   <div className="dossier-grid-item">
-                    <span className="dossier-label">类型</span>
+                    <span className="dossier-label">{t("类型", "Type")}</span>
                     <div className="dossier-value highlight-type">
-                      {MEMORY_TYPE_LABELS[memory.type] || memory.type}
+                      {typeLabels[memory.type] || memory.type}
                     </div>
                   </div>
                   <div className="dossier-grid-item">
-                    <span className="dossier-label">所属项目</span>
+                    <span className="dossier-label">{t("所属项目", "Project")}</span>
                     <div className="dossier-value code-font">
                       {proposal?.project_id || "default"}
                     </div>
                   </div>
                   <div className="dossier-grid-item">
-                    <span className="dossier-label">到期时间</span>
+                    <span className="dossier-label">{t("到期时间", "Expires")}</span>
                     <div className="dossier-value">
-                      {memory.expires_at ? formatExpiresAt(memory.expires_at) : "长期有效"}
+                      {memory.expires_at ? formatExpiresAt(memory.expires_at, language) : t("长期有效", "No expiry")}
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="dossier-card">
-                <span className="dossier-section-title">来自哪句话</span>
+                <span className="dossier-section-title">{t("来自哪句话", "Source Quote")}</span>
                 <blockquote className="pre source-quote">
-                  {proposal?.source_quote || "没有保存原始摘录。"}
+                  {proposal?.source_quote || t("没有保存原始摘录。", "No source quote was saved.")}
                 </blockquote>
               </div>
 
               <div className="dossier-card">
-                <span className="dossier-section-title">为什么建议记住</span>
+                <span className="dossier-section-title">{t("为什么建议记住", "Why Remember This")}</span>
                 <div className="dossier-reason-box">
-                  {proposal?.reason || "没有保存提取理由。"}
+                  {proposal?.reason || t("没有保存提取理由。", "No extraction reason was saved.")}
                 </div>
               </div>
             </section>
@@ -210,12 +222,12 @@ export default function MemoryDetailPage() {
             <aside>
               <div className="timeline-card">
                 <div className="timeline-header-row">
-                  <span className="dossier-section-title">变更记录</span>
-                  <span className="timeline-count">共 {events.length} 条</span>
+                  <span className="dossier-section-title">{t("变更记录", "History")}</span>
+                  <span className="timeline-count">{t(`共 ${events.length} 条`, `${events.length} events`)}</span>
                 </div>
 
                 {events.length === 0 ? (
-                  <p className="muted" style={{ padding: '24px 0', textAlign: 'center' }}>还没有变更记录。</p>
+                  <p className="muted" style={{ padding: '24px 0', textAlign: 'center' }}>{t("还没有变更记录。", "No history yet.")}</p>
                 ) : (
                   <div className="timeline">
                     {events.map((event, idx) => (
@@ -227,9 +239,9 @@ export default function MemoryDetailPage() {
                         <div className="timeline-body">
                           <div className="timeline-event-header">
                             <span className={`timeline-event-badge badge-event-${event.event_type}`}>
-                              {EVENT_LABELS[event.event_type] || event.event_type}
+                              {eventLabels[event.event_type] || event.event_type}
                             </span>
-                            <span className="timeline-actor">操作人：<strong>{event.actor_id}</strong></span>
+                            <span className="timeline-actor">{t("操作人", "By")}：<strong>{event.actor_id}</strong></span>
                           </div>
                           <div className="timeline-time">{event.created_at}</div>
                           {event.note ? (

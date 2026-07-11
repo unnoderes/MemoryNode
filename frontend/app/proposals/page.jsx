@@ -9,10 +9,15 @@ import {
   relatedMemories,
   rejectProposal,
 } from "../../lib/api";
+import { useLanguage } from "../../lib/language";
 
 const DEMO_TRANSCRIPT = `这个项目必须使用 Qwen Cloud，而不是 OpenAI API。
 我们已经决定 MVP 使用 FastAPI、SQLite 和 Next.js。
 每条保存的记忆都应该能查到来源、说明原因，并且可以随时撤销。`;
+
+const DEMO_TRANSCRIPT_EN = `This project must use Qwen Cloud instead of the OpenAI API.
+We decided to build the MVP with FastAPI, SQLite, and Next.js.
+Every saved memory must keep its source and reason, and it must remain revocable.`;
 
 const MEMORY_TYPE_LABELS = {
   user_preference: "用户偏好",
@@ -24,6 +29,15 @@ const MEMORY_TYPE_LABELS = {
 };
 
 export default function ProposalsPage() {
+  const { language, t } = useLanguage();
+  const typeLabels = language === "zh" ? MEMORY_TYPE_LABELS : {
+    user_preference: "User preference", project_constraint: "Project constraint",
+    project_decision: "Project decision", recurring_workflow: "Recurring workflow",
+    known_pitfall: "Known pitfall", fact: "Fact",
+  };
+  const statusLabels = language === "zh" ? { active: "生效中", revoked: "已撤销", expired: "已过期" } : {
+    active: "Active", revoked: "Revoked", expired: "Expired",
+  };
   const [actorId, setActorId] = useState("demo-user");
   const [projectId, setProjectId] = useState("memorynode-demo");
   const [transcript, setTranscript] = useState(DEMO_TRANSCRIPT);
@@ -38,6 +52,12 @@ export default function ProposalsPage() {
 
   const [selectedId, setSelectedId] = useState(null);
   const [extractExpanded, setExtractExpanded] = useState(false);
+
+  useEffect(() => {
+    setTranscript((current) => current === DEMO_TRANSCRIPT || current === DEMO_TRANSCRIPT_EN
+      ? (language === "zh" ? DEMO_TRANSCRIPT : DEMO_TRANSCRIPT_EN)
+      : current);
+  }, [language]);
 
   async function refresh() {
     const body = await listProposals();
@@ -74,12 +94,15 @@ export default function ProposalsPage() {
     event.preventDefault();
     const text = transcript.trim();
     if (!text) {
-      setError("请输入原始记录。");
+      setError(t("请输入原始记录。", "Enter a conversation first."));
       return;
     }
     await run(async () => {
       const body = await extractProposals({ actorId, projectId, transcript: text });
-      setMessage(`已提取 ${(body.proposals || []).length} 条内容，请确认是否保存。`);
+      setMessage(t(
+        `已提取 ${(body.proposals || []).length} 条内容，请确认是否保存。`,
+        `Found ${(body.proposals || []).length} suggested memories. Review them before saving.`,
+      ));
       setTranscript("");
       setExtractExpanded(false); // Collapse extractor after success
     });
@@ -109,8 +132,8 @@ export default function ProposalsPage() {
   return (
     <div className="proposals-container">
       <header className="page-header">
-        <h1>审核新记忆</h1>
-        <p className="muted">AI 会从对话中找出值得记住的内容。只有经过你的确认，它们才会成为长期记忆。</p>
+        <h1>{t("审核新记忆", "Review New Memories")}</h1>
+        <p className="muted">{t("AI 会从对话中找出值得记住的内容。只有经过你的确认，它们才会成为长期记忆。", "AI finds information worth remembering. It becomes long-term memory only after you approve it.")}</p>
       </header>
 
       {/* Governance Boundary Alert */}
@@ -121,9 +144,9 @@ export default function ProposalsPage() {
           </svg>
         </div>
         <div>
-          <h4 style={{ fontWeight: 700, marginBottom: '4px', color: '#ffffff' }}>AI 不能直接保存长期记忆</h4>
+          <h4 style={{ fontWeight: 700, marginBottom: '4px', color: '#ffffff' }}>{t("AI 不能直接保存长期记忆", "AI cannot save long-term memory on its own")}</h4>
           <p style={{ fontSize: '13px', opacity: 0.95, lineHeight: '1.5' }}>
-            AI 提取的内容会先进入待审核列表。你可以查看原文和提取理由，再决定<strong>批准</strong>或<strong>拒绝</strong>。
+            {t("AI 提取的内容会先进入待审核列表。你可以查看原文和提取理由，再决定批准或拒绝。", "AI suggestions enter a review queue first. Check the source and reason, then approve or reject each one.")}
           </p>
         </div>
       </div>
@@ -142,7 +165,7 @@ export default function ProposalsPage() {
               className="extractor-toggle-btn"
               onClick={() => setExtractExpanded(!extractExpanded)}
             >
-              <span>从对话中提取记忆</span>
+              <span>{t("从对话中提取记忆", "Extract Memories from a Conversation")}</span>
               <svg className="chevron-icon" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
@@ -152,24 +175,24 @@ export default function ProposalsPage() {
               <form onSubmit={onExtract}>
                 <div className="two-col">
                   <label>
-                    操作人 ID
-                    <input value={actorId} onChange={(event) => setActorId(event.target.value)} placeholder="例如 reviewer" />
+                    {t("操作人 ID", "User ID")}
+                    <input value={actorId} onChange={(event) => setActorId(event.target.value)} placeholder={t("例如 reviewer", "For example: reviewer")} />
                   </label>
                   <label>
-                    项目 ID
-                    <input value={projectId} onChange={(event) => setProjectId(event.target.value)} placeholder="如 memorynode-demo" />
+                    {t("项目 ID", "Project ID")}
+                    <input value={projectId} onChange={(event) => setProjectId(event.target.value)} placeholder={t("例如 memorynode-demo", "For example: memorynode-demo")} />
                   </label>
                 </div>
                 <label>
-                  原始对话
+                  {t("原始对话", "Conversation")}
                   <textarea
                     value={transcript}
                     onChange={(event) => setTranscript(event.target.value)}
-                    placeholder="粘贴一段对话，例如：这个项目必须使用 Qwen Cloud。"
+                    placeholder={t("粘贴一段对话，例如：这个项目必须使用 Qwen Cloud。", "Paste a conversation, for example: This project must use Qwen Cloud.")}
                   />
                 </label>
                 <button disabled={busy} type="submit" style={{ width: '100%' }}>
-                  {busy ? "正在提取..." : "提取记忆提案"}
+                  {busy ? t("正在提取…", "Extracting…") : t("提取记忆提案", "Extract Memory Suggestions")}
                 </button>
               </form>
             </div>
@@ -177,14 +200,14 @@ export default function ProposalsPage() {
 
           {/* Proposals List */}
           <div className="proposals-list-section">
-            <h2>等待你确认 ({proposals.length})</h2>
+            <h2>{t("等待你确认", "Waiting for Review")} ({proposals.length})</h2>
             {proposals.length === 0 ? (
               <div className="empty">
                 <svg className="empty-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span>暂时没有需要审核的内容</span>
-                <p style={{ fontSize: '13px', opacity: 0.7 }}>在上方粘贴一段对话，AI 会帮你找出值得记住的内容。</p>
+                <span>{t("暂时没有需要审核的内容", "Nothing to review yet")}</span>
+                <p style={{ fontSize: '13px', opacity: 0.7 }}>{t("在上方粘贴一段对话，AI 会帮你找出值得记住的内容。", "Paste a conversation above and AI will suggest what may be worth remembering.")}</p>
               </div>
             ) : (
               <div className="compact-proposal-list">
@@ -197,8 +220,8 @@ export default function ProposalsPage() {
                       onClick={() => setSelectedId(proposal.id)}
                     >
                       <div className="compact-item-header">
-                        <span className="compact-item-type">{MEMORY_TYPE_LABELS[proposal.type] || proposal.type}</span>
-                        <span className="compact-item-conf">{(proposal.confidence * 100).toFixed(0)}% conf</span>
+                        <span className="compact-item-type">{typeLabels[proposal.type] || proposal.type}</span>
+                        <span className="compact-item-conf">{(proposal.confidence * 100).toFixed(0)}% {t("把握", "confidence")}</span>
                       </div>
                       <p className="compact-item-text">{proposal.content}</p>
                     </div>
@@ -214,17 +237,17 @@ export default function ProposalsPage() {
           {selectedProposal ? (
             <div className="audit-detail-card">
               <div className="detail-card-header">
-                <span className="detail-section-label">待审核内容</span>
+                <span className="detail-section-label">{t("待审核内容", "Suggested Memory")}</span>
                 <h2>{selectedProposal.content}</h2>
                 <div className="detail-meta-row">
                   <span className="badge badge-type">
-                    {MEMORY_TYPE_LABELS[selectedProposal.type] || selectedProposal.type}
+                    {typeLabels[selectedProposal.type] || selectedProposal.type}
                   </span>
                   <div className="confidence-indicator" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                     <div className="confidence-track" style={{ width: '60px', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
                       <div className="confidence-bar" style={{ height: '100%', background: 'linear-gradient(90deg, var(--color-accent) 0%, var(--color-primary) 100%)', width: `${selectedProposal.confidence * 100}%` }}></div>
                     </div>
-                    <span className="confidence-text">AI 判断把握：{(selectedProposal.confidence * 100).toFixed(0)}%</span>
+                    <span className="confidence-text">{t("AI 判断把握", "AI confidence")}：{(selectedProposal.confidence * 100).toFixed(0)}%</span>
                   </div>
                 </div>
               </div>
@@ -232,7 +255,7 @@ export default function ProposalsPage() {
               <div className="detail-body">
                 {selectedProposal.source_quote && (
                   <div className="detail-field">
-                    <div className="detail-field-title">来自哪句话</div>
+                    <div className="detail-field-title">{t("来自哪句话", "Source Quote")}</div>
                     <blockquote className="pre source-quote">
                       {selectedProposal.source_quote}
                     </blockquote>
@@ -241,7 +264,7 @@ export default function ProposalsPage() {
 
                 {selectedProposal.reason && (
                   <div className="detail-field">
-                    <div className="detail-field-title">为什么建议记住</div>
+                    <div className="detail-field-title">{t("为什么建议记住", "Why Remember This")}</div>
                     <div className="proposal-reason-box">
                       {selectedProposal.reason}
                     </div>
@@ -249,7 +272,7 @@ export default function ProposalsPage() {
                 )}
 
                 <div className="detail-field">
-                  <div className="detail-field-title">是否要替换已有记忆</div>
+                  <div className="detail-field-title">{t("是否要替换已有记忆", "Replace an Existing Memory?")}</div>
                   <div className="related-review-block">
                     {relatedByProposal[selectedId] === undefined ? (
                       <button
@@ -258,13 +281,13 @@ export default function ProposalsPage() {
                         disabled={busy || relatedLoading[selectedId]}
                         onClick={() => loadRelated(selectedId)}
                       >
-                        {relatedLoading[selectedId] ? "查找中..." : "查找相关记忆"}
+                        {relatedLoading[selectedId] ? t("查找中…", "Searching…") : t("查找相关记忆", "Find Related Memories")}
                       </button>
                     ) : relatedByProposal[selectedId].length === 0 ? (
-                      <p className="muted text-xs">没有找到相关的旧记忆。</p>
+                      <p className="muted text-xs">{t("没有找到相关的旧记忆。", "No related memories found.")}</p>
                     ) : (
                       <fieldset className="related-list">
-                        <p className="candidate-desc">如果这条新内容更新了旧记忆，请手动选择要替换的那一条。系统不会自动替换：</p>
+                        <p className="candidate-desc">{t("如果这条新内容更新了旧记忆，请手动选择要替换的那一条。系统不会自动替换：", "If this updates an old memory, choose the one to replace. The system never replaces memories automatically:")}</p>
                         {relatedByProposal[selectedId].map((memory) => (
                           <label className={`related-memory ${supersedeByProposal[selectedId] === memory.id ? 'selected' : ''}`} key={memory.id}>
                             <input
@@ -279,11 +302,11 @@ export default function ProposalsPage() {
                             <span className="related-memory-body">
                               <span className="related-memory-content">{memory.content}</span>
                               <small className="related-memory-meta">
-                                类型：{MEMORY_TYPE_LABELS[memory.type] || memory.type} · 状态：{memory.status}
+                                {t("类型", "Type")}：{typeLabels[memory.type] || memory.type} · {t("状态", "Status")}：{statusLabels[memory.status] || memory.status}
                               </small>
                             </span>
                             <Link href={`/memories/${memory.id}`} target="_blank" className="related-detail-link">
-                              查看详情 ↗
+                              {t("查看详情", "View Details")} ↗
                             </Link>
                           </label>
                         ))}
@@ -293,11 +316,11 @@ export default function ProposalsPage() {
                 </div>
 
                 <div className="detail-field operations-field">
-                  <div className="detail-field-title">确认如何处理</div>
+                  <div className="detail-field-title">{t("确认如何处理", "Choose an Action")}</div>
                   <div className="proposal-actions">
                     <div className="expiration-col">
                       <label className="expiration-input">
-                        到期时间（可选）
+                        {t("到期时间（可选）", "Expiry Time (Optional)")}
                         <input
                           type="datetime-local"
                           value={expiresByProposal[selectedId] || ""}
@@ -307,7 +330,7 @@ export default function ProposalsPage() {
                           }))}
                         />
                       </label>
-                      <span className="expiration-tip">留空表示长期有效。到期后，这条记忆不会再出现在默认搜索中，但历史记录仍会保留。</span>
+                      <span className="expiration-tip">{t("留空表示长期有效。到期后，这条记忆不会再出现在默认搜索中，但历史记录仍会保留。", "Leave blank to keep it indefinitely. After expiry, it leaves default search but keeps its history.")}</span>
                     </div>
 
                     <div className="action-buttons-group">
@@ -326,7 +349,7 @@ export default function ProposalsPage() {
                         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
-                        {supersedeByProposal[selectedId] ? "批准并替换旧记忆" : "批准并保存"}
+                        {supersedeByProposal[selectedId] ? t("批准并替换旧记忆", "Approve and Replace") : t("批准并保存", "Approve and Save")}
                       </button>
 
                       <button
@@ -337,7 +360,7 @@ export default function ProposalsPage() {
                         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        拒绝
+                        {t("拒绝", "Reject")}
                       </button>
                     </div>
                   </div>
@@ -349,8 +372,8 @@ export default function ProposalsPage() {
               <svg className="empty-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
-              <h3>请选择一条内容</h3>
-              <p>点击左侧列表中的提案，查看它来自哪里、为什么值得记住，并决定是否保存。</p>
+              <h3>{t("请选择一条内容", "Select a Suggestion")}</h3>
+              <p>{t("点击左侧列表中的提案，查看它来自哪里、为什么值得记住，并决定是否保存。", "Select an item on the left to inspect its source and reason, then decide whether to save it.")}</p>
             </div>
           )}
         </div>

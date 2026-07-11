@@ -1,5 +1,9 @@
 # BUG-20260710-01: Mobile Dashboard Overflows Horizontally
 
+- Status: resolved
+- Fixed by: `a53e6e5` (`fix: stack mobile dashboard layout`)
+- Verified: 2026-07-11
+
 - Severity: P1
 - Type: responsive UI
 - Baseline: `c7393f7ee73f83d60f514c3d1271815c0a818727`
@@ -59,14 +63,23 @@ browser checks at 390px and 1280px using isolated QA data.
 
 ## Release Blocking Decision
 
-Yes. This blocks competition-demo recording and release readiness.
+No. Regression passed after `a53e6e5`.
+
+## Resolution Evidence
+
+- Backend regression: `12 passed in 2.05s`.
+- Frontend production build: Next.js 16.2.10 compiled, type-checked, and generated all 4 routes.
+- Isolated browser data on `/proposals`, `/memories`, and `/memories/<id>` at 390x844 and 1280x844 produced no horizontal document overflow or offscreen elements.
+- At 390x844, proposal actions, the related-memory candidate radio, native expiry input, search controls, revoke action, source detail, and the one-event audit timeline remained visible and within the viewport.
+- Desktop layout and controls remained within the 1280px viewport.
 
 ## Next One-Click Prompt
 
 ```text
-Read AGENTS.md and docs/undone-development-plan/bugtriage-20260710-01-mobile-layout.md.
-Fix only BUG-20260710-01 in frontend/app/layout.jsx. Do not change product APIs,
-dependencies, .env, databases, or unrelated styling. Run backend pytest, frontend
-build, and browser QA at 390px and 1280px with isolated data. Commit and push the
-focused fix, then hand off to QA regression.
+Read AGENTS.md, docs/demo-script.md, and
+docs/undone-development-plan/qa-20260710-01-competition-demo-readiness.md.
+Do not add features or change product code. Capture final competition screenshots
+at 390px and 1280px with isolated demo data, record the approved demo flow, and run
+the final release-check. Do not expose or commit .env, API keys, databases, caches,
+node_modules, or .next. Record only observed evidence and stop if any release blocker appears.
 ```

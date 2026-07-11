@@ -34,8 +34,6 @@ The MVP backend and dashboard are working, but the product is still visually and
 - There is no automatic semantic-conflict arbitration: related memories are
   candidates for an explicit reviewer decision.
 - Expiry refresh is request-driven; there is no background scheduler.
-- Mobile layout has a release-blocking overflow issue tracked in
-  `docs/undone-development-plan/bugtriage-20260710-01-mobile-layout.md`.
 - No SDK, MCP adapter, hooks, auth, Docker, or deployment story yet.
 - Qwen Cloud quota is not approved yet; local testing currently uses a relay configured in `.env`.
 

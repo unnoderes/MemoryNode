@@ -40,7 +40,7 @@ extract -> approve/reject -> search -> explain -> revoke
 10. Return to `/memories`, search again, and show the revoked memory no longer
     appears in default search.
 
-Do this segment on the desktop layout until the mobile QA issue is closed.
+Use either the desktop or mobile layout; both passed responsive regression after `a53e6e5`.
 
 ## 2:15-2:45 Architecture
 

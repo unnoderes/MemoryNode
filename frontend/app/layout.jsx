@@ -129,7 +129,7 @@ export default function RootLayout({ children }) {
           body {
             background-color: #0a0a0a;
             background-image:
-              repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 1px, transparent 1px, transparent 24px),
+              repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0px, rgba(255, 255, 255, 0.035) 1px, transparent 1px, transparent 24px),
               radial-gradient(circle at 80% 20%, #171717 0%, #0a0a0a 60%);
             color: var(--text-primary);
             font-family: 'Plus Jakarta Sans', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
@@ -246,7 +246,7 @@ export default function RootLayout({ children }) {
 
           /* Narrative widget */
           .narrative-widget {
-            background: rgba(255, 255, 255, 0.015);
+            background: rgba(255, 255, 255, 0.035);
             border: 1px solid rgba(255, 255, 255, 0.04);
             border-radius: 10px;
             padding: 14px;

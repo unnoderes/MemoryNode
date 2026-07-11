@@ -36,9 +36,20 @@ export default function ProposalsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const [selectedId, setSelectedId] = useState(null);
+  const [extractExpanded, setExtractExpanded] = useState(false);
+
   async function refresh() {
     const body = await listProposals();
-    setProposals(body.proposals || []);
+    const list = body.proposals || [];
+    setProposals(list);
+    if (list.length > 0) {
+      if (!list.some(p => p.id === selectedId)) {
+        setSelectedId(list[0].id);
+      }
+    } else {
+      setSelectedId(null);
+    }
   }
 
   useEffect(() => {
@@ -70,6 +81,7 @@ export default function ProposalsPage() {
       const body = await extractProposals({ actorId, projectId, transcript: text });
       setMessage(`已成功从输入记录中抽取并生成 ${(body.proposals || []).length} 条待审核提案。`);
       setTranscript("");
+      setExtractExpanded(false); // Collapse extractor after success
     });
   }
 
@@ -85,6 +97,14 @@ export default function ProposalsPage() {
       setRelatedLoading((current) => ({ ...current, [proposalId]: false }));
     }
   }
+
+  useEffect(() => {
+    if (selectedId && relatedByProposal[selectedId] === undefined) {
+      loadRelated(selectedId).catch(() => {});
+    }
+  }, [selectedId]);
+
+  const selectedProposal = proposals.find(p => p.id === selectedId);
 
   return (
     <div className="proposals-container">
@@ -111,194 +131,229 @@ export default function ProposalsPage() {
       {error ? <div className="error">{error}</div> : null}
       {message ? <div className="notice">{message}</div> : null}
 
-      <div className="proposals-layout">
-        {/* Main section: Pending Proposals (Left Column) */}
-        <section className="proposals-main">
-          <h2>待审核拟案队列 ({proposals.length})</h2>
-          {proposals.length === 0 ? (
-            <div className="empty">
-              <svg className="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span>暂无待审核的记忆提案</span>
-              <p style={{ fontSize: '13px', opacity: 0.7 }}>您可以使用右侧的控制面板提取新的提案。</p>
-            </div>
-          ) : null}
+      <div className="soc-layout">
+        {/* Left Column: Extraction & Proposals List */}
+        <div className="soc-left-panel">
 
-          <div className="grid">
-            {proposals.map((proposal) => (
-              <article className="proposal-card" key={proposal.id}>
-                <div className="proposal-card-header">
-                  <div className="proposal-content-wrapper">
-                    <span className="proposal-content-label">记忆体拟案写入内容</span>
-                    <h3 className="proposal-content-text">{proposal.content}</h3>
-                  </div>
-                  <div className="proposal-meta-badges">
-                    <span className="badge badge-type">
-                      {MEMORY_TYPE_LABELS[proposal.type] || proposal.type}
-                    </span>
-                    <div className="confidence-indicator">
-                      <div className="confidence-track">
-                        <div className="confidence-bar" style={{ width: `${proposal.confidence * 100}%` }}></div>
+          {/* Collapsible Extractor */}
+          <div className={`collapsible-extractor ${extractExpanded ? 'expanded' : ''}`}>
+            <button
+              type="button"
+              className="extractor-toggle-btn"
+              onClick={() => setExtractExpanded(!extractExpanded)}
+            >
+              <span>模拟交互拟案提取</span>
+              <svg className="chevron-icon" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <div className="extractor-content">
+              <form onSubmit={onExtract}>
+                <div className="two-col">
+                  <label>
+                    审计员 ID
+                    <input value={actorId} onChange={(event) => setActorId(event.target.value)} placeholder="如 reviewer" />
+                  </label>
+                  <label>
+                    命名空间
+                    <input value={projectId} onChange={(event) => setProjectId(event.target.value)} placeholder="如 memorynode-demo" />
+                  </label>
+                </div>
+                <label>
+                  原始文本记录 (Transcript)
+                  <textarea
+                    value={transcript}
+                    onChange={(event) => setTranscript(event.target.value)}
+                    placeholder="在此贴入原始对话记录，如 '这个项目必须使用 Qwen Cloud。'"
+                  />
+                </label>
+                <button disabled={busy} type="submit" style={{ width: '100%' }}>
+                  {busy ? "正在分析提取..." : "模型提取拟案"}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Proposals List */}
+          <div className="proposals-list-section">
+            <h2>待审核拟案队列 ({proposals.length})</h2>
+            {proposals.length === 0 ? (
+              <div className="empty">
+                <svg className="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>暂无待审核的记忆提案</span>
+                <p style={{ fontSize: '13px', opacity: 0.7 }}>您可以使用上方控制面板提取新拟案。</p>
+              </div>
+            ) : (
+              <div className="compact-proposal-list">
+                {proposals.map((proposal) => {
+                  const isSelected = proposal.id === selectedId;
+                  return (
+                    <div
+                      key={proposal.id}
+                      className={`compact-proposal-item ${isSelected ? 'selected' : ''}`}
+                      onClick={() => setSelectedId(proposal.id)}
+                    >
+                      <div className="compact-item-header">
+                        <span className="compact-item-type">{MEMORY_TYPE_LABELS[proposal.type] || proposal.type}</span>
+                        <span className="compact-item-conf">{(proposal.confidence * 100).toFixed(0)}% conf</span>
                       </div>
-                      <span className="confidence-text">置信度: {(proposal.confidence * 100).toFixed(0)}%</span>
+                      <p className="compact-item-text">{proposal.content}</p>
                     </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: Detail Panel */}
+        <div className="soc-right-panel">
+          {selectedProposal ? (
+            <div className="audit-detail-card">
+              <div className="detail-card-header">
+                <span className="detail-section-label">安全隔离拟案审计档案</span>
+                <h2>{selectedProposal.content}</h2>
+                <div className="detail-meta-row">
+                  <span className="badge badge-type">
+                    {MEMORY_TYPE_LABELS[selectedProposal.type] || selectedProposal.type}
+                  </span>
+                  <div className="confidence-indicator" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="confidence-track" style={{ width: '60px', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div className="confidence-bar" style={{ height: '100%', background: 'linear-gradient(90deg, var(--color-accent) 0%, var(--color-primary) 100%)', width: `${selectedProposal.confidence * 100}%` }}></div>
+                    </div>
+                    <span className="confidence-text">置信度: {(selectedProposal.confidence * 100).toFixed(0)}%</span>
                   </div>
                 </div>
+              </div>
 
-                {proposal.source_quote ? (
-                  <div className="proposal-field">
-                    <div className="field-title">来源摘录证据 (Evidence)</div>
+              <div className="detail-body">
+                {selectedProposal.source_quote && (
+                  <div className="detail-field">
+                    <div className="detail-field-title">原始会话证据摘录 (Evidence)</div>
                     <blockquote className="pre source-quote">
-                      {proposal.source_quote}
+                      {selectedProposal.source_quote}
                     </blockquote>
                   </div>
-                ) : null}
+                )}
 
-                {proposal.reason ? (
-                  <div className="proposal-field">
-                    <div className="field-title">模型抽取理由说明 (Rationale)</div>
+                {selectedProposal.reason && (
+                  <div className="detail-field">
+                    <div className="detail-field-title">大模型抽取理由说明 (Rationale)</div>
                     <div className="proposal-reason-box">
-                      {proposal.reason}
+                      {selectedProposal.reason}
                     </div>
                   </div>
-                ) : null}
-
-                <div className="related-review">
-                  {relatedByProposal[proposal.id] === undefined ? (
-                    <button
-                      className="secondary btn-sm"
-                      disabled={busy || relatedLoading[proposal.id]}
-                      onClick={() => loadRelated(proposal.id)}
-                    >
-                      {relatedLoading[proposal.id] ? "正在分析相关认知冲突..." : "扫描库中相关记忆"}
-                    </button>
-                  ) : relatedByProposal[proposal.id].length === 0 ? (
-                    <p className="muted" style={{ fontSize: '12px' }}>没有找到同项目、同类型的有效记忆候选。</p>
-                  ) : (
-                    <fieldset className="related-list">
-                      <legend>人工核准替代候选 (Reviewer-Supervised Supersession Candidates)</legend>
-                      <p className="candidate-desc">若此记忆更新或冲突了已有认知，请人工指定要替代的旧记忆实体。此操作并非自动裁决。</p>
-                      {relatedByProposal[proposal.id].map((memory) => (
-                        <label className={`related-memory ${supersedeByProposal[proposal.id] === memory.id ? 'selected' : ''}`} key={memory.id}>
-                          <input
-                            type="radio"
-                            name={`supersede-${proposal.id}`}
-                            checked={supersedeByProposal[proposal.id] === memory.id}
-                            onChange={() => setSupersedeByProposal((current) => ({
-                              ...current,
-                              [proposal.id]: memory.id,
-                            }))}
-                          />
-                          <span className="related-memory-body">
-                            <span className="related-memory-content">{memory.content}</span>
-                            <small className="related-memory-meta">
-                              分类: {MEMORY_TYPE_LABELS[memory.type] || memory.type} · 状态: {memory.status} · 写入时间: {memory.created_at}
-                            </small>
-                          </span>
-                          <Link href={`/memories/${memory.id}`} target="_blank" className="related-detail-link">
-                            查看档案 ↗
-                          </Link>
-                        </label>
-                      ))}
-                    </fieldset>
-                  )}
-                </div>
-
-                <div className="proposal-actions">
-                  <div className="expiration-col">
-                    <label className="expiration-input">
-                      设置到期生命周期 (Optional Expire)
-                      <input
-                        type="datetime-local"
-                        value={expiresByProposal[proposal.id] || ""}
-                        onChange={(event) => setExpiresByProposal((current) => ({
-                          ...current,
-                          [proposal.id]: event.target.value,
-                        }))}
-                      />
-                    </label>
-                    <span className="expiration-tip">到期后将根据请求驱动机制自动标记为 expired 并对大模型检索屏蔽，历史审计仍然留存。</span>
-                  </div>
-                  <div className="action-buttons-group">
-                    <button
-                      className="btn-approve"
-                      disabled={busy}
-                      onClick={() => run(() => approveProposal(
-                        proposal.id,
-                        "reviewer",
-                        supersedeByProposal[proposal.id],
-                        expiresByProposal[proposal.id]
-                          ? new Date(expiresByProposal[proposal.id]).toISOString()
-                          : null,
-                      ))}
-                    >
-                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      {supersedeByProposal[proposal.id] ? "核准并替代旧记忆" : "核准并写入长期记忆"}
-                    </button>
-                    <button
-                      className="secondary btn-reject"
-                      disabled={busy}
-                      onClick={() => run(() => rejectProposal(proposal.id))}
-                    >
-                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      拒绝提案
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        {/* Sidebar section: Extract Proposals Form (Right Column) */}
-        <aside className="proposals-sidebar">
-          <div className="extraction-panel">
-            <h2>提案提取控制台</h2>
-            <p className="muted" style={{ marginBottom: '18px', fontSize: '13px' }}>
-              模拟 Agent 交互上下文。贴入交互文本记录，触发模型自动抽取记忆提案（Proposals）。
-            </p>
-            <form onSubmit={onExtract}>
-              <div className="two-col">
-                <label>
-                  审计人/操作员 ID
-                  <input value={actorId} onChange={(event) => setActorId(event.target.value)} placeholder="如 reviewer" />
-                </label>
-                <label>
-                  项目/命名空间 ID
-                  <input value={projectId} onChange={(event) => setProjectId(event.target.value)} placeholder="如 memorynode-demo" />
-                </label>
-              </div>
-              <label>
-                原始文本记录 (Context Transcript)
-                <textarea
-                  value={transcript}
-                  onChange={(event) => setTranscript(event.target.value)}
-                  placeholder="在此贴入原始对话记录，如 '这个项目必须使用 Qwen Cloud。'"
-                />
-              </label>
-              <button disabled={busy} type="submit" style={{ width: '100%' }}>
-                {busy ? (
-                  <>
-                    <svg className="animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}><path strokeLinecap="round" strokeLinejoin="round" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                    <span>正在运行 Qwen 抽取引擎...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                    </svg>
-                    <span>运行 Qwen 抽取引擎</span>
-                  </>
                 )}
-              </button>
-            </form>
-          </div>
-        </aside>
+
+                <div className="detail-field">
+                  <div className="detail-field-title">人机核准替代候选 (Reviewer-Supervised Supersession)</div>
+                  <div className="related-review-block">
+                    {relatedByProposal[selectedId] === undefined ? (
+                      <button
+                        type="button"
+                        className="secondary btn-sm"
+                        disabled={busy || relatedLoading[selectedId]}
+                        onClick={() => loadRelated(selectedId)}
+                      >
+                        {relatedLoading[selectedId] ? "分析中..." : "扫描库中关联冲突实体"}
+                      </button>
+                    ) : relatedByProposal[selectedId].length === 0 ? (
+                      <p className="muted text-xs">库中无冲突记忆实体。</p>
+                    ) : (
+                      <fieldset className="related-list">
+                        <p className="candidate-desc">若此拟案更新了已有认知，请选择核准替代的记忆实体（人工监督，非自动裁决）：</p>
+                        {relatedByProposal[selectedId].map((memory) => (
+                          <label className={`related-memory ${supersedeByProposal[selectedId] === memory.id ? 'selected' : ''}`} key={memory.id}>
+                            <input
+                              type="radio"
+                              name={`supersede-${selectedId}`}
+                              checked={supersedeByProposal[selectedId] === memory.id}
+                              onChange={() => setSupersedeByProposal((current) => ({
+                                ...current,
+                                [selectedId]: memory.id,
+                              }))}
+                            />
+                            <span className="related-memory-body">
+                              <span className="related-memory-content">{memory.content}</span>
+                              <small className="related-memory-meta">
+                                分类: {MEMORY_TYPE_LABELS[memory.type] || memory.type} · 状态: {memory.status}
+                              </small>
+                            </span>
+                            <Link href={`/memories/${memory.id}`} target="_blank" className="related-detail-link">
+                              查看档案 ↗
+                            </Link>
+                          </label>
+                        ))}
+                      </fieldset>
+                    )}
+                  </div>
+                </div>
+
+                <div className="detail-field operations-field">
+                  <div className="detail-field-title">准入授权操作面板 (Access Control Panel)</div>
+                  <div className="proposal-actions">
+                    <div className="expiration-col">
+                      <label className="expiration-input">
+                        设置到期生命周期 (Optional Expiration)
+                        <input
+                          type="datetime-local"
+                          value={expiresByProposal[selectedId] || ""}
+                          onChange={(event) => setExpiresByProposal((current) => ({
+                            ...current,
+                            [selectedId]: event.target.value,
+                          }))}
+                        />
+                      </label>
+                      <span className="expiration-tip">到期后将根据请求驱动机制自动标记为 expired，对大模型检索屏蔽，保留历史审计流水。</span>
+                    </div>
+
+                    <div className="action-buttons-group">
+                      <button
+                        className="btn-approve"
+                        disabled={busy}
+                        onClick={() => run(() => approveProposal(
+                          selectedId,
+                          "reviewer",
+                          supersedeByProposal[selectedId],
+                          expiresByProposal[selectedId]
+                            ? new Date(expiresByProposal[selectedId]).toISOString()
+                            : null,
+                        ))}
+                      >
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        {supersedeByProposal[selectedId] ? "核准并替代旧实体" : "核准并写入长期记忆"}
+                      </button>
+
+                      <button
+                        className="secondary btn-reject"
+                        disabled={busy}
+                        onClick={() => run(() => rejectProposal(selectedId))}
+                      >
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        安全拒绝并销毁
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="empty-audit-detail">
+              <svg className="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <h3>待选定拟案审计</h3>
+              <p>请在左侧列表中点击选择一个隔离拟案，以在此加载可审计档案并执行准入授权操作。</p>
+            </div>
+          )}
+        </div>
       </div>
 
       <style>{`
@@ -308,136 +363,213 @@ export default function ProposalsPage() {
           gap: 24px;
         }
 
-        .proposals-layout {
+        .soc-layout {
           display: grid;
-          grid-template-columns: 1.6fr 1fr;
-          gap: 32px;
+          grid-template-columns: minmax(360px, 420px) 1fr;
+          gap: 24px;
+          min-height: calc(100vh - 200px);
           align-items: start;
         }
 
-        .proposals-main {
+        .soc-left-panel {
           display: flex;
           flex-direction: column;
           gap: 20px;
         }
 
-        .proposals-sidebar {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-          position: sticky;
-          top: 40px;
-        }
-
-        .extraction-panel {
+        .collapsible-extractor {
           background: var(--bg-card);
           border: 1px solid var(--border-color);
           border-radius: 12px;
-          padding: 24px;
-          box-shadow: var(--card-shadow);
-        }
-
-        .proposal-card {
-          background: var(--bg-card);
-          border: 1px solid var(--border-color);
-          border-radius: 12px;
-          padding: 24px;
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
+          overflow: hidden;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           box-shadow: var(--card-shadow);
         }
 
-        .proposal-card:hover {
-          border-color: var(--border-color-hover);
-          transform: translateY(-2px);
-          box-shadow: var(--card-shadow-hover);
-        }
-
-        .proposal-card-header {
+        .extractor-toggle-btn {
+          width: 100%;
+          padding: 14px 20px;
+          background: rgba(255, 255, 255, 0.015);
+          color: var(--text-primary);
+          font-weight: 700;
+          font-size: 13.5px;
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
+          align-items: center;
+          border: 0;
+          border-radius: 0;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .extractor-toggle-btn:hover {
+          background: rgba(6, 182, 212, 0.05);
+          color: var(--color-accent-hover);
+          box-shadow: none;
+          transform: none;
+        }
+
+        .chevron-icon {
+          transition: transform 0.3s ease;
+          color: var(--text-muted);
+        }
+
+        .collapsible-extractor.expanded .chevron-icon {
+          transform: rotate(180deg);
+        }
+
+        .extractor-content {
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
+          padding: 0 20px;
+        }
+
+        .collapsible-extractor.expanded .extractor-content {
+          max-height: 600px;
+          padding: 20px;
+          border-top: 1px solid var(--border-color);
+        }
+
+        .proposals-list-section {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .compact-proposal-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .compact-proposal-item {
+          background: var(--bg-card);
+          border: 1px solid var(--border-color);
+          border-radius: 10px;
+          padding: 14px 16px;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .compact-proposal-item:hover {
+          border-color: var(--border-color-hover);
+          background: rgba(255, 255, 255, 0.015);
+        }
+
+        .compact-proposal-item.selected {
+          border-color: var(--color-accent);
+          background: rgba(6, 182, 212, 0.05);
+          box-shadow: inset 0 0 10px rgba(6, 182, 212, 0.03);
+        }
+
+        .compact-item-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+
+        .compact-item-type {
+          font-size: 10px;
+          font-weight: 700;
+          color: var(--color-accent-hover);
+          background: rgba(6, 182, 212, 0.08);
+          border: 1px solid rgba(6, 182, 212, 0.2);
+          padding: 1px 6px;
+          border-radius: 4px;
+        }
+
+        .compact-item-conf {
+          font-size: 11px;
+          color: var(--text-muted);
+          font-weight: 600;
+        }
+
+        .compact-item-text {
+          font-size: 13.5px;
+          color: var(--text-primary);
+          line-height: 1.4;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+        }
+
+        .soc-right-panel {
+          position: sticky;
+          top: 40px;
+        }
+
+        .audit-detail-card {
+          background: var(--bg-card);
+          border: 1px solid var(--border-color);
+          border-radius: 12px;
+          padding: 28px;
+          box-shadow: var(--card-shadow);
+          display: flex;
+          flex-direction: column;
           gap: 20px;
+        }
+
+        .detail-card-header {
           border-bottom: 1px solid var(--border-color);
           padding-bottom: 18px;
         }
 
-        .proposal-content-wrapper {
-          flex: 1;
-        }
-
-        .proposal-content-label {
+        .detail-section-label {
           font-size: 10px;
-          text-transform: uppercase;
+          font-weight: 800;
           color: var(--color-accent);
-          font-weight: 700;
+          text-transform: uppercase;
           letter-spacing: 0.1em;
+          margin-bottom: 8px;
           display: block;
-          margin-bottom: 6px;
         }
 
-        .proposal-content-text {
-          font-size: 18px;
+        .detail-card-header h2 {
+          font-size: 22px;
           font-weight: 700;
+          line-height: 1.4;
+          margin-bottom: 12px;
           color: var(--text-primary);
-          line-height: 1.5;
-          letter-spacing: -0.01em;
         }
 
-        .proposal-meta-badges {
+        .detail-meta-row {
           display: flex;
-          flex-direction: column;
-          align-items: flex-end;
-          gap: 8px;
-          flex-shrink: 0;
-        }
-
-        .badge-type {
-          background: rgba(6, 182, 212, 0.08);
-          color: var(--color-accent-hover);
-          border: 1px solid rgba(6, 182, 212, 0.2);
-        }
-
-        .confidence-indicator {
-          display: flex;
+          gap: 12px;
           align-items: center;
-          gap: 8px;
         }
 
-        .confidence-track {
-          width: 60px;
-          height: 6px;
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 3px;
-          overflow: hidden;
-        }
-
-        .confidence-bar {
-          height: 100%;
-          background: linear-gradient(90deg, var(--color-accent) 0%, var(--color-primary) 100%);
-          border-radius: 3px;
-        }
-
-        .confidence-text {
+        .conf-badge {
           font-size: 11px;
-          font-weight: 600;
+          font-weight: 700;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid var(--border-color);
+          padding: 3px 10px;
+          border-radius: 4px;
           color: var(--text-secondary);
         }
 
-        .proposal-field {
+        .detail-body {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+
+        .detail-field {
           display: flex;
           flex-direction: column;
           gap: 8px;
         }
 
-        .field-title {
+        .detail-field-title {
           font-size: 11px;
           font-weight: 700;
           color: var(--text-secondary);
           text-transform: uppercase;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.05em;
         }
 
         .source-quote {
@@ -458,15 +590,9 @@ export default function ProposalsPage() {
           line-height: 1.6;
         }
 
-        .related-review {
-          border-top: 1px solid var(--border-color);
-          padding-top: 18px;
-        }
-
-        .btn-sm {
-          padding: 6px 12px;
-          font-size: 12px;
-          border-radius: 6px;
+        .related-review-block {
+          background: rgba(255, 255, 255, 0.005);
+          border-radius: 8px;
         }
 
         .related-list {
@@ -477,17 +603,10 @@ export default function ProposalsPage() {
           gap: 10px;
         }
 
-        .related-list legend {
-          color: var(--text-primary);
-          font-size: 13px;
-          font-weight: 700;
-          margin-bottom: 4px;
-        }
-
         .candidate-desc {
           font-size: 12px;
           color: var(--text-muted);
-          margin-bottom: 10px;
+          margin-bottom: 6px;
           line-height: 1.4;
         }
 
@@ -620,6 +739,21 @@ export default function ProposalsPage() {
           box-shadow: none;
         }
 
+        .empty-audit-detail {
+          background: var(--bg-card);
+          border: 1px dashed var(--border-color);
+          border-radius: 12px;
+          padding: 60px 24px;
+          text-align: center;
+          color: var(--text-secondary);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+          min-height: 400px;
+          justify-content: center;
+        }
+
         .banner-icon-container {
           background: rgba(6, 182, 212, 0.1);
           border-radius: 8px;
@@ -636,16 +770,11 @@ export default function ProposalsPage() {
           color: var(--color-accent-hover);
         }
 
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
         @media (max-width: 1200px) {
-          .proposals-layout {
+          .soc-layout {
             grid-template-columns: 1fr;
           }
-          .proposals-sidebar {
+          .soc-right-panel {
             position: static;
           }
         }

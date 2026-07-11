@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { searchMemories } from "../../lib/api";
+import { useEffect, useState } from "react";
+import { searchMemories, explainMemory, revokeMemory } from "../../lib/api";
 
 const MEMORY_TYPE_LABELS = {
   user_preference: "用户偏好",
@@ -19,6 +19,15 @@ const STATUS_LABELS = {
   expired: "已过期",
 };
 
+const EVENT_LABELS = {
+  approve: "核准批准",
+  reject: "安全拒绝",
+  revoke: "人工撤销",
+  supersede: "替代旧记忆",
+  superseded: "已被替代",
+  expire: "记忆到期",
+};
+
 function formatExpiresAt(value) {
   return new Date(value).toLocaleString("zh-CN", { dateStyle: "medium", timeStyle: "short" });
 }
@@ -30,13 +39,25 @@ export default function MemoriesPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  const [selectedId, setSelectedId] = useState(null);
+  const [selectedDetail, setSelectedDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   async function triggerSearch(term) {
     setBusy(true);
     setError("");
     try {
       const body = await searchMemories(term);
-      setMemories(body.memories || []);
+      const list = body.memories || [];
+      setMemories(list);
       setSearched(true);
+      if (list.length > 0) {
+        if (!list.some(m => m.id === selectedId)) {
+          setSelectedId(list[0].id);
+        }
+      } else {
+        setSelectedId(null);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -52,6 +73,53 @@ export default function MemoriesPage() {
       return;
     }
     await triggerSearch(term);
+  }
+
+  useEffect(() => {
+    let active = true;
+    if (selectedId) {
+      setDetailLoading(true);
+      explainMemory(selectedId)
+        .then(body => {
+          if (active) {
+            setSelectedDetail(body);
+          }
+        })
+        .catch(err => {
+          if (active) {
+            setError(err.message);
+          }
+        })
+        .finally(() => {
+          if (active) {
+            setDetailLoading(false);
+          }
+        });
+    } else {
+      setSelectedDetail(null);
+    }
+    return () => {
+      active = false;
+    };
+  }, [selectedId]);
+
+  async function onRevoke() {
+    if (!selectedId) return;
+    setBusy(true);
+    setError("");
+    try {
+      await revokeMemory(selectedId);
+      // Re-fetch detail
+      const body = await explainMemory(selectedId);
+      setSelectedDetail(body);
+      // Re-fetch list
+      const searchBody = await searchMemories(q);
+      setMemories(searchBody.memories || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -121,87 +189,159 @@ export default function MemoriesPage() {
         </div>
       </div>
 
-      {/* Error state */}
-      {error ? (
-        <div className="workbench-error-state">
-          <svg className="error-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <h3>检索请求失败</h3>
-          <p className="muted" style={{ fontSize: '13px', maxWidth: '400px' }}>{error}</p>
-          <button className="secondary" onClick={() => triggerSearch(q)} style={{ marginTop: '8px' }}>
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89" /></svg>
-            重新尝试检索
-          </button>
-        </div>
-      ) : null}
+      {error ? <div className="error">{error}</div> : null}
 
-      {/* First time use state */}
-      {!searched && !error ? (
-        <div className="empty-workbench-state">
-          <svg className="workbench-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <h3>长期记忆库检索准备就绪</h3>
-          <p style={{ maxWidth: '420px', fontSize: '13px', opacity: 0.8 }}>
-            在上方输入对话上下文或核心概念，检索机制将查找关联的记忆链条。点击推荐项可快速体验。
-          </p>
-        </div>
-      ) : null}
+      <div className="soc-layout">
+        {/* Left Column: Search Results */}
+        <div className="soc-left-panel">
+          <h2>检索结果 ({memories.length})</h2>
 
-      {/* No results state */}
-      {searched && memories.length === 0 && !error ? (
-        <div className="empty-workbench-state">
-          <svg className="workbench-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <h3>未找到匹配的记忆记录</h3>
-          <p style={{ maxWidth: '420px', fontSize: '13px', opacity: 0.8 }}>
-            未搜索到与 <strong>“{q}”</strong> 匹配的记忆。您可以尝试缩短关键词，或者前往“提案审核”页抽取并导入新的记忆资产。
-          </p>
-        </div>
-      ) : null}
-
-      {/* Results grid */}
-      {searched && memories.length > 0 && !error ? (
-        <section className="memory-results-grid">
-          {memories.map((memory) => (
-            <article className="memory-result-card" key={memory.id}>
-              <div className="memory-card-top">
-                <div className="memory-status-and-type">
-                  <span className={`badge badge-${memory.status}`}>
-                    {STATUS_LABELS[memory.status] || memory.status}
-                  </span>
-                  <span className="badge-type-label">
-                    {MEMORY_TYPE_LABELS[memory.type] || memory.type}
-                  </span>
-                </div>
-                {typeof memory.score === "number" ? (
-                  <div className="memory-score-badge">
-                    <span className="score-label">匹配评分</span>
-                    <span className="score-val">{(memory.score * 100).toFixed(0)}</span>
+          {!searched ? (
+            <div className="empty-workbench-state">
+              <svg className="workbench-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <h3>长期记忆库检索准备就绪</h3>
+              <p style={{ maxWidth: '420px', fontSize: '13px', opacity: 0.8 }}>
+                在上方输入对话上下文或核心概念，检索机制将查找关联的记忆链条。
+              </p>
+            </div>
+          ) : memories.length === 0 ? (
+            <div className="empty-workbench-state">
+              <svg className="workbench-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3>未找到匹配的记忆记录</h3>
+              <p style={{ maxWidth: '420px', fontSize: '13px', opacity: 0.8 }}>
+                未搜索到与 <strong>“{q}”</strong> 匹配的记忆。您可以尝试缩短关键词，或者前往“提案审核”页抽取并导入新的记忆资产。
+              </p>
+            </div>
+          ) : (
+            <div className="compact-memory-list">
+              {memories.map((memory) => {
+                const isSelected = memory.id === selectedId;
+                return (
+                  <div
+                    key={memory.id}
+                    className={`compact-memory-item ${isSelected ? 'selected' : ''}`}
+                    onClick={() => setSelectedId(memory.id)}
+                  >
+                    <div className="compact-item-header">
+                      <span className={`badge badge-${memory.status}`}>
+                        {STATUS_LABELS[memory.status] || memory.status}
+                      </span>
+                      <span className="compact-item-type">
+                        {MEMORY_TYPE_LABELS[memory.type] || memory.type}
+                      </span>
+                    </div>
+                    <p className="compact-item-text">{memory.content}</p>
                   </div>
-                ) : null}
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Right Column: Inline Dossier Audit */}
+        <div className="soc-right-panel">
+          {detailLoading ? (
+            <div className="empty-audit-detail">
+              <svg className="animate-spin empty-icon" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite', color: 'var(--color-accent)' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <p style={{ marginTop: '12px' }}>正在加载记忆档案与可信审计追踪...</p>
+            </div>
+          ) : selectedDetail ? (
+            <div className="audit-detail-card">
+              <div className="detail-card-header">
+                <span className="detail-section-label">长期记忆可信审计流水</span>
+                <div className={`status-banner-card banner-${selectedDetail.memory.status}`} style={{ padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: '700', fontSize: '13.5px' }}>状态: {STATUS_LABELS[selectedDetail.memory.status] || selectedDetail.memory.status}</span>
+                  {selectedDetail.memory.status === "active" && (
+                    <button className="danger btn-sm" disabled={busy} onClick={onRevoke} style={{ padding: '4px 10px', fontSize: '11px' }}>
+                      撤销此条记忆
+                    </button>
+                  )}
+                </div>
+                <h2>{selectedDetail.memory.content}</h2>
+                <div className="detail-meta-row">
+                  <span className="badge badge-type">
+                    {MEMORY_TYPE_LABELS[selectedDetail.memory.type] || selectedDetail.memory.type}
+                  </span>
+                  <span className="conf-badge">
+                    UUID: {selectedDetail.memory.id.substring(0, 8)}...
+                  </span>
+                  <Link href={`/memories/${selectedDetail.memory.id}`} className="audit-link-nav">
+                    完整审计流水 ↗
+                  </Link>
+                </div>
               </div>
 
-              <div className="memory-card-body">
-                <p className="memory-content-text">{memory.content}</p>
-                {memory.expires_at ? <p className="memory-expiry">到期生命周期: {formatExpiresAt(memory.expires_at)}</p> : null}
-              </div>
+              <div className="detail-body">
+                {selectedDetail.proposal?.source_quote && (
+                  <div className="detail-field">
+                    <div className="detail-field-title">原始会话证据摘录 (Evidence)</div>
+                    <blockquote className="pre source-quote" style={{ fontSize: '12.5px', padding: '10px 12px' }}>
+                      {selectedDetail.proposal.source_quote}
+                    </blockquote>
+                  </div>
+                )}
 
-              <div className="memory-card-footer">
-                <span className="memory-id-tag" title={memory.id}>UUID: {memory.id.substring(0, 8)}...</span>
-                <Link href={`/memories/${memory.id}`} className="audit-link">
-                  <span>可信审计与归档</span>
-                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
+                {selectedDetail.proposal?.reason && (
+                  <div className="detail-field">
+                    <div className="detail-field-title">大模型抽取推理理由 (Model Rationale)</div>
+                    <div className="proposal-reason-box" style={{ fontSize: '12.5px', padding: '10px 12px' }}>
+                      {selectedDetail.proposal.reason}
+                    </div>
+                  </div>
+                )}
+
+                <div className="dossier-grid-two" style={{ gridTemplateColumns: '1fr 1fr', padding: '12px', gap: '10px' }}>
+                  <div className="dossier-grid-item">
+                    <span className="dossier-label">项目空间</span>
+                    <div className="dossier-value code-font" style={{ fontSize: '12px' }}>{selectedDetail.proposal?.project_id || "default"}</div>
+                  </div>
+                  <div className="dossier-grid-item">
+                    <span className="dossier-label">到期生命周期</span>
+                    <div className="dossier-value" style={{ fontSize: '12px' }}>
+                      {selectedDetail.memory.expires_at ? formatExpiresAt(selectedDetail.memory.expires_at) : "永久有效"}
+                    </div>
+                  </div>
+                </div>
+
+                {selectedDetail.events && selectedDetail.events.length > 0 && (
+                  <div className="detail-field">
+                    <div className="detail-field-title">生命周期审计轨迹 (Audit Trail)</div>
+                    <div className="timeline-mini" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                      {selectedDetail.events.slice(0, 3).map((event) => (
+                        <div key={event.id} style={{ display: 'flex', gap: '10px', fontSize: '12px', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '6px' }}>
+                          <span className={`timeline-event-badge badge-event-${event.event_type}`} style={{ fontSize: '9px', padding: '1px 4px' }}>
+                            {EVENT_LABELS[event.event_type] || event.event_type}
+                          </span>
+                          <span style={{ color: 'var(--text-secondary)' }}>由 {event.actor_id} 于 {event.created_at.split(' ')[0]} 触发</span>
+                        </div>
+                      ))}
+                      {selectedDetail.events.length > 3 && (
+                        <Link href={`/memories/${selectedDetail.memory.id}`} style={{ fontSize: '11px', color: 'var(--color-accent)', fontWeight: '600', marginTop: '2px' }}>
+                          查看全部 {selectedDetail.events.length} 个审计记录...
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            </article>
-          ))}
-        </section>
-      ) : null}
+            </div>
+          ) : (
+            <div className="empty-audit-detail">
+              <svg className="empty-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <h3>待选定记忆审计</h3>
+              <p>请在左侧列表中点击选择一条记忆，以在此加载可审计档案详情并执行归档操作。</p>
+            </div>
+          )}
+        </div>
+      </div>
 
       <style>{`
         .workbench-container {
@@ -326,113 +466,260 @@ export default function MemoriesPage() {
           color: var(--color-accent-hover);
         }
 
-        .memory-results-grid {
+        .soc-layout {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-          gap: 20px;
+          grid-template-columns: minmax(360px, 420px) 1fr;
+          gap: 24px;
+          min-height: calc(100vh - 200px);
+          align-items: start;
         }
 
-        .memory-result-card {
+        .soc-left-panel {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .compact-memory-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .compact-memory-item {
+          background: var(--bg-card);
+          border: 1px solid var(--border-color);
+          border-radius: 10px;
+          padding: 14px 16px;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .compact-memory-item:hover {
+          border-color: var(--border-color-hover);
+          background: rgba(255, 255, 255, 0.015);
+        }
+
+        .compact-memory-item.selected {
+          border-color: var(--color-accent);
+          background: rgba(6, 182, 212, 0.05);
+          box-shadow: inset 0 0 10px rgba(6, 182, 212, 0.03);
+        }
+
+        .compact-item-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+
+        .compact-item-type {
+          font-size: 10px;
+          font-weight: 700;
+          color: var(--color-accent-hover);
+          background: rgba(6, 182, 212, 0.08);
+          border: 1px solid rgba(6, 182, 212, 0.2);
+          padding: 1px 6px;
+          border-radius: 4px;
+        }
+
+        .compact-item-text {
+          font-size: 13.5px;
+          color: var(--text-primary);
+          line-height: 1.4;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+        }
+
+        .soc-right-panel {
+          position: sticky;
+          top: 40px;
+        }
+
+        .audit-detail-card {
           background: var(--bg-card);
           border: 1px solid var(--border-color);
           border-radius: 12px;
-          padding: 20px;
+          padding: 28px;
+          box-shadow: var(--card-shadow);
           display: flex;
           flex-direction: column;
-          justify-content: space-between;
-          gap: 18px;
-          min-height: 180px;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: var(--card-shadow);
+          gap: 20px;
         }
 
-        .memory-result-card:hover {
-          border-color: var(--border-color-hover);
-          transform: translateY(-2px);
-          box-shadow: var(--card-shadow-hover);
+        .detail-card-header {
+          border-bottom: 1px solid var(--border-color);
+          padding-bottom: 18px;
         }
 
-        .memory-card-top {
+        .detail-section-label {
+          font-size: 10px;
+          font-weight: 800;
+          color: var(--color-accent);
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          margin-bottom: 8px;
+          display: block;
+        }
+
+        .detail-card-header h2 {
+          font-size: 20px;
+          font-weight: 700;
+          line-height: 1.4;
+          margin-bottom: 12px;
+          color: var(--text-primary);
+        }
+
+        .detail-meta-row {
           display: flex;
-          justify-content: space-between;
+          gap: 12px;
           align-items: center;
+          flex-wrap: wrap;
         }
 
-        .memory-status-and-type {
+        .conf-badge {
+          font-size: 11px;
+          font-weight: 700;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid var(--border-color);
+          padding: 3px 10px;
+          border-radius: 4px;
+          color: var(--text-secondary);
+        }
+
+        .audit-link-nav {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--color-accent);
+        }
+
+        .audit-link-nav:hover {
+          color: var(--color-accent-hover);
+          text-decoration: underline;
+        }
+
+        .detail-body {
           display: flex;
-          align-items: center;
+          flex-direction: column;
+          gap: 20px;
+        }
+
+        .detail-field {
+          display: flex;
+          flex-direction: column;
           gap: 8px;
         }
 
-        .badge-type-label {
+        .detail-field-title {
           font-size: 11px;
-          color: var(--text-secondary);
-          font-weight: 600;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid var(--border-color);
-          padding: 2px 8px;
-          border-radius: 4px;
-        }
-
-        .memory-score-badge {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 11px;
-          background: rgba(6, 182, 212, 0.08);
-          border: 1px solid rgba(6, 182, 212, 0.15);
-          padding: 2px 8px;
-          border-radius: 4px;
-        }
-
-        .score-label {
-          color: var(--text-muted);
-        }
-
-        .score-val {
-          color: var(--color-accent-hover);
           font-weight: 700;
+          color: var(--text-secondary);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
 
-        .memory-content-text {
-          font-size: 15px;
-          font-weight: 600;
-          color: var(--text-primary);
+        .dossier-grid-two {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          gap: 16px;
+          background: rgba(255, 255, 255, 0.008);
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          padding: 16px;
+        }
+
+        .dossier-grid-item {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .dossier-label {
+          font-size: 10px;
+          font-weight: 700;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .dossier-value {
+          font-size: 13px;
+          color: var(--text-secondary);
+        }
+
+        .code-font {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        .source-quote {
+          background: #050813;
+          border-left: 3px solid var(--color-accent);
+          border-radius: 0 8px 8px 0;
+          font-size: 13px;
           line-height: 1.5;
         }
 
-        .memory-expiry {
-          margin: 10px 0 0;
-          color: var(--text-muted);
-          font-size: 12px;
-          line-height: 1.4;
+        .proposal-reason-box {
+          background: rgba(255, 255, 255, 0.01);
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          padding: 12px 14px;
+          font-size: 13px;
+          color: var(--text-secondary);
+          line-height: 1.5;
         }
 
-        .memory-card-footer {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-top: 1px solid var(--border-color);
-          padding-top: 12px;
-          font-size: 12px;
+        .timeline-event-badge {
+          font-size: 10px;
+          font-weight: 700;
+          padding: 2px 6px;
+          border-radius: 4px;
+          text-transform: uppercase;
         }
 
-        .memory-id-tag {
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-          color: var(--text-muted);
-        }
-
-        .audit-link {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          font-weight: 600;
-          color: var(--color-primary);
-        }
-
-        .audit-link:hover {
+        .badge-event-approve {
+          background: rgba(16, 185, 129, 0.15);
           color: var(--color-primary-hover);
-          text-decoration: none;
+        }
+
+        .badge-event-revoke {
+          background: rgba(244, 63, 94, 0.15);
+          color: var(--color-danger-hover);
+        }
+
+        .badge-event-reject {
+          background: rgba(148, 163, 184, 0.15);
+          color: #cbd5e1;
+        }
+
+        .badge-event-expire {
+          background: rgba(148, 163, 184, 0.15);
+          color: var(--text-muted);
+        }
+
+        .empty-audit-detail {
+          background: var(--bg-card);
+          border: 1px dashed var(--border-color);
+          border-radius: 12px;
+          padding: 60px 24px;
+          text-align: center;
+          color: var(--text-secondary);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+          min-height: 400px;
+          justify-content: center;
+        }
+
+        .workbench-icon {
+          width: 48px;
+          height: 48px;
+          color: var(--text-muted);
+          opacity: 0.4;
         }
 
         .empty-workbench-state {
@@ -448,26 +735,6 @@ export default function MemoriesPage() {
           background: rgba(255, 255, 255, 0.005);
         }
 
-        .workbench-icon {
-          width: 48px;
-          height: 48px;
-          color: var(--text-muted);
-          opacity: 0.4;
-        }
-
-        .workbench-error-state {
-          text-align: center;
-          padding: 40px 20px;
-          background: rgba(244, 63, 94, 0.04);
-          border: 1px solid rgba(244, 63, 94, 0.15);
-          border-radius: 12px;
-          color: var(--text-primary);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 12px;
-        }
-
         .error-icon {
           width: 40px;
           height: 40px;
@@ -477,6 +744,15 @@ export default function MemoriesPage() {
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 1024px) {
+          .soc-layout {
+            grid-template-columns: 1fr;
+          }
+          .soc-right-panel {
+            position: static;
+          }
         }
 
         @media (max-width: 768px) {

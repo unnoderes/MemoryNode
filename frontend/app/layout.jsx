@@ -12,8 +12,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="zh-CN">
       <head>
-        <title>MemoryNode - 可信记忆治理控制台</title>
-        <meta name="description" content="MemoryNode - 记忆提取、审核、检索、解释与撤销控制台" />
+        <title>MemoryNode - AI 记忆管理</title>
+        <meta name="description" content="提取、审核、查找和管理 AI 记忆" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet" />
@@ -26,43 +26,43 @@ export default function RootLayout({ children }) {
                 <span className="logo-pulse"></span>
                 <span className="logo-text">MemoryNode</span>
               </div>
-              <div className="sidebar-subtitle">可信记忆治理控制台</div>
+              <div className="sidebar-subtitle">AI 记忆管理</div>
               <nav className="nav-links">
                 <Link href="/proposals" className={`nav-item ${isProposals ? "active" : ""}`}>
                   <svg className="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  <span>提案审核</span>
+                  <span>审核新记忆</span>
                 </Link>
                 <Link href="/memories" className={`nav-item ${isMemories ? "active" : ""}`}>
                   <svg className="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  <span>记忆检索</span>
+                  <span>查找记忆</span>
                 </Link>
               </nav>
 
               <div className="narrative-widget">
-                <div className="widget-title">记忆治理核心架构</div>
+                <div className="widget-title">记忆如何保存</div>
                 <div className="widget-step">
                   <span className="step-num">1</span>
                   <div>
-                    <strong>AI 提取拟案 (Propose)</strong>
-                    <p>模型提议候选记忆片段，安全独立隔离，不写入长期知识库</p>
+                    <strong>AI 提取候选内容</strong>
+                    <p>模型先整理出可能值得记住的内容，不会直接保存</p>
                   </div>
                 </div>
                 <div className="widget-step">
                   <span className="step-num">2</span>
                   <div>
-                    <strong>人工授权把关 (Govern)</strong>
-                    <p>Reviewer 核准、拒绝，支持选定替代 supersede 或设置到期</p>
+                    <strong>由你确认是否保存</strong>
+                    <p>你可以批准、拒绝、替换旧记忆或设置到期时间</p>
                   </div>
                 </div>
                 <div className="widget-step">
                   <span className="step-num">3</span>
                   <div>
-                    <strong>生命周期审计 (Audit)</strong>
-                    <p>全生命周期可解释性追踪，留存会话证据与变更审计流水</p>
+                    <strong>每次变化都有记录</strong>
+                    <p>随时查看记忆的来源、处理人和变更历史</p>
                   </div>
                 </div>
               </div>
@@ -71,9 +71,9 @@ export default function RootLayout({ children }) {
             <div className="sidebar-footer">
               <div className="status-indicator">
                 <span className="status-dot"></span>
-                <span>治理引擎运行中</span>
+                <span>服务运行正常</span>
               </div>
-              <div className="version-info">SQLite + Qwen Engine</div>
+              <div className="version-info">SQLite + Qwen</div>
             </div>
           </aside>
 

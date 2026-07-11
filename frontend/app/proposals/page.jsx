@@ -12,7 +12,7 @@ import {
 
 const DEMO_TRANSCRIPT = `这个项目必须使用 Qwen Cloud，而不是 OpenAI API。
 我们已经决定 MVP 使用 FastAPI、SQLite 和 Next.js。
-已批准的记忆必须可审计、可解释，并且可以撤销。`;
+每条保存的记忆都应该能查到来源、说明原因，并且可以随时撤销。`;
 
 const MEMORY_TYPE_LABELS = {
   user_preference: "用户偏好",
@@ -79,7 +79,7 @@ export default function ProposalsPage() {
     }
     await run(async () => {
       const body = await extractProposals({ actorId, projectId, transcript: text });
-      setMessage(`已成功从输入记录中抽取并生成 ${(body.proposals || []).length} 条待审核提案。`);
+      setMessage(`已提取 ${(body.proposals || []).length} 条内容，请确认是否保存。`);
       setTranscript("");
       setExtractExpanded(false); // Collapse extractor after success
     });
@@ -109,8 +109,8 @@ export default function ProposalsPage() {
   return (
     <div className="proposals-container">
       <header className="page-header">
-        <h1>记忆拟案提取与审核</h1>
-        <p className="muted">模型拟案在此处于安全隔离区。Reviewer 须进行人工审核把关，核准后方可写入 Agent 长期记忆库。</p>
+        <h1>审核新记忆</h1>
+        <p className="muted">AI 会从对话中找出值得记住的内容。只有经过你的确认，它们才会成为长期记忆。</p>
       </header>
 
       {/* Governance Boundary Alert */}
@@ -121,9 +121,9 @@ export default function ProposalsPage() {
           </svg>
         </div>
         <div>
-          <h4 style={{ fontWeight: 700, marginBottom: '4px', color: '#ffffff' }}>可信记忆准入屏障 (Human-in-the-Loop Barrier)</h4>
+          <h4 style={{ fontWeight: 700, marginBottom: '4px', color: '#ffffff' }}>AI 不能直接保存长期记忆</h4>
           <p style={{ fontSize: '13px', opacity: 0.95, lineHeight: '1.5' }}>
-            AI 代理无法直接写入长期记忆库。所有提取的内容默认为<strong>隔离的临时拟案 (Proposals)</strong>，必须经由人类审计员审核授权后，方能转化为有效的<strong>长期认知资产</strong>。
+            AI 提取的内容会先进入待审核列表。你可以查看原文和提取理由，再决定<strong>批准</strong>或<strong>拒绝</strong>。
           </p>
         </div>
       </div>
@@ -142,7 +142,7 @@ export default function ProposalsPage() {
               className="extractor-toggle-btn"
               onClick={() => setExtractExpanded(!extractExpanded)}
             >
-              <span>模拟交互拟案提取</span>
+              <span>从对话中提取记忆</span>
               <svg className="chevron-icon" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
@@ -152,24 +152,24 @@ export default function ProposalsPage() {
               <form onSubmit={onExtract}>
                 <div className="two-col">
                   <label>
-                    审计员 ID
-                    <input value={actorId} onChange={(event) => setActorId(event.target.value)} placeholder="如 reviewer" />
+                    操作人 ID
+                    <input value={actorId} onChange={(event) => setActorId(event.target.value)} placeholder="例如 reviewer" />
                   </label>
                   <label>
-                    命名空间
+                    项目 ID
                     <input value={projectId} onChange={(event) => setProjectId(event.target.value)} placeholder="如 memorynode-demo" />
                   </label>
                 </div>
                 <label>
-                  原始文本记录 (Transcript)
+                  原始对话
                   <textarea
                     value={transcript}
                     onChange={(event) => setTranscript(event.target.value)}
-                    placeholder="在此贴入原始对话记录，如 '这个项目必须使用 Qwen Cloud。'"
+                    placeholder="粘贴一段对话，例如：这个项目必须使用 Qwen Cloud。"
                   />
                 </label>
                 <button disabled={busy} type="submit" style={{ width: '100%' }}>
-                  {busy ? "正在分析提取..." : "模型提取拟案"}
+                  {busy ? "正在提取..." : "提取记忆提案"}
                 </button>
               </form>
             </div>
@@ -177,14 +177,14 @@ export default function ProposalsPage() {
 
           {/* Proposals List */}
           <div className="proposals-list-section">
-            <h2>待审核拟案队列 ({proposals.length})</h2>
+            <h2>等待你确认 ({proposals.length})</h2>
             {proposals.length === 0 ? (
               <div className="empty">
                 <svg className="empty-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span>暂无待审核的记忆提案</span>
-                <p style={{ fontSize: '13px', opacity: 0.7 }}>您可以使用上方控制面板提取新拟案。</p>
+                <span>暂时没有需要审核的内容</span>
+                <p style={{ fontSize: '13px', opacity: 0.7 }}>在上方粘贴一段对话，AI 会帮你找出值得记住的内容。</p>
               </div>
             ) : (
               <div className="compact-proposal-list">
@@ -214,7 +214,7 @@ export default function ProposalsPage() {
           {selectedProposal ? (
             <div className="audit-detail-card">
               <div className="detail-card-header">
-                <span className="detail-section-label">安全隔离拟案审计档案</span>
+                <span className="detail-section-label">待审核内容</span>
                 <h2>{selectedProposal.content}</h2>
                 <div className="detail-meta-row">
                   <span className="badge badge-type">
@@ -224,7 +224,7 @@ export default function ProposalsPage() {
                     <div className="confidence-track" style={{ width: '60px', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
                       <div className="confidence-bar" style={{ height: '100%', background: 'linear-gradient(90deg, var(--color-accent) 0%, var(--color-primary) 100%)', width: `${selectedProposal.confidence * 100}%` }}></div>
                     </div>
-                    <span className="confidence-text">置信度: {(selectedProposal.confidence * 100).toFixed(0)}%</span>
+                    <span className="confidence-text">AI 判断把握：{(selectedProposal.confidence * 100).toFixed(0)}%</span>
                   </div>
                 </div>
               </div>
@@ -232,7 +232,7 @@ export default function ProposalsPage() {
               <div className="detail-body">
                 {selectedProposal.source_quote && (
                   <div className="detail-field">
-                    <div className="detail-field-title">原始会话证据摘录 (Evidence)</div>
+                    <div className="detail-field-title">来自哪句话</div>
                     <blockquote className="pre source-quote">
                       {selectedProposal.source_quote}
                     </blockquote>
@@ -241,7 +241,7 @@ export default function ProposalsPage() {
 
                 {selectedProposal.reason && (
                   <div className="detail-field">
-                    <div className="detail-field-title">大模型抽取理由说明 (Rationale)</div>
+                    <div className="detail-field-title">为什么建议记住</div>
                     <div className="proposal-reason-box">
                       {selectedProposal.reason}
                     </div>
@@ -249,7 +249,7 @@ export default function ProposalsPage() {
                 )}
 
                 <div className="detail-field">
-                  <div className="detail-field-title">人机核准替代候选 (Reviewer-Supervised Supersession)</div>
+                  <div className="detail-field-title">是否要替换已有记忆</div>
                   <div className="related-review-block">
                     {relatedByProposal[selectedId] === undefined ? (
                       <button
@@ -258,13 +258,13 @@ export default function ProposalsPage() {
                         disabled={busy || relatedLoading[selectedId]}
                         onClick={() => loadRelated(selectedId)}
                       >
-                        {relatedLoading[selectedId] ? "分析中..." : "扫描库中关联冲突实体"}
+                        {relatedLoading[selectedId] ? "查找中..." : "查找相关记忆"}
                       </button>
                     ) : relatedByProposal[selectedId].length === 0 ? (
-                      <p className="muted text-xs">库中无冲突记忆实体。</p>
+                      <p className="muted text-xs">没有找到相关的旧记忆。</p>
                     ) : (
                       <fieldset className="related-list">
-                        <p className="candidate-desc">若此拟案更新了已有认知，请选择核准替代的记忆实体（人工监督，非自动裁决）：</p>
+                        <p className="candidate-desc">如果这条新内容更新了旧记忆，请手动选择要替换的那一条。系统不会自动替换：</p>
                         {relatedByProposal[selectedId].map((memory) => (
                           <label className={`related-memory ${supersedeByProposal[selectedId] === memory.id ? 'selected' : ''}`} key={memory.id}>
                             <input
@@ -279,11 +279,11 @@ export default function ProposalsPage() {
                             <span className="related-memory-body">
                               <span className="related-memory-content">{memory.content}</span>
                               <small className="related-memory-meta">
-                                分类: {MEMORY_TYPE_LABELS[memory.type] || memory.type} · 状态: {memory.status}
+                                类型：{MEMORY_TYPE_LABELS[memory.type] || memory.type} · 状态：{memory.status}
                               </small>
                             </span>
                             <Link href={`/memories/${memory.id}`} target="_blank" className="related-detail-link">
-                              查看档案 ↗
+                              查看详情 ↗
                             </Link>
                           </label>
                         ))}
@@ -293,11 +293,11 @@ export default function ProposalsPage() {
                 </div>
 
                 <div className="detail-field operations-field">
-                  <div className="detail-field-title">准入授权操作面板 (Access Control Panel)</div>
+                  <div className="detail-field-title">确认如何处理</div>
                   <div className="proposal-actions">
                     <div className="expiration-col">
                       <label className="expiration-input">
-                        设置到期生命周期 (Optional Expiration)
+                        到期时间（可选）
                         <input
                           type="datetime-local"
                           value={expiresByProposal[selectedId] || ""}
@@ -307,7 +307,7 @@ export default function ProposalsPage() {
                           }))}
                         />
                       </label>
-                      <span className="expiration-tip">到期后将根据请求驱动机制自动标记为 expired，对大模型检索屏蔽，保留历史审计流水。</span>
+                      <span className="expiration-tip">留空表示长期有效。到期后，这条记忆不会再出现在默认搜索中，但历史记录仍会保留。</span>
                     </div>
 
                     <div className="action-buttons-group">
@@ -326,7 +326,7 @@ export default function ProposalsPage() {
                         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
-                        {supersedeByProposal[selectedId] ? "核准并替代旧实体" : "核准并写入长期记忆"}
+                        {supersedeByProposal[selectedId] ? "批准并替换旧记忆" : "批准并保存"}
                       </button>
 
                       <button
@@ -337,7 +337,7 @@ export default function ProposalsPage() {
                         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        安全拒绝并销毁
+                        拒绝
                       </button>
                     </div>
                   </div>
@@ -349,8 +349,8 @@ export default function ProposalsPage() {
               <svg className="empty-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
-              <h3>待选定拟案审计</h3>
-              <p>请在左侧列表中点击选择一个隔离拟案，以在此加载可审计档案并执行准入授权操作。</p>
+              <h3>请选择一条内容</h3>
+              <p>点击左侧列表中的提案，查看它来自哪里、为什么值得记住，并决定是否保存。</p>
             </div>
           )}
         </div>

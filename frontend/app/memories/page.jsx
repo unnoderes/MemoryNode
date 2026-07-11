@@ -20,12 +20,12 @@ const STATUS_LABELS = {
 };
 
 const EVENT_LABELS = {
-  approve: "核准批准",
-  reject: "安全拒绝",
-  revoke: "人工撤销",
+  approve: "已批准",
+  reject: "已拒绝",
+  revoke: "已撤销",
   supersede: "替代旧记忆",
   superseded: "已被替代",
-  expire: "记忆到期",
+  expire: "已到期",
 };
 
 function formatExpiresAt(value) {
@@ -125,16 +125,16 @@ export default function MemoriesPage() {
   return (
     <div className="workbench-container">
       <header className="page-header">
-        <h1>长期记忆库检索</h1>
-        <p className="muted">在已授权的长期记忆资产中执行精确及全文检索。系统默认仅返回状态为“生效中”的活跃记忆实体。</p>
+        <h1>查找记忆</h1>
+        <p className="muted">搜索已经批准并且仍然有效的长期记忆。</p>
       </header>
 
       {/* Workbench Toolbar */}
       <div className="search-card">
         <form onSubmit={onSearch}>
           <label htmlFor="search-input" className="search-label-row">
-            <span>检索关键词 (Search Query)</span>
-            <span className="engine-badge">SQLite FTS5 检索引擎已就绪</span>
+            <span>搜索关键词</span>
+            <span className="engine-badge">搜索服务已就绪</span>
           </label>
           <div className="search-bar-row">
             <div className="input-with-icon">
@@ -145,19 +145,19 @@ export default function MemoriesPage() {
                 id="search-input"
                 value={q}
                 onChange={(event) => setQ(event.target.value)}
-                placeholder="输入检索内容，例如 Qwen Cloud..."
+                placeholder="输入关键词，例如 Qwen Cloud…"
               />
             </div>
             <button disabled={busy} type="submit" className="btn-search">
               {busy ? (
                 <>
                   <svg className="animate-spin" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}><path strokeLinecap="round" strokeLinejoin="round" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                  <span>检索中...</span>
+                  <span>正在搜索…</span>
                 </>
               ) : (
                 <>
                   <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                  <span>执行检索</span>
+                  <span>搜索</span>
                 </>
               )}
             </button>
@@ -168,11 +168,11 @@ export default function MemoriesPage() {
           <svg className="tip-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span>默认配置下，安全检索仅返回当前<strong>生效中 (Active)</strong>的记忆。已到期、已替换或撤销的记忆对大模型推理不可见，可通过 UUID 进入详情页审计。</span>
+          <span>这里只显示当前<strong>生效中</strong>的记忆。已到期、被替换或已撤销的记忆不会参与默认搜索，但仍可通过详情页查看历史。</span>
         </div>
 
         <div className="search-suggestions">
-          <span className="suggestion-label">快捷检索词:</span>
+          <span className="suggestion-label">试试这些关键词：</span>
           {["Qwen Cloud", "FastAPI", "SQLite", "Next.js"].map((term) => (
             <button
               key={term}
@@ -194,16 +194,16 @@ export default function MemoriesPage() {
       <div className="soc-layout">
         {/* Left Column: Search Results */}
         <div className="soc-left-panel">
-          <h2>检索结果 ({memories.length})</h2>
+          <h2>搜索结果 ({memories.length})</h2>
 
           {!searched ? (
             <div className="empty-workbench-state">
               <svg className="workbench-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <h3>长期记忆库检索准备就绪</h3>
+              <h3>输入关键词开始搜索</h3>
               <p style={{ maxWidth: '420px', fontSize: '13px', opacity: 0.8 }}>
-                在上方输入对话上下文或核心概念，检索机制将查找关联的记忆链条。
+                你可以搜索项目决定、使用偏好、工作流程或其他已经保存的内容。
               </p>
             </div>
           ) : memories.length === 0 ? (
@@ -211,9 +211,9 @@ export default function MemoriesPage() {
               <svg className="workbench-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <h3>未找到匹配的记忆记录</h3>
+              <h3>没有找到相关记忆</h3>
               <p style={{ maxWidth: '420px', fontSize: '13px', opacity: 0.8 }}>
-                未搜索到与 <strong>“{q}”</strong> 匹配的记忆。您可以尝试缩短关键词，或者前往“提案审核”页抽取并导入新的记忆资产。
+                没有与 <strong>“{q}”</strong> 匹配的结果。可以换一个更短的关键词，或前往“审核新记忆”添加内容。
               </p>
             </div>
           ) : (
@@ -249,17 +249,17 @@ export default function MemoriesPage() {
               <svg className="animate-spin empty-icon" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite', color: 'var(--color-accent)' }}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              <p style={{ marginTop: '12px' }}>正在加载记忆档案与可信审计追踪...</p>
+              <p style={{ marginTop: '12px' }}>正在加载记忆详情和历史记录…</p>
             </div>
           ) : selectedDetail ? (
             <div className="audit-detail-card">
               <div className="detail-card-header">
-                <span className="detail-section-label">长期记忆可信审计流水</span>
+                <span className="detail-section-label">记忆详情</span>
                 <div className={`status-banner-card banner-${selectedDetail.memory.status}`} style={{ padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: '700', fontSize: '13.5px' }}>状态: {STATUS_LABELS[selectedDetail.memory.status] || selectedDetail.memory.status}</span>
+                  <span style={{ fontWeight: '700', fontSize: '13.5px' }}>状态：{STATUS_LABELS[selectedDetail.memory.status] || selectedDetail.memory.status}</span>
                   {selectedDetail.memory.status === "active" && (
                     <button className="danger btn-sm" disabled={busy} onClick={onRevoke} style={{ padding: '4px 10px', fontSize: '11px' }}>
-                      撤销此条记忆
+                      撤销这条记忆
                     </button>
                   )}
                 </div>
@@ -269,10 +269,10 @@ export default function MemoriesPage() {
                     {MEMORY_TYPE_LABELS[selectedDetail.memory.type] || selectedDetail.memory.type}
                   </span>
                   <span className="conf-badge">
-                    UUID: {selectedDetail.memory.id.substring(0, 8)}...
+                    ID：{selectedDetail.memory.id.substring(0, 8)}…
                   </span>
                   <Link href={`/memories/${selectedDetail.memory.id}`} className="audit-link-nav">
-                    完整审计流水 ↗
+                    查看完整记录 ↗
                   </Link>
                 </div>
               </div>
@@ -280,7 +280,7 @@ export default function MemoriesPage() {
               <div className="detail-body">
                 {selectedDetail.proposal?.source_quote && (
                   <div className="detail-field">
-                    <div className="detail-field-title">原始会话证据摘录 (Evidence)</div>
+                    <div className="detail-field-title">来自哪句话</div>
                     <blockquote className="pre source-quote" style={{ fontSize: '12.5px', padding: '10px 12px' }}>
                       {selectedDetail.proposal.source_quote}
                     </blockquote>
@@ -289,7 +289,7 @@ export default function MemoriesPage() {
 
                 {selectedDetail.proposal?.reason && (
                   <div className="detail-field">
-                    <div className="detail-field-title">大模型抽取推理理由 (Model Rationale)</div>
+                    <div className="detail-field-title">为什么建议记住</div>
                     <div className="proposal-reason-box" style={{ fontSize: '12.5px', padding: '10px 12px' }}>
                       {selectedDetail.proposal.reason}
                     </div>
@@ -298,11 +298,11 @@ export default function MemoriesPage() {
 
                 <div className="dossier-grid-two" style={{ gridTemplateColumns: '1fr 1fr', padding: '12px', gap: '10px' }}>
                   <div className="dossier-grid-item">
-                    <span className="dossier-label">项目空间</span>
+                    <span className="dossier-label">所属项目</span>
                     <div className="dossier-value code-font" style={{ fontSize: '12px' }}>{selectedDetail.proposal?.project_id || "default"}</div>
                   </div>
                   <div className="dossier-grid-item">
-                    <span className="dossier-label">到期生命周期</span>
+                    <span className="dossier-label">到期时间</span>
                     <div className="dossier-value" style={{ fontSize: '12px' }}>
                       {selectedDetail.memory.expires_at ? formatExpiresAt(selectedDetail.memory.expires_at) : "永久有效"}
                     </div>
@@ -311,19 +311,19 @@ export default function MemoriesPage() {
 
                 {selectedDetail.events && selectedDetail.events.length > 0 && (
                   <div className="detail-field">
-                    <div className="detail-field-title">生命周期审计轨迹 (Audit Trail)</div>
+                    <div className="detail-field-title">变更记录</div>
                     <div className="timeline-mini" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
                       {selectedDetail.events.slice(0, 3).map((event) => (
                         <div key={event.id} style={{ display: 'flex', gap: '10px', fontSize: '12px', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '6px' }}>
                           <span className={`timeline-event-badge badge-event-${event.event_type}`} style={{ fontSize: '9px', padding: '1px 4px' }}>
                             {EVENT_LABELS[event.event_type] || event.event_type}
                           </span>
-                          <span style={{ color: 'var(--text-secondary)' }}>由 {event.actor_id} 于 {event.created_at.split(' ')[0]} 触发</span>
+                          <span style={{ color: 'var(--text-secondary)' }}>{event.actor_id} · {event.created_at.split(' ')[0]}</span>
                         </div>
                       ))}
                       {selectedDetail.events.length > 3 && (
                         <Link href={`/memories/${selectedDetail.memory.id}`} style={{ fontSize: '11px', color: 'var(--color-accent)', fontWeight: '600', marginTop: '2px' }}>
-                          查看全部 {selectedDetail.events.length} 个审计记录...
+                          查看全部 {selectedDetail.events.length} 条记录…
                         </Link>
                       )}
                     </div>
@@ -336,8 +336,8 @@ export default function MemoriesPage() {
               <svg className="empty-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <h3>待选定记忆审计</h3>
-              <p>请在左侧列表中点击选择一条记忆，以在此加载可审计档案详情并执行归档操作。</p>
+              <h3>请选择一条记忆</h3>
+              <p>点击左侧搜索结果，即可在这里查看来源、保存理由和变更记录。</p>
             </div>
           )}
         </div>

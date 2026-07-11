@@ -1,68 +1,113 @@
+<div align="center">
+
 # MemoryNode
 
-MemoryNode is a governed memory layer for AI agents.
+### Governed memory for AI agents
 
-It is not a chat app or agent framework. The MVP focuses on one contract:
-turn raw agent interactions into reviewable memories that can be approved,
-searched, explained, and revoked.
+Turn raw interactions into human-reviewed, searchable, explainable, and revocable memories—backed by source evidence and a complete audit trail.
 
-Current phase: governed-memory demo readiness. The backend supports manual
-proposal review, lifecycle transitions, supervised supersession, optional
-expiry, SQLite storage, SQLite FTS5 search, and Qwen-backed proposal
-extraction. The frontend dashboard is wired to the MVP memory APIs.
+![MemoryNode governance flow](assets/readme/memorynode-hero.png)
 
-MVP workflow:
+![Python](https://img.shields.io/badge/Python-FastAPI-009688?style=flat-square)
+![Next.js](https://img.shields.io/badge/Next.js-React-111827?style=flat-square)
+![SQLite](https://img.shields.io/badge/SQLite-FTS5-2563EB?style=flat-square)
+![Qwen](https://img.shields.io/badge/Qwen-Compatible-7C3AED?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-12%20passing-10B981?style=flat-square)
+
+</div>
+
+## Why MemoryNode?
+
+Agent memory is often treated as an invisible side effect: a model extracts a statement, stores it indefinitely, and gives users little control over why it exists or how to remove it.
+
+MemoryNode makes durable memory an explicit governance decision:
 
 ```text
-extract -> approve/reject -> search -> explain -> revoke
+extract → approve / reject → search → explain → revoke
 ```
 
-Submission docs:
+- **Evidence before persistence** — extraction creates proposals, never trusted memories.
+- **Human decision before trust** — every durable memory requires explicit approval.
+- **Auditability after every change** — source, rationale, reviewer actions, expiry, replacement, and revocation remain traceable.
 
-- [Architecture](docs/architecture.md)
-- [Demo script](docs/demo-script.md)
+MemoryNode is a memory layer—not a chatbot and not an agent framework.
 
-## Structure
+## Product tour
 
-- `backend/` - FastAPI backend
-- `frontend/` - Next.js dashboard
-- `sdk/python/` - Python SDK placeholder directory
-- `docs/` - project documents
+| Review model proposals | Retrieve trusted memory |
+| --- | --- |
+| ![Proposal review dashboard](assets/readme/proposal-review.jpg) | ![Memory search dashboard](assets/readme/memory-search.jpg) |
 
-## Implemented
+### Explain every memory
 
-- `GET /health`
-- `POST /v1/proposals/extract` for Qwen candidate extraction
-- `POST /v1/proposals` for manual proposal creation
-- `GET /v1/proposals?status=pending`
-- `POST /v1/proposals/{id}/approve`
-- `POST /v1/proposals/{id}/reject`
-- `GET /v1/proposals/{id}/related-memories` for reviewer-selected replacement candidates
-- `POST /v1/memories/{id}/revoke`
-- `GET /v1/memories/search?q=...` using SQLite FTS5
-- `GET /v1/memories/{id}`
-- `GET /v1/memories/{id}/explain`
+![Memory explanation and audit timeline](assets/readme/memory-explain.jpg)
 
-Approved memories are `active` by default. A reviewer can approve a proposal
-with an optional future `expires_at`, or select an eligible related active
-memory as `supersede_memory_id`. Supersession revokes the old memory and leaves
-an auditable two-way link. Expiry is refreshed on relevant lifecycle, search,
-related-memory, and detail requests; it is not a background scheduler.
+The dashboard exposes the memory content, lifecycle state, source quote, extraction rationale, reviewer decision, expiry metadata, replacement links, and audit events.
 
-Not implemented yet:
+## Governance capabilities
 
-- SDK, MCP, hooks, auth, Docker
+| Capability | Contract |
+| --- | --- |
+| Proposal extraction | Qwen-compatible extraction turns raw messages into structured pending proposals. |
+| Human review | Reviewers approve useful proposals or reject unsafe and irrelevant ones. |
+| Trusted retrieval | SQLite FTS5 searches active approved memories by default. |
+| Explanation | Every memory remains linked to its source, proposal, rationale, and events. |
+| Revocation | Revoked memories leave default search without losing their history. |
+| Supervised supersession | Related memories are candidates; the reviewer explicitly selects any memory to replace. |
+| Optional expiration | Due active memories expire on relevant requests and remain auditable. |
 
-## Dashboard
+> Related-memory candidates are not automatic conflict arbitration. Expiration is request-driven, not a background scheduler.
 
-Start the backend first:
+## Architecture
+
+```mermaid
+flowchart LR
+    R["Raw interactions"] --> Q["Qwen extraction"]
+    Q --> P["Pending proposals"]
+    P --> H{"Human review"}
+    H -->|Reject| X["Rejected"]
+    H -->|Approve| M["Active memory"]
+    M --> S["FTS5 search"]
+    M --> E["Explain + audit"]
+    M --> V["Revoke / expire"]
+
+    UI["Next.js dashboard"] --> API["FastAPI lifecycle API"]
+    API --> DB["SQLite source of truth"]
+```
+
+The backend owns all lifecycle transitions. SQLite stores sources, proposals, memories, and audit events; FTS5 indexes only the memories available to retrieval.
+
+## Tech stack
+
+- **Model integration:** Qwen-compatible Chat Completions or Responses API
+- **Backend:** Python, FastAPI, Pydantic, SQLAlchemy
+- **Storage and search:** SQLite, SQLite FTS5
+- **Dashboard:** Next.js, React
+- **Verification:** Pytest, Next.js production build
+
+## Run locally
+
+### 1. Configure
+
+```bash
+git clone https://github.com/unnoderes/MemoryNode.git
+cd MemoryNode
+cp .env.example .env
+```
+
+Set the Qwen-compatible endpoint, model, and API key in `.env`. Keep real credentials out of version control.
+
+### 2. Start the backend
 
 ```bash
 cd backend
-uvicorn app.main:app --reload
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --reload
 ```
 
-Then start the frontend:
+The API runs at `http://localhost:8000`; verify it with `GET /health`.
+
+### 3. Start the dashboard
 
 ```bash
 cd frontend
@@ -70,97 +115,55 @@ npm install
 npm run dev
 ```
 
-Frontend build check:
+Open `http://localhost:3000/proposals`.
 
-```bash
-cd frontend
-npm run build
-```
+## Try the governed-memory flow
 
-The dashboard uses `NEXT_PUBLIC_API_URL` and defaults to
-`http://localhost:8000`.
+1. Paste a transcript into the proposal console and select **Extract**.
+2. Inspect the content, type, confidence, source quote, and rationale.
+3. Approve one proposal and reject another.
+4. Search the approved memory from the memory library.
+5. Open its detail page to inspect evidence and audit events.
+6. Revoke it, then confirm it no longer appears in default search.
 
-Pages:
+For an optional governance extension, load related memories and explicitly select one to supersede, or assign a future expiry during approval.
 
-- `http://localhost:3000/proposals` - extract transcript proposals, review related-memory candidates, set optional expiry, then approve, reject, or approve and replace.
-- `http://localhost:3000/memories` - search active memories and show expiry metadata.
-- `http://localhost:3000/memories/<id>` - explain source, rationale, audit events, expiry, supersession links, and revoke an active memory.
+## API surface
 
-Minimal demo flow:
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Service health |
+| `POST` | `/v1/proposals/extract` | Extract pending proposals with Qwen |
+| `POST` | `/v1/proposals` | Create a manual proposal |
+| `GET` | `/v1/proposals` | List proposals by status |
+| `GET` | `/v1/proposals/{id}/related-memories` | Load reviewer-facing replacement candidates |
+| `POST` | `/v1/proposals/{id}/approve` | Approve, optionally expire or supersede |
+| `POST` | `/v1/proposals/{id}/reject` | Reject a proposal |
+| `GET` | `/v1/memories/search` | Search active memories with FTS5 |
+| `GET` | `/v1/memories/{id}` | Read memory state |
+| `GET` | `/v1/memories/{id}/explain` | Read evidence, relationships, and events |
+| `POST` | `/v1/memories/{id}/revoke` | Revoke an active memory |
 
-1. Start the backend.
-2. Start the frontend.
-3. Open `http://localhost:3000/proposals`.
-4. Paste or use the demo transcript and click Extract.
-5. Approve useful pending proposals. When replacing a decision, load related
-   candidates and explicitly select the old memory before approving.
-6. Open `http://localhost:3000/memories` and search for `Qwen Cloud`.
-7. Open a memory detail page to explain or revoke it. Expired and superseded
-   memories remain explainable but are excluded from default search.
-
-## Qwen Extraction
-
-`POST /v1/proposals/extract` accepts:
-
-```json
-{
-  "actor_id": "demo-user",
-  "project_id": "memorynode-demo",
-  "messages": [
-    {"role": "user", "content": "This project must use Qwen Cloud."}
-  ]
-}
-```
-
-It creates one `memory_sources` row and pending `memory_proposals`; it does not
-approve proposals or create memories.
-
-Real Qwen calls require:
-
-```bash
-MEMORYNODE_DB_PATH=./memorynode.db
-QWEN_API_KEY=...
-QWEN_BASE_URL=...
-QWEN_MODEL=...
-QWEN_WIRE_API=chat
-QWEN_REASONING_EFFORT=medium
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-For an OpenAI-compatible Responses API relay, set:
-
-```bash
-QWEN_BASE_URL=https://rehdasu.cn
-QWEN_MODEL=gpt-5.5
-QWEN_WIRE_API=responses
-QWEN_REASONING_EFFORT=medium
-```
-
-Copy `.env.example` to `.env` in the project root for local demo settings.
-Without those `QWEN_*` values, the extract step cannot call Qwen. Backend tests
-still cover lifecycle behavior with mocked extraction.
-
-## Start
-
-Backend:
-
-```bash
-cd backend
-uvicorn app.main:app --reload
-```
-
-Frontend:
-
-```bash
-cd frontend
-npm install
-npm run dev
-npm run build
-```
-
-## Test
+## Verify
 
 ```bash
 cd backend
 python -m pytest -q
+
+cd ../frontend
+npm run build
 ```
+
+Current release baseline: **12 backend tests passing** and a successful Next.js production build.
+
+## Scope
+
+This competition prototype intentionally proves the governed-memory contract before adding infrastructure. It does not yet include authentication, an SDK, an MCP adapter, Docker deployment, or vector retrieval.
+
+---
+
+<div align="center">
+
+**Models may propose memories. Humans decide what becomes trusted knowledge.**
+
+</div>

@@ -76,7 +76,7 @@ export default function ProposalsPage() {
 
   useEffect(() => {
     if (newProposalIds.length === 0) return;
-    const timer = setTimeout(() => setNewProposalIds([]), 600);
+    const timer = setTimeout(() => setNewProposalIds([]), 800);
     return () => clearTimeout(timer);
   }, [newProposalIds]);
 
@@ -127,25 +127,28 @@ export default function ProposalsPage() {
     try {
       const body = await extractProposals({ actorId, projectId, transcript: text });
       const extracted = body.proposals || [];
-      setNewProposalIds(extracted.map((proposal) => proposal.id));
+      const extractedIds = extracted.map((proposal) => proposal.id);
       await refresh();
       if (extracted.length === 0) {
         setMessage(currentT(
-          "没有提取到记忆提案。原始输入已保留，你可以修改后重试。",
-          "No memory suggestions were found. Your conversation is still here so you can edit and retry.",
+          "分析完成，没有发现需要长期保存的内容。",
+          "Analysis complete. Nothing needs to be saved as long-term memory.",
         ));
-      } else {
-        setMessage(currentT(
-          `已提取 ${extracted.length} 条内容，结果不会自动保存，请确认后处理。`,
-          `Found ${extracted.length} suggested memories. Nothing is saved automatically; review each one first.`,
-        ));
-        setTranscript("");
-        setExtractExpanded(false);
+        return;
       }
-    } catch (err) {
+
+      setSelectedId(extracted[0].id);
+      setNewProposalIds(extractedIds);
+      setTranscript("");
+      setExtractExpanded(false);
+      setMessage(currentT(
+        `已找到 ${extracted.length} 条建议，请确认是否保存。`,
+        `Found ${extracted.length} suggestions. Review them before saving.`,
+      ));
+    } catch {
       setError(currentT(
-        `提取失败：${err.message}。原始输入已保留，请重试。`,
-        `Extraction failed: ${err.message}. Your conversation is still here; please retry.`,
+        "这次没有提取成功，请稍后重试。你的原始对话仍然保留。",
+        "Extraction did not complete. Please try again. Your original conversation is still here.",
       ));
     } finally {
       setExtracting(false);
@@ -238,12 +241,31 @@ export default function ProposalsPage() {
                 <button disabled={busy || extracting} type="submit" style={{ width: '100%' }} aria-busy={extracting}>
                   {extracting ? <span className="extract-spinner" aria-hidden="true" /> : null}
                   {extracting
-                    ? t(`正在提取… 已等待 ${elapsedSeconds} 秒`, `Extracting… ${elapsedSeconds}s elapsed`)
+                    ? t("Qwen 正在分析…", "Qwen is analyzing…")
                     : t("提取记忆提案", "Extract Memory Suggestions")}
                 </button>
-                <p className="extract-safety-note">
-                  {t("提取结果只会进入待审核列表，不会自动保存。", "Extracted results only enter the review queue and are never saved automatically.")}
-                </p>
+                {extracting ? (
+                  <div className="extract-live-status" role="status" aria-live="polite" aria-atomic="true">
+                    <strong>{t("正在寻找值得记住的内容", "Looking for information worth remembering")}</strong>
+                    <span aria-hidden="true">
+                      {elapsedSeconds === 0
+                        ? t("正在提交请求…", "Sending request…")
+                        : t(`已等待 ${elapsedSeconds} 秒`, `${elapsedSeconds} seconds elapsed`)}
+                    </span>
+                    <span className="sr-only">
+                      {elapsedSeconds < 5
+                        ? t("正在提交请求…", "Sending request…")
+                        : t(
+                          `已等待 ${Math.floor(elapsedSeconds / 5) * 5} 秒`,
+                          `${Math.floor(elapsedSeconds / 5) * 5} seconds elapsed`,
+                        )}
+                    </span>
+                    <p>{t(
+                      "分析结果只会进入待审核列表，不会自动保存。",
+                      "Results enter the review queue only. Nothing is saved automatically.",
+                    )}</p>
+                  </div>
+                ) : null}
               </form>
             </div>
           </div>
@@ -251,17 +273,7 @@ export default function ProposalsPage() {
           {/* Proposals List */}
           <div className="proposals-list-section">
             <h2>{t("等待你确认", "Waiting for Review")} ({proposals.length})</h2>
-            {extracting ? (
-              <div className="proposal-skeletons" aria-hidden="true">
-                {[0, 1, 2].map((item) => (
-                  <div className="proposal-skeleton" key={item}>
-                    <span className="skeleton-line skeleton-label" />
-                    <span className="skeleton-line" />
-                    <span className="skeleton-line skeleton-short" />
-                  </div>
-                ))}
-              </div>
-            ) : proposals.length === 0 ? (
+            {proposals.length === 0 && !extracting ? (
               <div className="empty">
                 <svg className="empty-icon" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -269,7 +281,7 @@ export default function ProposalsPage() {
                 <span>{t("暂时没有需要审核的内容", "Nothing to review yet")}</span>
                 <p style={{ fontSize: '13px', opacity: 0.7 }}>{t("在上方粘贴一段对话，AI 会帮你找出值得记住的内容。", "Paste a conversation above and AI will suggest what may be worth remembering.")}</p>
               </div>
-            ) : (
+            ) : proposals.length > 0 ? (
               <div className="compact-proposal-list">
                 {proposals.map((proposal) => {
                   const isSelected = proposal.id === selectedId;
@@ -288,7 +300,18 @@ export default function ProposalsPage() {
                   );
                 })}
               </div>
-            )}
+            ) : null}
+            {extracting ? (
+              <div className="proposal-skeletons" aria-hidden="true">
+                {[0, 1, 2].map((item) => (
+                  <div className="proposal-skeleton" key={item}>
+                    <span className="skeleton-line skeleton-label" />
+                    <span className="skeleton-line" />
+                    <span className="skeleton-line skeleton-short" />
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -534,12 +557,34 @@ export default function ProposalsPage() {
           gap: 12px;
         }
 
-        .extract-safety-note {
+        .extract-live-status {
+          background: rgba(255, 255, 255, 0.025);
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
           color: var(--text-muted);
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
           font-size: 12px;
           line-height: 1.5;
-          margin-top: -8px;
-          text-align: center;
+          padding: 12px 14px;
+        }
+
+        .extract-live-status strong {
+          color: var(--text-primary);
+          font-size: 13px;
+        }
+
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
         }
 
         .extract-spinner {

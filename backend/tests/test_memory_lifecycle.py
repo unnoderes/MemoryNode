@@ -1,6 +1,6 @@
 import os
 import tempfile
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 os.environ["MEMORYNODE_DB_PATH"] = str(Path(tempfile.mkdtemp()) / "test.db")
@@ -12,6 +12,61 @@ from app.db import init_db, session_local
 from app.main import app
 from app import models
 from app.qwen import extract_memory_proposals
+from app.services import utc_datetime
+
+
+def assert_utc(value):
+    assert value.endswith("+00:00")
+
+
+def test_api_timestamps_are_explicit_utc():
+    with TestClient(app) as client:
+        pending = create_proposal(
+            client, "UTC contract pending.",
+            actor_id="utc-actor", project_id="utc-project", type="fact",
+        )
+        assert_utc(pending["created_at"])
+        assert pending["decided_at"] is None
+
+        expires_at = (models.now() + timedelta(days=1)).isoformat()
+        memory = client.post(
+            f"/v1/proposals/{pending['id']}/approve",
+            json={"expires_at": expires_at},
+        ).json()
+        for field in ("expires_at", "created_at", "updated_at"):
+            assert_utc(memory[field])
+
+        approved = next(
+            item for item in client.get("/v1/proposals", params={"status": "approved"}).json()["proposals"]
+            if item["id"] == pending["id"]
+        )
+        assert_utc(approved["created_at"])
+        assert_utc(approved["decided_at"])
+
+        assert_utc(client.get(f"/v1/memories/{memory['id']}").json()["created_at"])
+        search_memory = client.get("/v1/memories/search", params={"q": "contract"}).json()["memories"][0]
+        assert_utc(search_memory["updated_at"])
+
+        related_proposal = create_proposal(
+            client, "UTC contract replacement.",
+            actor_id="utc-actor", project_id="utc-project", type="fact",
+        )
+        related = client.get(f"/v1/proposals/{related_proposal['id']}/related-memories").json()["memories"]
+        assert_utc(related[0]["created_at"])
+
+        explanation = client.get(f"/v1/memories/{memory['id']}/explain").json()
+        assert_utc(explanation["source"]["created_at"])
+        assert all(event["created_at"].endswith("+00:00") for event in explanation["events"])
+
+        no_expiry = create_proposal(
+            client, "UTC contract without expiry.",
+            actor_id="utc-no-expiry", project_id="utc-project", type="fact",
+        )
+        no_expiry_memory = client.post(f"/v1/proposals/{no_expiry['id']}/approve").json()
+        assert no_expiry_memory["expires_at"] is None
+
+    non_utc = datetime(2026, 7, 12, 20, tzinfo=timezone(timedelta(hours=8)))
+    assert utc_datetime(non_utc) == datetime(2026, 7, 12, 12, tzinfo=timezone.utc)
 
 
 def test_proposal_approve_search_revoke_lifecycle():

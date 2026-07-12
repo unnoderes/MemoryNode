@@ -30,7 +30,7 @@ def source_dict(source):
         "actor_id": source.actor_id,
         "project_id": source.project_id,
         "raw_text": source.raw_text,
-        "created_at": source.created_at,
+        "created_at": utc_datetime(source.created_at),
     }
 
 
@@ -44,8 +44,8 @@ def proposal_dict(proposal):
         "source_quote": proposal.source_quote,
         "reason": proposal.reason,
         "status": proposal.status,
-        "created_at": proposal.created_at,
-        "decided_at": proposal.decided_at,
+        "created_at": utc_datetime(proposal.created_at),
+        "decided_at": utc_datetime(proposal.decided_at) if proposal.decided_at is not None else None,
     }
 
 
@@ -57,9 +57,9 @@ def memory_dict(memory, score: Optional[float] = None):
         "content": memory.content,
         "type": memory.type,
         "status": memory.status,
-        "expires_at": memory.expires_at,
-        "created_at": memory.created_at,
-        "updated_at": memory.updated_at,
+        "expires_at": utc_datetime(memory.expires_at) if memory.expires_at is not None else None,
+        "created_at": utc_datetime(memory.created_at),
+        "updated_at": utc_datetime(memory.updated_at),
     }
     if score is not None:
         data["score"] = score
@@ -74,7 +74,7 @@ def event_dict(event):
         "event_type": event.event_type,
         "actor_id": event.actor_id,
         "note": event.note,
-        "created_at": event.created_at,
+        "created_at": utc_datetime(event.created_at),
     }
 
 

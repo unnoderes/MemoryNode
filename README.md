@@ -87,6 +87,25 @@ The backend owns all lifecycle transitions. SQLite stores sources, proposals, me
 
 ## Run locally
 
+Phase 3 provides a local process-management CLI. The current wheel does not
+contain the backend or frontend, so it must point at a checked-out and already
+built MemoryNode source tree:
+
+```bash
+memorynode init --source-root /absolute/path/to/MemoryNode
+memorynode start
+memorynode status
+memorynode stop
+```
+
+`start` runs uvicorn from `source_root/backend` and `npm run start` from
+`source_root/frontend`; run `npm run build` in `frontend` first. Use
+`memorynode doctor` for read-only diagnostics and `memorynode mcp` for stdio
+MCP. Phase 3 fixes the API at `127.0.0.1:8000` and the console at
+`127.0.0.1:3000` because the current Next.js API URL and FastAPI CORS allowlist
+are build-time contracts. Configurable ports and standalone product assets in
+the wheel are deferred to Phase 6.
+
 ### 1. Configure
 
 ```bash

@@ -34,6 +34,21 @@ Phase 1 compatibility methods `health()`, `extract_proposals()`,
 The MCP entry point remains `memorynode-mcp` (or `python -m memorynode`) and
 still exposes only `memory_propose`, `memory_search`, and `memory_explain`.
 
+The `memorynode` CLI provides `init`, `start`, `stop`, `restart`, `status`,
+`doctor`, `mcp`, and `version`. Phase 3 requires a local source checkout because
+the wheel does not yet bundle the backend or built frontend:
+
+```powershell
+memorynode init --source-root C:\path\to\MemoryNode
+memorynode start
+memorynode status
+memorynode stop
+```
+
+Phase 3 only accepts API port `8000` and console port `3000`: the current
+Next.js API URL and FastAPI CORS allowlist are fixed to those endpoints.
+Configurable ports are deferred to Phase 6.
+
 Development:
 
 ```powershell

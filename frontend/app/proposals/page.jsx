@@ -28,6 +28,10 @@ const MEMORY_TYPE_LABELS = {
   fact: "事实",
 };
 
+function normalizeConfidence(confidence) {
+  return Math.max(0, Math.min(1, Number(confidence) || 0));
+}
+
 export default function ProposalsPage() {
   const { language, t } = useLanguage();
   const languageRef = useRef(language);
@@ -175,6 +179,8 @@ export default function ProposalsPage() {
   }, [selectedId]);
 
   const selectedProposal = proposals.find(p => p.id === selectedId);
+  const confidence = normalizeConfidence(selectedProposal?.confidence);
+  const confidencePercent = Math.round(confidence * 100);
 
   return (
     <div className="proposals-container">
@@ -285,6 +291,7 @@ export default function ProposalsPage() {
               <div className="compact-proposal-list">
                 {proposals.map((proposal) => {
                   const isSelected = proposal.id === selectedId;
+                  const proposalConfidence = Math.round(normalizeConfidence(proposal.confidence) * 100);
                   return (
                     <div
                       key={proposal.id}
@@ -293,7 +300,7 @@ export default function ProposalsPage() {
                     >
                       <div className="compact-item-header">
                         <span className="compact-item-type">{typeLabels[proposal.type] || proposal.type}</span>
-                        <span className="compact-item-conf">{(proposal.confidence * 100).toFixed(0)}% {t("置信度/说服力", "confidence")}</span>
+                        <span className="compact-item-conf">{proposalConfidence}% {t("模型置信度", "model confidence")}</span>
                       </div>
                       <p className="compact-item-text">{proposal.content}</p>
                     </div>
@@ -326,25 +333,35 @@ export default function ProposalsPage() {
                   <span className="badge badge-type">
                     {typeLabels[selectedProposal.type] || selectedProposal.type}
                   </span>
-                  <div className="confidence-indicator" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                    <div className="confidence-blocks" style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
-                      {Array.from({ length: 10 }).map((_, idx) => {
-                        const isActive = idx < Math.round(selectedProposal.confidence * 10);
-                        return (
-                          <div
-                            key={idx}
-                            style={{
-                              width: '4px',
-                              height: '8px',
-                              borderRadius: '1px',
-                              background: isActive ? 'var(--text-primary)' : 'rgba(255, 255, 255, 0.05)',
-                              transition: 'all 0.2s ease',
-                            }}
-                          />
-                        );
-                      })}
+                  <div className="confidence-group">
+                    <div
+                      className="confidence-indicator"
+                      aria-label={t(
+                        `模型置信度 ${confidencePercent}%`,
+                        `Model confidence ${confidencePercent}%`,
+                      )}
+                    >
+                      <div className="confidence-blocks" aria-hidden="true">
+                        {Array.from({ length: 10 }).map((_, index) => {
+                          const fill = Math.max(0, Math.min(1, confidence * 10 - index));
+                          return (
+                            <span className="confidence-block" key={index}>
+                              <span
+                                className="confidence-block-fill"
+                                style={{ width: `${fill * 100}%` }}
+                              />
+                            </span>
+                          );
+                        })}
+                      </div>
+                      <span className="confidence-text">{t("模型置信度", "Model confidence")}: {confidencePercent}%</span>
                     </div>
-                    <span className="confidence-text">{t("置信度/说服力", "Confidence/Persuasiveness")}：{(selectedProposal.confidence * 100).toFixed(0)}%</span>
+                    <p className="confidence-help">
+                      {t(
+                        "这是模型对提取结果的自评，仅供审核参考。",
+                        "This is the model's self-reported confidence and is provided for review only.",
+                      )}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -746,6 +763,50 @@ export default function ProposalsPage() {
           align-items: center;
         }
 
+        .confidence-group {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          min-width: 0;
+        }
+
+        .confidence-indicator,
+        .confidence-blocks {
+          display: flex;
+          align-items: center;
+        }
+
+        .confidence-indicator {
+          gap: 8px;
+        }
+
+        .confidence-blocks {
+          gap: 2px;
+          flex: 0 0 auto;
+        }
+
+        .confidence-block {
+          width: 4px;
+          height: 8px;
+          overflow: hidden;
+          flex: 0 0 auto;
+          border-radius: 1px;
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .confidence-block-fill {
+          display: block;
+          height: 100%;
+          background: var(--text-primary);
+          transition: width 200ms ease;
+        }
+
+        .confidence-help {
+          color: var(--text-muted);
+          font-size: 11px;
+          line-height: 1.4;
+        }
+
         .conf-badge {
           font-size: 11px;
           font-weight: 700;
@@ -1004,6 +1065,9 @@ export default function ProposalsPage() {
           .skeleton-line,
           .compact-proposal-item.new-proposal {
             animation: none;
+          }
+          .confidence-block-fill {
+            transition: none;
           }
         }
       `}</style>

@@ -31,7 +31,7 @@ export default function Hero({ t }) {
 
       {/* Action Buttons */}
       <div className="hero-cta-buttons">
-        <a href="#playground" className="pill-btn pill-btn-white text-sm py-3 px-8">
+        <a href="#playground" className="pill-btn pill-btn-gradient text-sm py-3 px-8">
           {t("体验交互沙盒", "Explore Simulator")}
         </a>
         <a href="#api" className="pill-btn pill-btn-dark text-sm py-3 px-8">

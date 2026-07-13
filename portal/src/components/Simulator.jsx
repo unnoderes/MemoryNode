@@ -438,16 +438,12 @@ export default function Simulator({ language, t }) {
                   <button
                     key={preset.id}
                     onClick={() => handlePresetSelect(idx)}
-                    className={`p-3 rounded-lg border text-left text-xs transition-all ${
-                      selectedPreset === idx 
-                        ? 'bg-[#0f172a] border-[#38bdf8] text-white shadow-[0_0_10px_rgba(56,189,248,0.1)]' 
-                        : 'bg-[#070a0f] border-[#1e293b] text-slate-400 hover:border-slate-700 hover:text-white'
-                    }`}
+                    className={`preset-card ${selectedPreset === idx ? "active" : ""}`}
                   >
-                    <div className="font-bold mb-1 truncate">
+                    <div className="font-bold mb-1 truncate text-xs">
                       {language === "zh" ? preset.title_zh : preset.title_en}
                     </div>
-                    <div className="line-clamp-2 opacity-60">
+                    <div className="line-clamp-2 text-[11px] opacity-60">
                       {language === "zh" ? preset.transcript_zh : preset.transcript_en}
                     </div>
                   </button>

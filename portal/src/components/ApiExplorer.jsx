@@ -115,11 +115,7 @@ export default function ApiExplorer({ language, t }) {
             <button
               key={key}
               onClick={() => handleApiTabSelect(key)}
-              className={`w-full flex items-center justify-between text-left p-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeApiTab === key
-                  ? 'bg-[#0f172a] text-white border-l-2 border-sky-400 pl-4'
-                  : 'text-slate-400 hover:bg-[#070a0f] hover:text-white pl-3'
-              }`}
+              className={`api-route-btn ${activeApiTab === key ? 'active' : ''}`}
             >
               <div>
                 <span className={`text-[9px] font-extrabold mr-2 uppercase ${

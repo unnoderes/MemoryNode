@@ -23,7 +23,7 @@ def test_help_version_and_status_text_codes(tmp_path, capsys):
     assert cli.dispatch(args("version"), paths(tmp_path)) == 0
     assert cli.status(paths(tmp_path)) == 1
     output = capsys.readouterr().out
-    assert "0.4.0" in output and "overall: stopped" in output
+    assert "0.4.1" in output and "overall: stopped" in output
 
 
 def test_status_stale_foreign_partial_and_stop_never_kills(tmp_path, monkeypatch, capsys):

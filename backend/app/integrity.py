@@ -6,11 +6,11 @@ from pathlib import Path
 
 CURRENT_SCHEMA_VERSION = 2
 
-REQUIRED = {
-    "memory_sources": {"id", "actor_id", "project_id", "raw_text", "created_at"},
-    "memory_proposals": {"id", "source_id", "content", "type", "confidence", "source_quote", "status", "created_at"},
-    "memories": {"id", "proposal_id", "supersedes_memory_id", "content", "type", "status", "created_at", "updated_at"},
-    "memory_events": {"id", "memory_id", "proposal_id", "event_type", "actor_id", "created_at", "idempotency_key", "request_fingerprint"},
+REQUIRED_COLUMNS = {
+    "memory_sources": ("id", "actor_id", "project_id", "raw_text", "created_at"),
+    "memory_proposals": ("id", "source_id", "content", "type", "confidence", "source_quote", "reason", "status", "created_at", "decided_at"),
+    "memories": ("id", "proposal_id", "supersedes_memory_id", "content", "type", "status", "expires_at", "created_at", "updated_at"),
+    "memory_events": ("id", "memory_id", "proposal_id", "event_type", "actor_id", "note", "created_at", "idempotency_key", "request_fingerprint"),
 }
 
 
@@ -36,15 +36,14 @@ def check_database(path, *, require_current=True):
             fk_rows = conn.execute("PRAGMA foreign_key_check").fetchall()
             _add(checks, "foreign_key_check", not fk_rows, "ok" if not fk_rows else f"{len(fk_rows)} violation(s)")
             tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type IN ('table','virtual table')")}
-            for table, columns in REQUIRED.items():
+            for table, columns in REQUIRED_COLUMNS.items():
                 exists = table in tables
                 _add(checks, f"table:{table}", exists, "ok" if exists else "missing")
                 if exists:
                     present = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
-                    missing = columns - present
+                    missing = set(columns) - present
                     _add(checks, f"columns:{table}", not missing, "ok" if not missing else "missing required column(s)")
-            indexes = {row[1] for row in conn.execute("PRAGMA index_list(memory_events)")} if "memory_events" in tables else set()
-            _add(checks, "index:idempotency_key", "ix_memory_events_idempotency_key" in indexes, "ok")
+            _add(checks, "index:idempotency_key", _has_idempotency_index(conn) if "memory_events" in tables else False, "ok")
             _add(checks, "fts:exists", "memory_fts" in tables, "ok" if "memory_fts" in tables else "missing")
             if "memory_fts" in tables and "memories" in tables:
                 missing = conn.execute(
@@ -61,3 +60,17 @@ def check_database(path, *, require_current=True):
 
 def _add(checks, name, ok, message):
     checks.append({"name": name, "ok": bool(ok), "message": message})
+
+
+def _has_idempotency_index(conn) -> bool:
+    for row in conn.execute("PRAGMA index_list(memory_events)"):
+        name = row[1]
+        unique = bool(row[2])
+        partial = bool(row[4]) if len(row) > 4 else False
+        if name != "ix_memory_events_idempotency_key":
+            continue
+        columns = [item[2] for item in conn.execute(f"PRAGMA index_info({name})")]
+        sql_row = conn.execute("SELECT sql FROM sqlite_master WHERE type='index' AND name=?", (name,)).fetchone()
+        sql = (sql_row[0] or "").upper() if sql_row else ""
+        return unique and partial and columns == ["idempotency_key"] and "WHERE IDEMPOTENCY_KEY IS NOT NULL" in sql
+    return False

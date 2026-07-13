@@ -32,17 +32,16 @@ def ensure_schema(engine, metadata, database_path: str):
         _require_ok(check_database(path))
         return
 
+    version = _schema_version_readonly(path)
+    if version > CURRENT_SCHEMA_VERSION:
+        raise RuntimeError(f"database schema version {version} is newer than supported {CURRENT_SCHEMA_VERSION}")
+    if version == CURRENT_SCHEMA_VERSION:
+        _require_ok(check_database(path))
+        return
+
     with _connect(path) as conn:
-        version = _user_version(conn)
-        if version > CURRENT_SCHEMA_VERSION:
-            raise RuntimeError(f"database schema version {version} is newer than supported {CURRENT_SCHEMA_VERSION}")
-        if version < CURRENT_SCHEMA_VERSION:
-            _backup_before_migration(path)
-            _migrate(conn, version)
-        else:
-            _require_core_tables(conn)
-            _migrate_v1_to_v2(conn)
-            _create_fts_sqlite(conn)
+        _backup_before_migration(path)
+        _migrate(conn, version)
     _require_ok(check_database(path))
 
 
@@ -137,6 +136,12 @@ def _backup_before_migration(path: Path):
 
 def _schema_version(path: Path) -> int:
     with sqlite3.connect(path) as conn:
+        return _user_version(conn)
+
+
+def _schema_version_readonly(path: Path) -> int:
+    uri = f"file:{path.resolve().as_posix()}?mode=ro"
+    with sqlite3.connect(uri, uri=True) as conn:
         return _user_version(conn)
 
 

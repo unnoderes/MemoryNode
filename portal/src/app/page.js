@@ -1,20 +1,18 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-
-const BACKEND_URL = "http://localhost:8000";
 
 const PRESETS = [
   {
     id: "preset-1",
-    title_zh: "开发偏好 (Developer Preference)",
-    title_en: "Developer Preference",
+    title_zh: "开发编码偏好 (Coding Preference)",
+    title_en: "Coding Preference",
     transcript_zh: "你好，我是开发者 Mike。我正在开发一个 React 应用。在编写 CSS 时，我更喜欢直接写原生的 CSS，而不是使用 Tailwind，因为这能让我有百分百的掌控感。另外，请在 JavaScript 代码中使用 ESM imports 导入模块。",
     transcript_en: "Hello, I am developer Mike. I am working on a React app. When writing CSS, I prefer writing raw CSS instead of Tailwind because it gives me 100% control. Also, please use ESM imports for JavaScript modules.",
     mockProposals: [
       {
-        id: "mock-prop-1",
+        id: "prop-1",
         content: "Mike prefers raw CSS over Tailwind CSS in React development.",
         content_zh: "Mike 在 React 开发中偏好使用原生 CSS，而非 Tailwind CSS。",
         type: "user_preference",
@@ -25,7 +23,7 @@ const PRESETS = [
         reason_zh: "用户明确表达了对编码样式的偏好。"
       },
       {
-        id: "mock-prop-2",
+        id: "prop-2",
         content: "Mike prefers ESM imports for JavaScript modules.",
         content_zh: "Mike 偏好在 JavaScript 模块中使用 ESM 导入 (ESM imports)。",
         type: "user_preference",
@@ -45,7 +43,7 @@ const PRESETS = [
     transcript_en: "During the architecture review meeting, we decided to use SQLite for database storage to keep it simple locally. To achieve fast text search, we will use the built-in FTS5 engine as the search index. Mike is the lead for this decision.",
     mockProposals: [
       {
-        id: "mock-prop-3",
+        id: "prop-3",
         content: "Project database must be SQLite to ensure local simplicity.",
         content_zh: "项目数据库需使用 SQLite 以确保本地的简洁性。",
         type: "project_decision",
@@ -56,7 +54,7 @@ const PRESETS = [
         reason_zh: "团队确定了数据库选型约束。"
       },
       {
-        id: "mock-prop-4",
+        id: "prop-4",
         content: "SQLite FTS5 will be used as the text search index.",
         content_zh: "使用 SQLite FTS5 作为文本检索索引。",
         type: "project_decision",
@@ -70,13 +68,13 @@ const PRESETS = [
   },
   {
     id: "preset-3",
-    title_zh: "安全准则 (Security Guideline)",
-    title_en: "Security Guideline",
+    title_zh: "安全规约 (Security Policy)",
+    title_en: "Security Policy",
     transcript_zh: "警告：切勿将包含真实 API 密钥（例如 OpenAI API Key）的 .env 配置文件或 sqlite 数据源文件提交到 GitHub 开源仓库中。这是一个非常严重的安全隐患，所有凭据必须保存在本地环境变量中。",
     transcript_en: "Warning: Never commit .env files containing real API keys (e.g., OpenAI API Key) or SQLite data files to GitHub. This is a severe security risk; all credentials must be kept in local environment variables.",
     mockProposals: [
       {
-        id: "mock-prop-5",
+        id: "prop-5",
         content: "Never commit configuration (.env) files or databases containing API keys to repository.",
         content_zh: "严禁向代码仓库提交包含 API 密钥的配置文件 (.env) 或数据库文件。",
         type: "known_pitfall",
@@ -90,377 +88,207 @@ const PRESETS = [
   }
 ];
 
-const ARCH_NODES = {
+const ARCH_STEPS = {
   raw: {
-    title_zh: "1. 原始交互流 (Raw Interaction)",
-    title_en: "1. Raw Interaction",
-    desc_zh: "智能体与用户的每一次对话输入（Chat Logs）或动作日志。这些数据包含大量冗余，不能直接作为记忆存入数据库，以防提示词注入 (Prompt Injection) 或无用信息污染。",
-    desc_en: "Raw conversation logs or action events between agent and user. They contain noise and cannot be saved directly to prevent prompt injection or cluttering.",
-    tech: "FastAPI / SDK / Stream"
+    title_zh: "1. 原始交互流 (Raw Transcript)",
+    title_en: "1. Raw Transcript",
+    desc_zh: "大模型智能体与用户之间的所有交互文本日志。由于输入内容不受信，不能直接写入数据库，否则容易遭遇注入攻击或被冗余噪音污染。",
+    desc_en: "All interaction logs between agents and users. Because inputs are untrusted, saving them directly risks poisoning or noise pollution.",
+    tech: "FastAPI Input / SDK Stream"
   },
-  qwen: {
-    title_zh: "2. Qwen 提取层 (Qwen Extractor)",
+  extractor: {
+    title_zh: "2. LLM 规则提取 (Qwen Extractor)",
     title_en: "2. Qwen Extractor",
-    desc_zh: "利用兼容的 Qwen 大模型，通过专门设计的 System Prompt 对交互文本进行结构化实体与规律提取。识别其是否包含“用户偏好”、“项目决策”或“已知坑点”，并输出置信度与事实陈述。",
-    desc_en: "Utilizes the Qwen-compatible API with structured prompts to extract structured facts, types, and rationale, outputting candidate proposal payloads.",
-    tech: "Qwen API / Responses API"
+    desc_zh: "基于微调小模型或特定 Prompt，从对话流中解析结构化事实，识别归类为“偏好”、“约束”或“决策”，并输出置信度评分和原句引用。",
+    desc_en: "LLM analyzes dialogue stream to extract structured facts, cataloging them into preferences, constraints, or decisions with source quotes.",
+    tech: "Qwen Fine-Tuned / Responses API"
   },
-  proposal: {
-    title_zh: "3. 待审核提议库 (Proposals DB)",
+  proposals: {
+    title_zh: "3. 待核提案缓冲 (Proposals DB)",
     title_en: "3. Proposals DB",
-    desc_zh: "提取出的记忆首先以 `pending` 状态的“建议 (Proposal)”持久化在 SQLite 中。它们是只读的证据状态，包含来源片段引用 (Source Quote) 和提取理由，在未经人类许可前，**不会**进入智能体检索召回范围。",
-    desc_en: "Extracted proposals are stored in SQLite with a `pending` status. They remain in a buffer with source quotes and rationales, isolated from the agent's memory retrieval.",
-    tech: "SQLite / SQLAlchemy"
+    desc_zh: "提取的事实首先存储为 `pending` 提案。此阶段数据被物理隔离，不可召回。相当于数据库中的暂存草稿，等待人类进行审查。",
+    desc_en: "Extracted facts are stored as `pending` proposals in SQLite. They are sandboxed and hidden from retrieval, acting as raw drafts.",
+    tech: "SQLite Isolation"
   },
-  review: {
-    title_zh: "4. 人工自治校验阀 (Human Reviewer)",
+  reviewer: {
+    title_zh: "4. 人自治校验阀 (Human Reviewer)",
     title_en: "4. Human Reviewer",
-    desc_zh: "人类管理员（或通过审计流）对提案进行核对。在此阶段，可手动修正内容、设置到期时间，或挑选被替代的旧记忆（Supersession 冲突仲裁）。一旦审核通过，才升级为受信记忆。",
-    desc_en: "Administrators or review workflows review proposals. Reviewers can approve, reject, configure expiration, or link conflict overrides. Only approved items become trusted memory.",
-    tech: "Next.js Console / Admin CLI"
+    desc_zh: "提供简洁直观的看板或 CLI 指令。允许人类管理员修改提议事实、设定未来失效时间、或挑选被覆盖替换的旧冲突记忆（冲突仲裁）。",
+    desc_en: "Provides Next.js layout or terminal workflows. Humans review drafts, override conflicts, or assign TTLs before finalizing memories.",
+    tech: "Next.js Admin Console / CLI"
   },
-  memory: {
-    title_zh: "5. 受信活性记忆 (Active Memory)",
+  active: {
+    title_zh: "5. 受信活性匹配 (Active Memory)",
     title_en: "5. Active Memory",
-    desc_zh: "审核通过的记忆记录，包含完整的溯源链条。活性状态的记忆会自动在 SQLite FTS5 引擎中创建全文检索索引，提供给智能体在会话中以极高效率召回，同时保留随时撤销 (Revoke) 的能力。",
-    desc_en: "Approved records, linked to sources and audit events. Only active memories are exposed to the agent. They are indexed in FTS5 and can be revoked or expired dynamically.",
-    tech: "SQLite FTS5 / Index"
+    desc_zh: "核准的事实转化为 `active` 受信知识，自动装载进 SQLite FTS5 全文索引。当智能体再次启动任务时，提供亚毫秒级的活性事实检索召回。",
+    desc_en: "Approved facts turn into `active` memories, instantly indexed by SQLite FTS5 for sub-millisecond retrieval during agent interactions.",
+    tech: "SQLite FTS5 Full-Text Index"
   }
 };
 
-const API_TABS = {
+const DEV_API_DATA = {
   extract: {
     method: "POST",
     url: "/v1/proposals/extract",
-    desc_zh: "输入原始会话，使用大模型提取记忆建议提案",
-    desc_en: "Extract memory proposals from raw transcripts using LLM.",
-    payload: {
-      actor_id: "demo-user",
-      project_id: "memorynode-demo",
-      messages: [
-        { role: "user", content: "I prefer coding in python." }
-      ]
-    },
-    response: {
-      source_id: "src_9a2b8e",
-      proposals: [
-        {
-          id: "prop_4c8d",
-          content: "User prefers coding in Python.",
-          type: "user_preference",
-          confidence: 0.95,
-          source_quote: "I prefer coding in python.",
-          reason: "User explicitly stated coding language preference."
-        }
-      ]
-    },
-    curl: `curl -X POST http://localhost:8000/v1/proposals/extract \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "actor_id": "demo-user",
-    "project_id": "memorynode-demo",
-    "messages": [{"role": "user", "content": "I prefer coding in python."}]
-  }'`,
+    desc_zh: "输入原始消息流，使用 Qwen 提取结构化记忆建议",
+    desc_en: "Extract memory proposals from raw transcripts using Qwen compatible LLM.",
     python: `import requests
 
-url = "http://localhost:8000/v1/proposals/extract"
+url = "https://api.memorynode.io/v1/proposals/extract"
+headers = {"Authorization": "Bearer $API_KEY"}
 payload = {
-    "actor_id": "demo-user",
-    "project_id": "memorynode-demo",
-    "messages": [{"role": "user", "content": "I prefer coding in python."}]
+    "actor_id": "mike-dev",
+    "project_id": "react-web-app",
+    "messages": [
+        {"role": "user", "content": "I prefer using raw CSS instead of Tailwind."}
+    ]
 }
-response = requests.post(url, json=payload)
-print(response.json())`
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.json()["proposals"])`,
+    curl: `curl -X POST https://api.memorynode.io/v1/proposals/extract \\
+  -H "Authorization: Bearer $API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "actor_id": "mike-dev",
+    "project_id": "react-web-app",
+    "messages": [{"role": "user", "content": "I prefer using raw CSS instead of Tailwind."}]
+  }'`
   },
   approve: {
     method: "POST",
     url: "/v1/proposals/{id}/approve",
-    desc_zh: "批准特定的记忆提案，使其升级为活性检索记忆，可关联冲突覆盖和生命周期",
-    desc_en: "Approve a proposal to make it an active memory, optionally overriding conflicts.",
-    payload: {
-      actor_id: "reviewer",
-      note: "Approved by administrator",
-      supersede_memory_id: "mem_2b8c9e",
-      expires_at: "2026-12-31T23:59:59Z"
-    },
-    response: {
-      id: "mem_4c8d",
-      content: "User prefers coding in Python.",
-      type: "user_preference",
-      status: "active",
-      expires_at: "2026-12-31T23:59:59Z"
-    },
-    curl: `curl -X POST http://localhost:8000/v1/proposals/prop_4c8d/approve \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "actor_id": "reviewer",
-    "note": "Approved by administrator",
-    "supersede_memory_id": null
-  }'`,
+    desc_zh: "批准指定的提案升级为活性检索记忆，可选择替代指定 ID 的冲突记忆",
+    desc_en: "Approve a proposal to activate it, optionally overriding an existing memory ID.",
     python: `import requests
 
-url = "http://localhost:8000/v1/proposals/prop_4c8d/approve"
+# Approve and override a conflicting old memory
+url = "https://api.memorynode.io/v1/proposals/prop_908f2/approve"
 payload = {
-    "actor_id": "reviewer",
-    "note": "Approved by administrator",
-    "supersede_memory_id": None
+    "actor_id": "admin-reviewer",
+    "supersede_memory_id": "mem_01c23f",  # Old memory to replace
+    "expires_at": "2026-12-31T23:59:59Z"  # Optional TTL expiry
 }
+
 response = requests.post(url, json=payload)
-print(response.json())`
+print(response.json())`,
+    curl: `curl -X POST https://api.memorynode.io/v1/proposals/prop_908f2/approve \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "actor_id": "admin-reviewer",
+    "supersede_memory_id": "mem_01c23f",
+    "expires_at": "2026-12-31T23:59:59Z"
+  }'`
   },
   search: {
     method: "GET",
     url: "/v1/memories/search?q={query}",
-    desc_zh: "使用 FTS5 全文索引匹配已激活的活跃记忆体",
-    desc_en: "Search active memories using SQLite FTS5 full-text index.",
-    payload: null,
-    response: {
-      memories: [
-        {
-          id: "mem_4c8d",
-          content: "User prefers coding in Python.",
-          type: "user_preference",
-          status: "active",
-          score: 1.25
-        }
-      ]
-    },
-    curl: `curl -X GET "http://localhost:8000/v1/memories/search?q=Python"`,
+    desc_zh: "使用 FTS5 引擎在当前活跃记忆列表中进行全文匹配",
+    desc_en: "Perform a keyword full-text query over active memories in SQLite.",
     python: `import requests
 
-url = "http://localhost:8000/v1/memories/search"
-params = {"q": "Python"}
+url = "https://api.memorynode.io/v1/memories/search"
+params = {"q": "React CSS", "project_id": "react-web-app"}
+
 response = requests.get(url, params=params)
-print(response.json())`
+memories = response.json()["memories"]
+for m in memories:
+    print(f"[{m['type']}] -> {m['content']}")`,
+    curl: `curl -X GET "https://api.memorynode.io/v1/memories/search?q=React+CSS&project_id=react-web-app"`
   },
-  explain: {
-    method: "GET",
-    url: "/v1/memories/{id}/explain",
-    desc_zh: "获取单条记忆的全部生命周期审计轨迹、引用出处与修改理由",
-    desc_en: "Retrieve full audit logs, source quote reference, and rationale of a memory.",
-    payload: null,
-    response: {
-      memory: {
-        id: "mem_4c8d",
-        content: "User prefers coding in Python.",
-        status: "active"
-      },
-      source: {
-        id: "src_9a2b8e",
-        raw_text: "I prefer coding in python."
-      },
-      proposal: {
-        id: "prop_4c8d",
-        reason: "User explicitly stated coding language preference."
-      },
-      events: [
-        {
-          id: "evt_1a",
-          event_type: "proposal_extracted",
-          timestamp: "2026-07-13T17:21:00Z"
-        },
-        {
-          id: "evt_2b",
-          event_type: "approved",
-          actor_id: "reviewer",
-          timestamp: "2026-07-13T17:21:10Z"
-        }
-      ]
-    },
-    curl: `curl -X GET http://localhost:8000/v1/memories/mem_4c8d/explain`,
+  revoke: {
+    method: "POST",
+    url: "/v1/memories/{id}/revoke",
+    desc_zh: "撤销某项记忆的活跃状态，立即从检索索引中清除，但保留事件溯源轨迹",
+    desc_en: "Revoke a memory's active status, deleting it from indices while preserving history.",
     python: `import requests
 
-url = "http://localhost:8000/v1/memories/mem_4c8d/explain"
-response = requests.get(url)
-print(response.json())`
+url = "https://api.memorynode.io/v1/memories/mem_04d82c/revoke"
+payload = {
+    "actor_id": "admin-reviewer",
+    "note": "User changed coding stack"
+}
+
+response = requests.post(url, json=payload)
+print(response.json()["status"])  # Outputs: 'revoked'`,
+    curl: `curl -X POST https://api.memorynode.io/v1/memories/mem_04d82c/revoke \\
+  -H "Content-Type: application/json" \\
+  -d '{"actor_id": "admin-reviewer", "note": "User changed coding stack"}'`
   }
 };
 
 export default function PortalPage() {
   const [language, setLanguage] = useState("zh");
-  const [apiOnline, setApiOnline] = useState(false);
-  const [checkingApi, setCheckingApi] = useState(true);
+  const [selectedPreset, setSelectedPreset] = useState(0);
+  const [inputText, setInputText] = useState(PRESETS[0].transcript_zh);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [simLogs, setSimLogs] = useState([]);
   
-  // Playground State
-  const [selectedPresetIdx, setSelectedPresetIdx] = useState(0);
-  const [transcriptInput, setTranscriptInput] = useState(PRESETS[0].transcript_zh);
-  const [terminalLogs, setTerminalLogs] = useState([]);
-  const [extracting, setExtracting] = useState(false);
-  
-  // Simulated or Active database
+  // Simulated DB
   const [proposals, setProposals] = useState([]);
   const [activeMemories, setActiveMemories] = useState([]);
   const [rejectedProposals, setRejectedProposals] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [auditMemory, setAuditMemory] = useState(null);
+  const [inspectedMemory, setInspectedMemory] = useState(null);
   const [auditEvents, setAuditEvents] = useState([]);
   
-  // Navigation & Interactive views
-  const [activeArchNode, setActiveArchNode] = useState("raw");
+  // Interactive nodes & documentation states
+  const [activeNode, setActiveNode] = useState("extractor");
   const [activeApiTab, setActiveApiTab] = useState("extract");
-  const [codeType, setCodeType] = useState("python"); // 'python' or 'curl'
+  const [codeLang, setCodeLang] = useState("python");
   const [copyFeedback, setCopyFeedback] = useState(false);
 
-  // Sync preset transcript when language changes
+  // Sync text area when language or preset changes
   useEffect(() => {
-    setTranscriptInput(
+    setInputText(
       language === "zh"
-        ? PRESETS[selectedPresetIdx].transcript_zh
-        : PRESETS[selectedPresetIdx].transcript_en
+        ? PRESETS[selectedPreset].transcript_zh
+        : PRESETS[selectedPreset].transcript_en
     );
-  }, [language, selectedPresetIdx]);
+  }, [language, selectedPreset]);
 
-  // Check API health on mount
-  useEffect(() => {
-    async function checkHealth() {
-      try {
-        const res = await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(3000) });
-        const data = await res.json();
-        if (data.ok && data.service === "memorynode") {
-          setApiOnline(true);
-          addLog("SYSTEM", "Connected to local FastAPI backend service at " + BACKEND_URL);
-          // Load active memories from backend
-          fetchMemories();
-        } else {
-          setApiOnline(false);
-          addLog("SYSTEM", "FastAPI Service responded but handshake mismatched. Operating in Local Simulation Mode.");
-        }
-      } catch (e) {
-        setApiOnline(false);
-        addLog("SYSTEM", "FastAPI backend offline. Running in Client-side Sandbox Simulation Mode.");
-      } finally {
-        setCheckingApi(false);
-      }
-    }
-    checkHealth();
-  }, []);
-
-  async function fetchMemories() {
-    try {
-      const res = await fetch(`${BACKEND_URL}/v1/memories?status=active`);
-      const data = await res.json();
-      if (data.memories) {
-        // Map backend memories
-        setActiveMemories(data.memories);
-      }
-    } catch (err) {
-      console.error("Error fetching memories:", err);
-    }
-  }
-
-  const addLog = (sender, message) => {
+  // Log helper
+  const addLog = (tag, message) => {
     const time = new Date().toLocaleTimeString();
-    setTerminalLogs((prev) => [...prev, `[${time}] [${sender}] ${message}`]);
+    setSimLogs((prev) => [...prev, `[${time}] [${tag}] ${message}`]);
   };
 
-  const handleSelectPreset = (idx) => {
-    setSelectedPresetIdx(idx);
-    setTranscriptInput(language === "zh" ? PRESETS[idx].transcript_zh : PRESETS[idx].transcript_en);
-    addLog("USER", `Selected Preset ${idx + 1}: ${language === 'zh' ? PRESETS[idx].title_zh : PRESETS[idx].title_en}`);
+  const handlePresetSelect = (idx) => {
+    setSelectedPreset(idx);
+    addLog("UI", `Loaded Preset ${idx + 1}: ${language === 'zh' ? PRESETS[idx].title_zh : PRESETS[idx].title_en}`);
   };
 
-  const handleExtract = async () => {
-    if (!transcriptInput.trim()) return;
-    setExtracting(true);
+  const triggerExtraction = () => {
+    if (!inputText.trim()) return;
+    setIsExtracting(true);
     setProposals([]);
-    addLog("SYS", "Initializing memory proposal extraction flow...");
+    addLog("SYSTEM", "Initializing memory suggestion parser...");
     
-    if (apiOnline) {
-      // Direct integration with FastAPI
-      try {
-        addLog("QWEN", "Streaming transcript to FastAPI Qwen extractor...");
-        const res = await fetch(`${BACKEND_URL}/v1/proposals/extract`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            actor_id: "portal-demo",
-            project_id: "portal-demo",
-            messages: [{ role: "user", content: transcriptInput }]
-          })
-        });
-        
-        if (!res.ok) {
-          throw new Error("HTTP error " + res.status);
-        }
-        
-        const data = await res.json();
-        if (data.proposals && data.proposals.length > 0) {
-          addLog("SYS", `Successfully extracted ${data.proposals.length} memory proposals from live backend!`);
-          setProposals(data.proposals);
-        } else {
-          addLog("SYS", "Qwen finished analysis. No viable long-term memory candidates identified in this input.");
-        }
-      } catch (err) {
-        addLog("ERROR", `Live extraction failed: ${err.message}. Falling back to Simulated local extraction.`);
-        runMockExtraction();
-      } finally {
-        setExtracting(false);
-      }
-    } else {
-      // Local simulation
-      runMockExtraction();
-    }
-  };
-
-  const runMockExtraction = () => {
-    let progress = 0;
+    let step = 0;
     const interval = setInterval(() => {
-      progress += 25;
-      if (progress === 25) {
-        addLog("LLM", "Analyzing transcript context and stripping interaction noise...");
-      } else if (progress === 50) {
-        addLog("LLM", "Mapping sentences to memory dimensions (user_preference, fact, decisions)...");
-      } else if (progress === 75) {
-        addLog("LLM", "Generating source quotation quotes and factuality confidence metrics...");
-      } else if (progress === 100) {
+      step += 25;
+      if (step === 25) {
+        addLog("LLM", "Reading conversational syntax structure and filtering greetings...");
+      } else if (step === 50) {
+        addLog("LLM", "Mapping concepts into taxonomies: 'user_preference', 'project_decision'...");
+      } else if (step === 75) {
+        addLog("LLM", "Slicing original source reference segments (Source Quotes)...");
+      } else if (step === 100) {
         clearInterval(interval);
-        const presetProposals = PRESETS[selectedPresetIdx].mockProposals.map(p => ({
+        const presetProposals = PRESETS[selectedPreset].mockProposals.map((p) => ({
           ...p,
-          id: "sim-prop-" + Math.floor(Math.random() * 100000),
+          id: "prop-" + Math.floor(Math.random() * 100000),
           status: "pending"
         }));
         setProposals(presetProposals);
-        addLog("SYS", `Simulated Extraction complete. Generated ${presetProposals.length} pending memory proposals.`);
-        setExtracting(false);
+        addLog("SYSTEM", `Successfully structured ${presetProposals.length} memory proposals. Isolating in Proposals Buffer.`);
+        setIsExtracting(false);
       }
-    }, 400);
+    }, 450);
   };
 
-  const handleApprove = async (prop) => {
-    addLog("REVIEW", `Approving proposal ID: ${prop.id}...`);
-    
-    if (apiOnline && prop.id.indexOf("sim-") !== 0) {
-      try {
-        const res = await fetch(`${BACKEND_URL}/v1/proposals/${encodeURIComponent(prop.id)}/approve`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            actor_id: "portal-reviewer",
-            note: "Approved from Portal Landing Page"
-          })
-        });
-        if (res.ok) {
-          addLog("SYS", `Proposal successfully approved and committed to backend SQLite.`);
-          fetchMemories();
-          // Remove from pending proposals UI
-          setProposals(prev => prev.filter(p => p.id !== prop.id));
-        } else {
-          throw new Error("HTTP error " + res.status);
-        }
-      } catch (err) {
-        addLog("ERROR", `Approval API call failed: ${err.message}. Simulating local approval.`);
-        simulateApproval(prop);
-      }
-    } else {
-      simulateApproval(prop);
-    }
-  };
-
-  const simulateApproval = (prop) => {
-    // Check if duplicate in active list
-    if (activeMemories.some(m => m.content === prop.content)) {
-      addLog("WARNING", `Identical memory content already exists. Supersession override triggered.`);
-    }
+  const handleApprove = (prop) => {
+    addLog("AUDIT", `Reviewer approved proposal ${prop.id}.`);
     
     const newMemory = {
       id: "mem-" + Math.floor(Math.random() * 100000),
@@ -475,154 +303,81 @@ export default function PortalPage() {
       reason_zh: prop.reason_zh,
       created_at: new Date().toISOString()
     };
-    
+
     setActiveMemories(prev => [newMemory, ...prev]);
     setProposals(prev => prev.filter(p => p.id !== prop.id));
-    addLog("SYS", `Memory state upgraded to ACTIVE. FTS5 index rebuilt.`);
+    addLog("DATABASE", `Memory ${newMemory.id} initialized. Stored in SQLite and FTS5 indices updated.`);
   };
 
-  const handleReject = async (prop) => {
-    addLog("REVIEW", `Rejecting proposal ID: ${prop.id}...`);
-    
-    if (apiOnline && prop.id.indexOf("sim-") !== 0) {
-      try {
-        const res = await fetch(`${BACKEND_URL}/v1/proposals/${encodeURIComponent(prop.id)}/reject`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            actor_id: "portal-reviewer",
-            note: "Rejected from Portal Landing Page"
-          })
-        });
-        if (res.ok) {
-          addLog("SYS", `Proposal successfully rejected in SQLite.`);
-          setProposals(prev => prev.filter(p => p.id !== prop.id));
-        } else {
-          throw new Error("HTTP error " + res.status);
-        }
-      } catch (err) {
-        addLog("ERROR", `Reject API call failed: ${err.message}. Simulating local rejection.`);
-        simulateRejection(prop);
-      }
-    } else {
-      simulateRejection(prop);
-    }
-  };
-
-  const simulateRejection = (prop) => {
+  const handleReject = (prop) => {
+    addLog("AUDIT", `Reviewer rejected proposal ${prop.id}. Marking as archived.`);
     setRejectedProposals(prev => [prop, ...prev]);
     setProposals(prev => prev.filter(p => p.id !== prop.id));
-    addLog("SYS", `Proposal marked as REJECTED. Archived in audit timeline.`);
   };
 
-  const handleRevoke = async (memory) => {
-    addLog("REVIEW", `Revoking active memory ID: ${memory.id}...`);
-    
-    if (apiOnline && memory.id.indexOf("mem-") !== 0) {
-      try {
-        const res = await fetch(`${BACKEND_URL}/v1/memories/${encodeURIComponent(memory.id)}/revoke`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            actor_id: "portal-reviewer",
-            note: "Revoked from Portal Landing Page"
-          })
-        });
-        if (res.ok) {
-          addLog("SYS", `Memory successfully revoked. Removed from FTS5 recall library.`);
-          fetchMemories();
-          if (auditMemory && auditMemory.id === memory.id) {
-            triggerExplain(memory);
-          }
-        } else {
-          throw new Error("HTTP error " + res.status);
-        }
-      } catch (err) {
-        addLog("ERROR", `Revocation API call failed: ${err.message}. Simulating local revocation.`);
-        simulateRevocation(memory);
-      }
-    } else {
-      simulateRevocation(memory);
-    }
-  };
-
-  const simulateRevocation = (memory) => {
+  const handleRevoke = (memory) => {
+    addLog("AUDIT", `Revoking active memory ${memory.id}. De-indexing from FTS5...`);
     setActiveMemories(prev => prev.map(m => m.id === memory.id ? { ...m, status: "revoked" } : m));
-    addLog("SYS", `Memory ID ${memory.id} revoked. Removed from recall. Stored permanently in audit log.`);
-    if (auditMemory && auditMemory.id === memory.id) {
-      setAuditMemory(prev => ({ ...prev, status: "revoked" }));
+    
+    if (inspectedMemory && inspectedMemory.id === memory.id) {
+      setInspectedMemory(prev => ({ ...prev, status: "revoked" }));
       setAuditEvents(prev => [
         ...prev,
         {
-          id: "evt-revoke-" + Math.floor(Math.random() * 1000),
-          event_type: "revoked",
-          actor_id: "portal-reviewer",
+          id: "evt-revoke-" + Math.floor(Math.random() * 100),
+          event: "revoked",
+          actor: "reviewer-audit",
           timestamp: new Date().toISOString()
         }
       ]);
     }
+    addLog("DATABASE", `Memory ${memory.id} revoked successfully.`);
   };
 
-  const triggerExplain = async (memory) => {
-    setAuditMemory(memory);
-    addLog("SYS", `Loading audit logs & source details for memory: ${memory.id}`);
+  const handleInspect = (memory) => {
+    setInspectedMemory(memory);
+    addLog("EXPLORE", `Inspecting lifecycle audit trail for memory: ${memory.id}`);
     
-    if (apiOnline && memory.id.indexOf("mem-") !== 0) {
-      try {
-        const res = await fetch(`${BACKEND_URL}/v1/memories/${encodeURIComponent(memory.id)}/explain`);
-        const data = await res.json();
-        if (data.events) {
-          setAuditEvents(data.events);
-          return;
-        }
-      } catch (err) {
-        console.error("Fetch explain failed:", err);
-      }
-    }
-    
-    // Fallback/Simulate explain events
-    const timeline = [
+    // Build audit path
+    const events = [
       {
         id: "evt-1",
-        event_type: "proposal_extracted",
-        actor_id: "qwen-llm",
-        timestamp: memory.created_at || new Date(Date.now() - 3600000).toISOString()
+        event: "proposal_extracted",
+        actor: "qwen-llm-core",
+        timestamp: memory.created_at || new Date(Date.now() - 60000).toISOString()
       },
       {
         id: "evt-2",
-        event_type: "approved",
-        actor_id: "portal-reviewer",
-        timestamp: memory.created_at || new Date(Date.now() - 3500000).toISOString()
+        event: "approved",
+        actor: "human-reviewer",
+        timestamp: memory.created_at || new Date().toISOString()
       }
     ];
     if (memory.status === "revoked") {
-      timeline.push({
+      events.push({
         id: "evt-3",
-        event_type: "revoked",
-        actor_id: "portal-reviewer",
+        event: "revoked",
+        actor: "human-reviewer",
         timestamp: new Date().toISOString()
       });
     }
-    setAuditEvents(timeline);
+    setAuditEvents(events);
   };
 
-  // Filter memories based on search query
-  const filteredMemories = activeMemories.filter(m => {
-    const zhMatch = m.content_zh && m.content_zh.toLowerCase().includes(searchQuery.toLowerCase());
-    const enMatch = m.content && m.content.toLowerCase().includes(searchQuery.toLowerCase());
-    return zhMatch || enMatch;
+  const filteredMemories = activeMemories.filter((m) => {
+    const text = language === "zh" ? m.content_zh : m.content;
+    return text.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  const handleCopyCode = (text) => {
+  const handleCopy = (text) => {
     navigator.clipboard.writeText(text);
     setCopyFeedback(true);
     setTimeout(() => setCopyFeedback(false), 2000);
   };
 
-  // Helper translation dictionary
   const t = (zh, en) => (language === "zh" ? zh : en);
 
-  const getMemoryTypeLabel = (type) => {
+  const getBadgeLabel = (type) => {
     const labels = {
       user_preference: t("用户偏好", "User preference"),
       project_constraint: t("项目约束", "Project constraint"),
@@ -635,139 +390,172 @@ export default function PortalPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="relative min-h-screen overflow-hidden bg-[#030303]">
       {/* Background Grids */}
       <div className="grid-overlay"></div>
-      <div className="radial-glow" style={{ top: "-100px", left: "-100px" }}></div>
-      <div className="radial-glow-cyan" style={{ top: "400px", right: "-100px" }}></div>
+      <div className="radial-glow-1" style={{ top: "-150px", left: "-100px" }}></div>
+      <div className="radial-glow-2" style={{ top: "500px", right: "-100px" }}></div>
 
-      {/* Header Navbar */}
-      <header className="relative z-10 max-w-7xl mx-auto px-6 py-6 flex items-center justify-between border-b border-[#1b1b1b]">
-        <div className="flex items-center gap-3">
-          <span className="w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)] animate-pulse"></span>
-          <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-[#888] bg-clip-text text-transparent">
+      {/* Header */}
+      <header className="relative z-10 max-w-7xl mx-auto px-6 py-6 flex items-center justify-between border-b border-[#111]">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2 h-2 bg-sky-400 rounded-full shadow-[0_0_12px_#38bdf8] animate-pulse"></span>
+          <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-slate-100 to-slate-400 bg-clip-text text-transparent">
             MemoryNode
           </span>
         </div>
         
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-[#a3a3a3]">
+        <nav className="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-slate-400">
           <a href="#playground" className="hover:text-white transition-colors">{t("交互沙盒", "Playground")}</a>
           <a href="#architecture" className="hover:text-white transition-colors">{t("核心架构", "Architecture")}</a>
-          <a href="#api" className="hover:text-white transition-colors">{t("API 接口", "API Explorer")}</a>
+          <a href="#api" className="hover:text-white transition-colors">{t("API 接口", "API Docs")}</a>
         </nav>
 
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setLanguage(language === "zh" ? "en" : "zh")}
-            className="text-xs px-3 py-1.5 rounded border border-[#262626] bg-[#111] hover:bg-[#1a1a1a] transition-all text-[#a3a3a3] hover:text-white"
+            className="text-[11px] font-bold px-3 py-1.5 rounded border border-[#1e293b] bg-[#090d14] hover:bg-[#111827] text-slate-300 hover:text-white transition-all"
           >
-            {language === "zh" ? "EN  English" : "中  中文"}
+            {language === "zh" ? "English" : "中文"}
           </button>
           
-          <Link 
-            href="http://localhost:3000/proposals" 
+          <a 
+            href="https://github.com/unnoderes/MemoryNode" 
             target="_blank"
-            className="btn btn-primary text-xs py-2 px-4"
+            className="pill-btn pill-btn-white text-[11px] py-2 px-4 font-bold"
           >
-            {t("进入控制台", "Launch Dashboard")}
-          </Link>
+            GitHub
+          </a>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <main className="relative z-10 max-w-7xl mx-auto px-6 pt-16 pb-24 text-center">
-        {/* API Connection Indicator */}
-        <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-[#111] border border-[#222] text-xs font-semibold mb-6">
-          <span className={`pulse-dot ${apiOnline ? 'online' : 'offline'}`}></span>
-          <span className="text-[#a3a3a3]">
-            {checkingApi 
-              ? t("检查后端连接...", "Checking backend status...") 
-              : (apiOnline 
-                  ? t("FastAPI 服务：已连接 (本地数据库)", "FastAPI backend: Connected (Local DB)") 
-                  : t("FastAPI 服务：离线 (模拟运行中)", "FastAPI backend: Offline (Simulation Mode)"))
-            }
-          </span>
+      {/* Hero */}
+      <main className="relative z-10 max-w-7xl mx-auto px-6 pt-24 pb-20 text-center">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/60 border border-[#1e293b] text-[10.5px] font-semibold text-slate-400 mb-8">
+          <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_6px_#34d399] animate-pulse"></span>
+          <span>{t("自治记忆治理层：开源 v0.4.2", "Governed Memory Layer: Open Source v0.4.2")}</span>
         </div>
 
-        <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-[1.1] mb-6">
-          {t("让 AI 智能体拥有受管制的自治记忆", "Governed Memory Layer for AI Agents")}
+        <h1 className="text-4xl sm:text-7xl font-extrabold tracking-tight max-w-5xl mx-auto leading-[1.05] mb-8 bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
+          {t("自治记忆，归于人治。", "Autonomous Memory, Governed by Humans.")}
         </h1>
-        <p className="text-[#a3a3a3] text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10">
+        
+        <p className="text-slate-400 text-lg sm:text-xl max-w-3xl mx-auto leading-relaxed mb-12">
           {t(
-            "拒绝盲目写入与黑盒记忆。MemoryNode 将原始对话日志转化为经过人类审核、出处可循、可随时撤销与覆盖的透明记忆审计流。",
-            "Turn raw agent interactions into human-reviewed, searchable, explainable, and revocable memories—backed by source evidence and a complete audit trail."
+            "智能体不应盲目吸纳上下文。MemoryNode 提供基于证据的事实提取、人类在环的待审缓冲、基于关联的冲突覆盖与审计追踪。为高安全性的编码智能体与工作流而生。",
+            "Stop blindly committing raw contexts. MemoryNode parses evidence-backed proposals, isolates untrusted memories in a drafts buffer, resolves semantic overrides, and maintains absolute audit history."
           )}
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
-          <a href="#playground" className="btn btn-primary w-full sm:w-auto text-base py-3 px-8">
-            {t("开启互动演练", "Try Live Simulator")}
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+          <a href="#playground" className="pill-btn pill-btn-white text-sm py-3 px-8">
+            {t("体验交互沙盒", "Explore Simulator")}
           </a>
-          <Link href="http://localhost:3000/memories" target="_blank" className="btn btn-secondary w-full sm:w-auto text-base py-3 px-8">
-            {t("查看现有记忆库", "Browse Current Library")}
-          </Link>
+          <a href="#api" className="pill-btn pill-btn-dark text-sm py-3 px-8">
+            {t("查看集成文档", "Developer Setup")}
+          </a>
         </div>
 
-        {/* Hero Features Bar */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-5xl mx-auto text-left">
-          <div className="p-5 rounded-xl border border-[#222] bg-[#0c0c0c]/80 backdrop-blur-sm">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">{t("证据前置", "Evidence First")}</h3>
-            <p className="text-xs text-[#a3a3a3] leading-relaxed">{t("原始日志仅生成待审提议，未经人工批准绝不进入记忆召回。", "Extractions create isolated proposals, never trusted knowledge before review.")}</p>
+        {/* Installation and CLI Command bar */}
+        <div className="max-w-2xl mx-auto mb-24">
+          <div className="editor-frame bg-[#060910]">
+            <div className="editor-header">
+              <div className="editor-dots">
+                <span className="editor-dot r"></span>
+                <span className="editor-dot y"></span>
+                <span className="editor-dot g"></span>
+              </div>
+              <span className="editor-title">GET STARTED</span>
+              <button 
+                onClick={() => handleCopy("pip install memorynode-sdk")} 
+                className="text-[10px] text-slate-400 hover:text-white"
+              >
+                {copyFeedback ? t("已复制", "Copied") : t("复制", "Copy")}
+              </button>
+            </div>
+            <div className="editor-body text-left font-mono p-4 flex justify-between items-center text-xs">
+              <span className="text-sky-300">pip install memorynode-sdk</span>
+              <span className="text-slate-600 font-sans text-[11px]">{t("支持 Python / MCP 服务端", "Python & MCP Server ready")}</span>
+            </div>
           </div>
-          <div className="p-5 rounded-xl border border-[#222] bg-[#0c0c0c]/80 backdrop-blur-sm">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">{t("溯源审计", "Audit Trail")}</h3>
-            <p className="text-xs text-[#a3a3a3] leading-relaxed">{t("记忆始终绑定原文引用与提取 rationale，全生命周期记录审计日志。", "Every memory remains linked to source quotes, decisions, and lifecycles.")}</p>
+          
+          <div className="flex justify-center gap-6 mt-4 text-[11px] text-slate-500 font-semibold">
+            <span>{t("支持集成：", "Integrations:")} Cursor / Claude Code / Windsurf / FastHTML</span>
+            <span>•</span>
+            <a href="https://github.com/unnoderes/MemoryNode/releases" className="hover:text-white transition-colors">{t("下载 CLI 二进制包", "Download CLI Binaries")}</a>
           </div>
-          <div className="p-5 rounded-xl border border-[#222] bg-[#0c0c0c]/80 backdrop-blur-sm">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">{t("冲突覆盖", "Supersession")}</h3>
-            <p className="text-xs text-[#a3a3a3] leading-relaxed">{t("支持手动指定替代旧记忆，自动关联旧版本审计状态，消除冲突。", "Reviewer explicitly selects older active memories to replace, avoiding automatic arbitration.")}</p>
+        </div>
+
+        {/* Core Capabilities */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto text-left">
+          <div className="feature-box">
+            <h3 className="text-white font-bold text-sm mb-2">{t("1. 证据出处（Provenance）", "1. Strict Provenance")}</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              {t("所有提取记忆都必须保存 Source Quote（原句引用），提供大模型上下文以判定事实出处，防止捏造事实或产生幻觉。", "Every fact retains a direct source quote citation from conversational logs, preventing fabrications and hallucinated updates.")}
+            </p>
           </div>
-          <div className="p-5 rounded-xl border border-[#222] bg-[#0c0c0c]/80 backdrop-blur-sm">
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">{t("检索速度", "FTS5 Indexed")}</h3>
-            <p className="text-xs text-[#a3a3a3] leading-relaxed">{t("基于 SQLite FTS5 本地全文索引匹配，亚毫秒级响应，开箱即用。", "Powered by SQLite FTS5 for local keyword search, sub-millisecond query responses.")}</p>
+          <div className="feature-box">
+            <h3 className="text-white font-bold text-sm mb-2">{t("2. 待审隔离（Draft Isolation）", "2. Isolation Buffer")}</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              {t("新提案生成后默认处于 pending 隔离态，无法被智能体检索，必须通过人类管理员通过控制台或 CLI 执行批准后才激活。", "New suggestions are buffered in a pending state, physically isolated from active recall until checked by an admin.")}
+            </p>
+          </div>
+          <div className="feature-box">
+            <h3 className="text-white font-bold text-sm mb-2">{t("3. 冲突覆写（Supersession）", "3. Conflict Resolution")}</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              {t("允许关联已存在的旧事实 ID 执行覆盖（Approve & Supersede），废弃旧数据并重建检索关联，保证事实时效性。", "Allows reviewers to link new approvals to older memory IDs, executing a clean override that revokes stale context.")}
+            </p>
           </div>
         </div>
       </main>
 
-      {/* Simulator Section */}
-      <section id="playground" className="relative z-10 max-w-7xl mx-auto px-6 py-20 border-t border-[#1b1b1b]">
+      {/* Simulator Sandbox */}
+      <section id="playground" className="relative z-10 max-w-7xl mx-auto px-6 py-24 border-t border-[#111]">
         <div className="text-center mb-12">
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight mb-4">{t("记忆生命周期交互演练沙盒", "Interactive Memory Lifecycle Sandbox")}</h2>
-          <p className="text-[#a3a3a3] text-sm sm:text-base max-w-2xl mx-auto">
-            {t("在下方输入一段对话记录（或选择预设模板），体验从提取、审核、激活检索到一键撤销的完整记忆治理流。", "Input a conversation transcript below (or choose a preset) to experience the full governed memory lifecycle.")}
+          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-4">
+            {t("记忆生命周期交互演练沙盒", "Interactive Memory Sandbox")}
+          </h2>
+          <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">
+            {t("在下方体验记忆被提取、缓存、人工审核、亚毫秒级检索及一键废除的完整过程。此演示 100% 运行于浏览器本地。", "Walk through the full process of memory suggesting, buffering, human approval, and FTS5 revocation in this local simulator.")}
           </p>
         </div>
 
-        {/* Step 1: Input & Presets */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <div className="lg:col-span-2 space-y-6">
-            <div className="glow-card">
+            
+            {/* Input logs */}
+            <div className="glass-card">
               <div className="flex items-center gap-3 mb-4">
-                <span className="step-badge">1</span>
-                <h3 className="text-base font-bold text-white">{t("第一步：原始交互输入", "Step 1: Raw Interaction Input")}</h3>
+                <span className="step-number-badge">1</span>
+                <h3 className="text-sm font-bold text-white">{t("输入原始日志 (Transcript Input)", "Transcript Input")}</h3>
               </div>
 
               <textarea 
-                value={transcriptInput}
-                onChange={(e) => setTranscriptInput(e.target.value)}
-                className="playground-input"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                className="interactive-textarea"
                 placeholder={t("请输入原始交互日志...", "Enter raw chat transcript...")}
               />
 
               <div className="mt-4">
-                <span className="text-xs text-[#a3a3a3] font-semibold">{t("推荐预设模版：", "Or try a template preset:")}</span>
-                <div className="preset-grid">
-                  {PRESETS.map((p, i) => (
+                <span className="text-[11px] text-slate-400 font-semibold">{t("推荐预置示例模板：", "Try a preset example:")}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                  {PRESETS.map((preset, idx) => (
                     <button
-                      key={p.id}
-                      onClick={() => handleSelectPreset(i)}
-                      className={`preset-card text-left ${selectedPresetIdx === i ? 'active' : ''}`}
+                      key={preset.id}
+                      onClick={() => handlePresetSelect(idx)}
+                      className={`p-3 rounded-lg border text-left text-xs transition-all ${
+                        selectedPreset === idx 
+                          ? 'bg-[#0f172a] border-[#38bdf8] text-white' 
+                          : 'bg-[#070a0f] border-[#1e293b] text-slate-400 hover:border-slate-700 hover:text-white'
+                      }`}
                     >
-                      <div className="font-semibold text-white mb-1 truncate">
-                        {language === "zh" ? p.title_zh : p.title_en}
+                      <div className="font-bold mb-1 truncate">
+                        {language === "zh" ? preset.title_zh : preset.title_en}
                       </div>
-                      <div className="line-clamp-2 opacity-75">
-                        {language === "zh" ? p.transcript_zh : p.transcript_en}
+                      <div className="line-clamp-2 opacity-60">
+                        {language === "zh" ? preset.transcript_zh : preset.transcript_en}
                       </div>
                     </button>
                   ))}
@@ -775,80 +563,78 @@ export default function PortalPage() {
               </div>
 
               <div className="flex justify-between items-center mt-6">
-                <div className="text-xs text-[#666]">
-                  {apiOnline 
-                    ? t("通过大模型连接提取 (Qwen)", "Real extraction via LLM (Qwen)") 
-                    : t("使用前端沙盒仿真机制", "Using client-side sandbox simulation")}
+                <div className="text-[11px] text-slate-500 font-mono">
+                  {t("仿真解析模块：Qwen-2.5-Coder", "Emulator core: Qwen-2.5-Coder")}
                 </div>
                 <button
-                  onClick={handleExtract}
-                  disabled={extracting || !transcriptInput.trim()}
-                  className="btn btn-primary"
+                  onClick={triggerExtraction}
+                  disabled={isExtracting || !inputText.trim()}
+                  className="pill-btn pill-btn-white text-xs font-bold py-2 px-5"
                 >
-                  {extracting ? t("提取分析中...", "Extracting...") : t("运行记忆提取 (Extract)", "Run Extraction")}
+                  {isExtracting ? t("正在分析...", "Parsing...") : t("运行记忆提取 (Extract)", "Run Extraction")}
                 </button>
               </div>
             </div>
 
-            {/* Step 2: Extracted Proposals */}
-            <div className="glow-card">
+            {/* Suggestions buffer */}
+            <div className="glass-card">
               <div className="flex items-center gap-3 mb-4">
-                <span className="step-badge">2</span>
-                <h3 className="text-base font-bold text-white">
-                  {t("第二步：待审核记忆提议", "Step 2: Extracted Memory Proposals")}
+                <span className="step-number-badge">2</span>
+                <h3 className="text-sm font-bold text-white">
+                  {t("待审核提议库 (Proposals Buffer)", "Proposals Draft Buffer")}
                 </h3>
                 {proposals.length > 0 && (
-                  <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-white font-bold">
-                    {proposals.length}
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-sky-950 border border-sky-800 text-sky-400 font-bold">
+                    {t(`${proposals.length} 条待审`, `${proposals.length} pending`)}
                   </span>
                 )}
               </div>
 
               {proposals.length === 0 ? (
-                <div className="py-12 text-center text-[#666] text-sm border border-dashed border-[#222] rounded-lg">
-                  {extracting 
-                    ? t("AI 正在提取提议，请查看右侧终端日志...", "LLM is analyzing the text, check the terminal on the right...") 
-                    : t("等待提取操作。提取结果将在此处缓冲...", "Waiting for extraction. Suggested proposals will buffer here...")}
+                <div className="py-14 text-center text-slate-500 text-xs border border-dashed border-[#1e293b] rounded-xl bg-[#070a0f]/40">
+                  {isExtracting 
+                    ? t("AI 规则解析中，请注意查看右侧日志控制台...", "Extracting facts, monitor the console logs on the right...") 
+                    : t("等待运行提取。生成的草稿提议将在此处等待人工判定...", "No draft proposals buffered yet. Run extraction to suggest memories.")}
                 </div>
               ) : (
                 <div className="space-y-4">
                   {proposals.map((prop) => (
-                    <div key={prop.id} className="p-4 rounded-lg bg-[#0a0a0a] border border-[#222] flex flex-col md:flex-row justify-between gap-4">
-                      <div className="space-y-2 flex-1">
+                    <div key={prop.id} className="p-4 rounded-xl bg-[#070a0f] border border-[#1e293b] flex flex-col md:flex-row justify-between gap-4">
+                      <div className="space-y-2 flex-grow">
                         <div className="flex items-center gap-2.5 flex-wrap">
-                          <span className={`badge badge-${prop.type}`}>
-                            {getMemoryTypeLabel(prop.type)}
+                          <span className={`m-badge m-badge-${prop.type}`}>
+                            {getBadgeLabel(prop.type)}
                           </span>
-                          <span className="text-xs text-[#a3a3a3]">
-                            {t("置信度", "Confidence")}: {(prop.confidence * 100).toFixed(0)}%
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            {t("可信度", "Confidence")}: {(prop.confidence * 100).toFixed(0)}%
                           </span>
                         </div>
-                        <p className="text-sm font-semibold text-white leading-relaxed">
-                          {language === "zh" ? prop.content_zh || prop.content : prop.content}
+                        <p className="text-xs font-semibold text-slate-200 leading-relaxed">
+                          {language === "zh" ? prop.content_zh : prop.content}
                         </p>
-                        <div className="text-xs text-[#a3a3a3] border-l-2 border-white/20 pl-3 py-0.5">
-                          <span className="font-semibold text-white">{t("原文引用", "Source Quote")}:</span> "
-                          {language === "zh" ? prop.source_quote_zh || prop.source_quote : prop.source_quote}
+                        <div className="text-[11px] text-slate-400 border-l-2 border-slate-700 pl-3">
+                          <span className="font-bold text-slate-300">{t("原文出处", "Source Quote")}:</span> "
+                          {language === "zh" ? prop.source_quote_zh : prop.source_quote}
                           "
                         </div>
-                        <div className="text-xs text-[#666]">
+                        <div className="text-[10.5px] text-slate-500">
                           <span className="font-semibold">{t("提取理由", "Rationale")}:</span>{" "}
-                          {language === "zh" ? prop.reason_zh || prop.reason : prop.reason}
+                          {language === "zh" ? prop.reason_zh : prop.reason}
                         </div>
                       </div>
                       
-                      <div className="flex md:flex-col justify-end gap-2.5 shrink-0 self-end md:self-center">
+                      <div className="flex md:flex-col justify-end gap-2 shrink-0 self-end md:self-center">
                         <button
                           onClick={() => handleReject(prop)}
-                          className="btn btn-secondary text-xs px-3 py-1.5"
+                          className="text-[11px] px-3.5 py-1.5 rounded-lg border border-red-950 bg-red-950/20 text-red-400 font-bold hover:bg-red-950/40 transition-colors"
                         >
-                          {t("拒绝 (Reject)", "Reject")}
+                          {t("拒绝", "Reject")}
                         </button>
                         <button
                           onClick={() => handleApprove(prop)}
-                          className="btn btn-primary text-xs px-3 py-1.5"
+                          className="text-[11px] px-3.5 py-1.5 rounded-lg border border-emerald-950 bg-emerald-950/20 text-emerald-400 font-bold hover:bg-emerald-950/40 transition-colors"
                         >
-                          {t("批准 (Approve)", "Approve")}
+                          {t("批准", "Approve")}
                         </button>
                       </div>
                     </div>
@@ -856,87 +642,89 @@ export default function PortalPage() {
                 </div>
               )}
             </div>
+
           </div>
 
-          {/* Right sidebar: Terminal & Audit */}
+          {/* Right logs & library */}
           <div className="space-y-6">
-            {/* Simulation Terminal */}
-            <div className="terminal-frame">
-              <div className="terminal-header">
-                <div className="terminal-dots">
-                  <span className="terminal-dot red"></span>
-                  <span className="terminal-dot yellow"></span>
-                  <span className="terminal-dot green"></span>
+            
+            {/* Logs console */}
+            <div className="editor-frame">
+              <div className="editor-header">
+                <div className="editor-dots">
+                  <span className="editor-dot r"></span>
+                  <span className="editor-dot y"></span>
+                  <span className="editor-dot g"></span>
                 </div>
-                <div className="terminal-title">{t("治理流运行终端", "Governance Console")}</div>
+                <span className="editor-title">LOGS TERMINAL</span>
                 <div></div>
               </div>
-              <div className="terminal-body font-mono text-xs max-h-60 overflow-y-auto space-y-1">
-                {terminalLogs.length === 0 ? (
-                  <div className="text-[#555]">{t("等待操作输入以生成跟踪日志...", "Console logs will stream here...")}</div>
+              <div className="editor-body p-4 text-[11px] max-h-48 overflow-y-auto font-mono space-y-1 bg-[#060810] text-[#86a5d4]">
+                {simLogs.length === 0 ? (
+                  <span className="text-slate-600 italic">{t("等待提取操作输出治理轨迹...", "Logs will stream here...")}</span>
                 ) : (
-                  terminalLogs.map((log, index) => (
-                    <div key={index} className="break-all whitespace-pre-wrap">{log}</div>
+                  simLogs.map((log, idx) => (
+                    <div key={idx} className="break-all whitespace-pre-wrap">{log}</div>
                   ))
                 )}
               </div>
             </div>
 
-            {/* Active memories list */}
-            <div className="glow-card">
+            {/* Active library */}
+            <div className="glass-card">
               <div className="flex items-center gap-3 mb-4">
-                <span className="step-badge">3</span>
-                <h3 className="text-base font-bold text-white">
-                  {t("第三步：检索活跃记忆", "Step 3: Search Active Memories")}
-                </h3>
+                <span className="step-number-badge">3</span>
+                <h3 className="text-sm font-bold text-white">{t("活性检索库 (Active Memory Library)", "Active Memory Library")}</h3>
               </div>
 
               <input 
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t("输入关键词全文检索 (FTS5)...", "Search memories (SQLite FTS5)...")}
-                className="w-full text-sm bg-[#090909] border border-[#222] rounded-lg p-2.5 text-white mb-4 placeholder-[#555] focus:outline-none focus:border-white"
+                placeholder={t("检索事实 (SQLite FTS5)...", "Search facts (SQLite FTS5)...")}
+                className="w-full text-xs bg-[#070a0f] border border-[#1e293b] rounded-lg p-2.5 text-white mb-4 placeholder-slate-600 focus:outline-none focus:border-slate-500"
               />
 
               {filteredMemories.length === 0 ? (
-                <div className="py-8 text-center text-[#666] text-xs border border-dashed border-[#222] rounded-lg">
+                <div className="py-8 text-center text-slate-600 text-xs border border-dashed border-[#1e293b] rounded-lg bg-[#070a0f]/20">
                   {activeMemories.length === 0 
-                    ? t("暂无激活的记忆体，请在左侧批准一些提取提议。", "No active memories. Approve proposals to index them.")
-                    : t("未匹配到相关的搜索记录。", "No matching memories found.")}
+                    ? t("暂无活性记忆。请在左侧批准一些提案事实以载入索引。", "No active memories. Approve proposals to save.")
+                    : t("无相关检索匹配结果。", "No matching facts found.")}
                 </div>
               ) : (
-                <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                   {filteredMemories.map((m) => (
-                    <div 
-                      key={m.id} 
-                      onClick={() => triggerExplain(m)}
-                      className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
-                        auditMemory && auditMemory.id === m.id 
-                          ? 'bg-[#181818] border-[#888]' 
-                          : 'bg-[#0a0a0a] border-[#222] hover:border-[#444]'
+                    <div
+                      key={m.id}
+                      onClick={() => handleInspect(m)}
+                      className={`p-3 rounded-lg border text-left transition-all cursor-pointer ${
+                        inspectedMemory && inspectedMemory.id === m.id
+                          ? 'bg-[#0f172a] border-sky-500'
+                          : 'bg-[#070a0f] border-[#1e293b] hover:border-slate-700'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span className={`badge badge-${m.type} text-[9px] px-1.5 py-0.5`}>
-                          {getMemoryTypeLabel(m.type)}
+                        <span className={`m-badge m-badge-${m.type} text-[8.5px] px-1.5 py-0.5`}>
+                          {getBadgeLabel(m.type)}
                         </span>
+                        
                         {m.status === "revoked" ? (
-                          <span className="text-[10px] text-red-500 font-bold uppercase">{t("已废弃", "REVOKED")}</span>
+                          <span className="text-[9px] text-red-500 font-bold uppercase tracking-wider">{t("已废弃", "REVOKED")}</span>
                         ) : (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleRevoke(m);
                             }}
-                            className="text-[10px] text-[#888] hover:text-red-500 font-semibold"
+                            className="text-[9px] text-slate-500 hover:text-red-500 font-semibold"
                           >
                             {t("撤销 (Revoke)", "Revoke")}
                           </button>
                         )}
                       </div>
-                      <p className="text-xs font-semibold text-white leading-normal line-clamp-2">
-                        {language === "zh" ? m.content_zh || m.content : m.content}
+                      
+                      <p className="text-xs font-semibold text-slate-200 line-clamp-2">
+                        {language === "zh" ? m.content_zh : m.content}
                       </p>
                     </div>
                   ))}
@@ -944,45 +732,45 @@ export default function PortalPage() {
               )}
             </div>
 
-            {/* Audit log tracer */}
-            {auditMemory && (
-              <div className="glow-card border-white/20 bg-[#0f0f0f]">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-3">
-                  {t("记忆全生命周期审计 (Explain)", "Memory Lifecycle Explanation")}
+            {/* Audit log viewer */}
+            {inspectedMemory && (
+              <div className="glass-card border-slate-800 bg-[#070a0f] p-5">
+                <h4 className="text-[11px] font-bold text-white uppercase tracking-wider mb-3">
+                  {t("单条事实生命周期审计 Trace", "Memory Lifecycle Audit Trace")}
                 </h4>
                 
-                <div className="space-y-2 mb-4">
-                  <div className="text-[11px] text-[#a3a3a3]">
-                    <span className="font-bold text-white">ID:</span> {auditMemory.id}
+                <div className="space-y-2 text-xs mb-4">
+                  <div>
+                    <span className="text-slate-500 font-semibold">ID:</span> <span className="font-mono text-slate-300">{inspectedMemory.id}</span>
                   </div>
-                  <div className="text-[11px] text-[#a3a3a3]">
-                    <span className="font-bold text-white">{t("存储实体", "Fact Statement")}:</span>{" "}
-                    {language === "zh" ? auditMemory.content_zh || auditMemory.content : auditMemory.content}
+                  <div>
+                    <span className="text-slate-500 font-semibold">{t("存储事实", "Memory Statement")}:</span>{" "}
+                    <span className="text-slate-200">{language === "zh" ? inspectedMemory.content_zh : inspectedMemory.content}</span>
                   </div>
-                  <div className="text-[11px] text-[#a3a3a3]">
-                    <span className="font-bold text-white">{t("出处原文", "Evidence Quote")}:</span> "
-                    {language === "zh" ? auditMemory.source_quote_zh || auditMemory.source_quote : auditMemory.source_quote}
+                  <div className="border-l-2 border-slate-800 pl-2.5 py-0.5 text-slate-400">
+                    <span className="text-slate-500 font-semibold">{t("出处原文", "Evidence")}:</span> "
+                    {language === "zh" ? inspectedMemory.source_quote_zh : inspectedMemory.source_quote}
                     "
                   </div>
                 </div>
 
-                <div className="border-t border-[#222] pt-3">
-                  <h5 className="text-[10px] font-bold text-[#666] uppercase mb-2">{t("溯源审计时间线", "Audit Event Timeline")}</h5>
+                <div className="border-t border-[#1e293b] pt-3">
+                  <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-2">{t("时间线记录", "Timeline Events")}</h5>
                   <div className="space-y-2">
                     {auditEvents.map((evt) => (
                       <div key={evt.id} className="timeline-item">
-                        <div className="flex justify-between items-center gap-2">
-                          <span className="font-bold text-white text-[11px]">
-                            {evt.event_type === "proposal_extracted" ? t("系统大模型提取", "Proposal Extracted") : ""}
-                            {evt.event_type === "approved" ? t("人工确认保存", "Approved by human") : ""}
-                            {evt.event_type === "revoked" ? t("人工指令废除", "Revoked by human") : ""}
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-slate-300">
+                            {evt.event === "proposal_extracted" ? t("Qwen 分析提取提案", "Suggested by LLM") : ""}
+                            {evt.event === "approved" ? t("人工审核确认活性", "Activated by review") : ""}
+                            {evt.event === "revoked" ? t("人工指令废除事实", "Revoked from search") : ""}
                           </span>
-                          <span className="text-[9px] text-[#666]">
+                          <span className="text-[9px] text-slate-600">
                             {new Date(evt.timestamp).toLocaleTimeString()}
                           </span>
                         </div>
-                        <div className="text-[10px] text-[#a3a3a3]">
-                          {t("处理主体", "Actor")}: {evt.actor_id || "system"}
+                        <div className="text-[10px] text-slate-500">
+                          {t("执行主体", "Actor")}: {evt.actor}
                         </div>
                       </div>
                     ))}
@@ -990,236 +778,210 @@ export default function PortalPage() {
                 </div>
               </div>
             )}
+
           </div>
         </div>
       </section>
 
       {/* Paradigm shift comparison */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-20 border-t border-[#1b1b1b]">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 border-t border-[#111]">
         <div className="text-center mb-16">
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight mb-4">{t("传统记忆与受信自治记忆对比", "Unchecked Memory vs Governed Memory")}</h2>
-          <p className="text-[#a3a3a3] text-sm sm:text-base max-w-2xl mx-auto">
-            {t("为什么智能体长短期记忆需要经过显式治理？", "Why agent long-term memory must be treated as an explicit governance decision.")}
+          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-4">
+            {t("设计理念革命：自治记忆 vs 传统向量记忆", "Paradigm Shift: Governed Memory vs Vector DB")}
+          </h2>
+          <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">
+            {t("为什么传统智能体将记忆直接写入向量库是危险且低效的？", "Why traditional direct database commits are dangerous for production agents.")}
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          {/* Unchecked */}
-          <div className="p-8 rounded-xl border border-red-500/10 bg-[#0f0a0a]/50 text-left">
-            <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center mb-6">
-              <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold text-white mb-4">{t("传统智能体记忆 (Unchecked)", "Traditional Agent Memory")}</h3>
-            <ul className="space-y-3.5 text-sm text-[#a3a3a3]">
-              <li className="flex items-start gap-2.5">
-                <span className="text-red-500 font-bold mt-0.5">✕</span>
-                <span>{t("静默写入副作用：大模型在后台默默提取，用户不感知存了什么。", "Silent side-effects: agent writes memory in the background without user visibility.")}</span>
+          {/* Traditional Vector DB */}
+          <div className="p-8 rounded-2xl border border-red-500/10 bg-[#0a0505] text-left">
+            <h3 className="text-base font-bold text-red-500 mb-4">{t("✕ 传统盲目记忆 (Vector DB Auto-commit)", "Traditional Vector DB Auto-commit")}</h3>
+            <ul className="space-y-4 text-xs sm:text-sm text-slate-400 leading-relaxed">
+              <li className="flex gap-2.5">
+                <span className="text-red-500 font-bold">✕</span>
+                <span>{t("静默写入副作用：智能体在后台自动生成并保存事实，用户不知情、不可见。", "Silent side-effects: Agent writes embeddings automatically without any admin visibility.")}</span>
               </li>
-              <li className="flex items-start gap-2.5">
-                <span className="text-red-500 font-bold mt-0.5">✕</span>
-                <span>{t("容易受注入毒化：不可靠的信息或恶意注入，会永久留在数据库中影响后续交互。", "Vulnerable to poisoning: malicious prompt injection is saved permanently.")}</span>
+              <li className="flex gap-2.5">
+                <span className="text-red-500 font-bold">✕</span>
+                <span>{t("注入污染隐患：通过对话中带有偏见的叙述或恶意 Prompt，可污染智能体知识库。", "Injection poisoning: Untrusted user dialogues can inject and poison agent instructions.")}</span>
               </li>
-              <li className="flex items-start gap-2.5">
-                <span className="text-red-500 font-bold mt-0.5">✕</span>
-                <span>{t("黑盒无法溯源：检索出的上下文不知道从哪来的，无法解释，无法审计。", "Black-box recall: retrieved facts lack provenance context, making audits impossible.")}</span>
+              <li className="flex gap-2.5">
+                <span className="text-red-500 font-bold">✕</span>
+                <span>{t("黑盒无法追踪：大模型检索出了某些历史设定，却无法指出来源于哪次会话。", "Zero traceability: Recall statements lack source context, failing structural compliance.")}</span>
               </li>
-              <li className="flex items-start gap-2.5">
-                <span className="text-red-500 font-bold mt-0.5">✕</span>
-                <span>{t("历史纠缠不清：当存在更新的规则或偏好时，旧规则依然在起效，引发冲突。", "State entanglements: outdated rules or preferences persist, causing semantic bugs.")}</span>
+              <li className="flex gap-2.5">
+                <span className="text-red-500 font-bold">✕</span>
+                <span>{t("规则冲突交织：当偏好或准则改变时，新旧条目在向量库中共存，逻辑打架。", "Outdated entanglements: Old facts remain active next to new rules, causing logic loops.")}</span>
               </li>
             </ul>
           </div>
 
-          {/* Governed */}
-          <div className="p-8 rounded-xl border border-white/10 bg-[#0c0c0c] text-left">
-            <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center mb-6">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold text-white mb-4">{t("MemoryNode 受管记忆 (Governed)", "MemoryNode Governed Memory")}</h3>
-            <ul className="space-y-3.5 text-sm text-[#a3a3a3]">
-              <li className="flex items-start gap-2.5">
-                <span className="text-white font-bold mt-0.5">✓</span>
-                <span>{t("缓冲审核放行：提取生成未决提议（Proposal），必须经人类核准才生效。", "Explicit buffer logic: suggestions remain pending until human approval.")}</span>
+          {/* Governed Memory */}
+          <div className="p-8 rounded-2xl border border-white/5 bg-[#090d14]/40 text-left">
+            <h3 className="text-base font-bold text-emerald-400 mb-4">{t("✓ MemoryNode 受管记忆 (Governed Memory)", "MemoryNode Governed Memory")}</h3>
+            <ul className="space-y-4 text-xs sm:text-sm text-slate-300 leading-relaxed">
+              <li className="flex gap-2.5">
+                <span className="text-emerald-400 font-bold">✓</span>
+                <span>{t("提案缓冲机制：新信息提取生成待审提议，未经人工批准绝对不能进入智能体检索。", "Isolated Drafts: Candidate facts are isolated in draft pools, keeping search index clean.")}</span>
               </li>
-              <li className="flex items-start gap-2.5">
-                <span className="text-white font-bold mt-0.5">✓</span>
-                <span>{t("严格事实溯源：记忆关联 Source Quote，明晰记录谁提取的，谁批准的。", "Strict fact linkage: memories are tied to original text source quotes and rationales.")}</span>
+              <li className="flex gap-2.5">
+                <span className="text-emerald-400 font-bold">✓</span>
+                <span>{t("严格事实出处：每条生效的记忆都强绑定原文引用（Source Quote）和提取 Rationales。", "Fact-to-Evidence Link: All active facts are structurally linked to source quote citations.")}</span>
               </li>
-              <li className="flex items-start gap-2.5">
-                <span className="text-white font-bold mt-0.5">✓</span>
-                <span>{t("手动冲突覆写：关联 supersede_memory_id 即可撤销旧记忆，自动变更事件链。", "Conflict overrides: linking supersede_memory_id automatically revokes previous state.")}</span>
+              <li className="flex gap-2.5">
+                <span className="text-emerald-400 font-bold">✓</span>
+                <span>{t("显式冲突覆盖：批准新事实时，支持指定 supersede_memory_id 显式撤销并覆盖旧数据。", "Conflict Resolving: Explicitly link older memory IDs to declare state overrides.")}</span>
               </li>
-              <li className="flex items-start gap-2.5">
-                <span className="text-white font-bold mt-0.5">✓</span>
-                <span>{t("可追溯的撤销：Revoke 记忆不丢失历史数据，但即刻移出 FTS5 活跃检索库。", "Auditable revocation: revoked status deletes recall indexing while preserving audit trails.")}</span>
+              <li className="flex gap-2.5">
+                <span className="text-emerald-400 font-bold">✓</span>
+                <span>{t("透明废弃归档：撤销（Revoke）或过期事实将即刻移出检索索引，但保留溯源审计日志。", "Audit-safe Revocation: Instantly block retrieval of revoked facts while archiving history.")}</span>
               </li>
             </ul>
           </div>
         </div>
       </section>
 
-      {/* Interactive Architecture visualizer */}
-      <section id="architecture" className="relative z-10 max-w-7xl mx-auto px-6 py-20 border-t border-[#1b1b1b]">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight mb-4">{t("系统架构数据流看板", "MemoryNode Dynamic Architecture Flow")}</h2>
-          <p className="text-[#a3a3a3] text-sm sm:text-base max-w-2xl mx-auto">
-            {t("鼠标悬停或点击下方任意节点，了解该阶段的技术实现细节与设计意义。", "Hover or click on any node to view structural parameters and safety design values.")}
+      {/* Architecture Section */}
+      <section id="architecture" className="relative z-10 max-w-7xl mx-auto px-6 py-24 border-t border-[#111]">
+        <div className="text-center mb-12">
+          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-4">
+            {t("数据流动与阶段组件剖析", "Dynamic Dataflow Architecture")}
+          </h2>
+          <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">
+            {t("点击下方任意阶段节点，查看该阶段在 AI 智能体场景下的具体设计意图与工程依赖。", "Click any stage node below to view details and specifications.")}
           </p>
         </div>
 
-        <div className="arch-container">
-          <div className="arch-visualizer">
-            {/* Row 1 */}
-            <div className="arch-row">
-              <div 
-                className={`arch-node ${activeArchNode === 'raw' ? 'active' : ''}`}
-                onMouseEnter={() => setActiveArchNode('raw')}
-              >
-                <div className="arch-node-title">{t("原始对话交互", "Raw Interaction")}</div>
-                <div className="arch-node-tech">Chat Logs / Events</div>
-              </div>
-            </div>
-
-            <div className={`arch-arrow-down ${activeArchNode === 'qwen' ? 'active' : ''}`}></div>
-
-            {/* Row 2 */}
-            <div className="arch-row">
-              <div 
-                className={`arch-node ${activeArchNode === 'qwen' ? 'active' : ''}`}
-                onMouseEnter={() => setActiveArchNode('qwen')}
-              >
-                <div className="arch-node-title">{t("Qwen 提取分析", "Qwen Extractor")}</div>
-                <div className="arch-node-tech">LLM JSON Extract</div>
-              </div>
-            </div>
-
-            <div className={`arch-arrow-down ${activeArchNode === 'proposal' ? 'active' : ''}`}></div>
-
-            {/* Row 3 */}
-            <div className="arch-row">
-              <div 
-                className={`arch-node ${activeArchNode === 'proposal' ? 'active' : ''}`}
-                onMouseEnter={() => setActiveArchNode('proposal')}
-              >
-                <div className="arch-node-title">{t("待审核提议库", "Proposals DB")}</div>
-                <div className="arch-node-tech">SQLite Pending</div>
-              </div>
-            </div>
-
-            <div className={`arch-arrow-down ${activeArchNode === 'review' ? 'active' : ''}`}></div>
-
-            {/* Row 4 */}
-            <div className="arch-row">
-              <div 
-                className={`arch-node ${activeArchNode === 'review' ? 'active' : ''}`}
-                onMouseEnter={() => setActiveArchNode('review')}
-              >
-                <div className="arch-node-title">{t("人工控制阀", "Human Review")}</div>
-                <div className="arch-node-tech">Approval Control</div>
-              </div>
-            </div>
-
-            <div className={`arch-arrow-down ${activeArchNode === 'memory' ? 'active' : ''}`}></div>
-
-            {/* Row 5 */}
-            <div className="arch-row">
-              <div 
-                className={`arch-node ${activeArchNode === 'memory' ? 'active' : ''}`}
-                onMouseEnter={() => setActiveArchNode('memory')}
-              >
-                <div className="arch-node-title">{t("受信活性记忆体", "Active Memory")}</div>
-                <div className="arch-node-tech">SQLite FTS5 Match</div>
-              </div>
-            </div>
+        {/* Dynamic diagram container */}
+        <div className="flow-diagram-container max-w-5xl mx-auto mb-12">
+          <div 
+            onClick={() => setActiveNode("raw")}
+            className={`flow-step-node ${activeNode === "raw" ? "active" : ""}`}
+          >
+            <div className="flow-step-title">{t("原始交互日志", "Raw Input")}</div>
+            <div className="flow-step-tech">Chat Transcript</div>
           </div>
+          <div className={`flow-arrow-line ${activeNode === "extractor" ? "active" : ""}`}></div>
+          
+          <div 
+            onClick={() => setActiveNode("extractor")}
+            className={`flow-step-node ${activeNode === "extractor" ? "active" : ""}`}
+          >
+            <div className="flow-step-title">{t("LLM 事实提取", "Qwen Extractor")}</div>
+            <div className="flow-step-tech">Semantic Parse</div>
+          </div>
+          <div className={`flow-arrow-line ${activeNode === "proposals" ? "active" : ""}`}></div>
+          
+          <div 
+            onClick={() => setActiveNode("proposals")}
+            className={`flow-step-node ${activeNode === "proposals" ? "active" : ""}`}
+          >
+            <div className="flow-step-title">{t("缓冲提案库", "Proposals DB")}</div>
+            <div className="flow-step-tech">SQLite Drafts</div>
+          </div>
+          <div className={`flow-arrow-line ${activeNode === "reviewer" ? "active" : ""}`}></div>
+          
+          <div 
+            onClick={() => setActiveNode("reviewer")}
+            className={`flow-step-node ${activeNode === "reviewer" ? "active" : ""}`}
+          >
+            <div className="flow-step-title">{t("人工控制阀", "Human Approval")}</div>
+            <div className="flow-step-tech">Console / CLI</div>
+          </div>
+          <div className={`flow-arrow-line ${activeNode === "active" ? "active" : ""}`}></div>
+          
+          <div 
+            onClick={() => setActiveNode("active")}
+            className={`flow-step-node ${activeNode === "active" ? "active" : ""}`}
+          >
+            <div className="flow-step-title">{t("活性全文索引", "FTS5 Recall")}</div>
+            <div className="flow-step-tech">SQLite Index</div>
+          </div>
+        </div>
 
-          {/* Details Pane */}
-          <div className="glow-card flex flex-col justify-between arch-detail-card min-h-[400px]">
-            <div>
-              <div className="text-[10px] font-bold text-white uppercase tracking-wider mb-4">
-                {t("系统节点分析", "Node Diagnostic Information")}
-              </div>
-              <h3 className="text-lg font-bold text-white mb-3">
-                {language === "zh" ? ARCH_NODES[activeArchNode].title_zh : ARCH_NODES[activeArchNode].title_en}
-              </h3>
-              <p className="text-sm text-[#a3a3a3] leading-relaxed mb-6">
-                {language === "zh" ? ARCH_NODES[activeArchNode].desc_zh : ARCH_NODES[activeArchNode].desc_en}
-              </p>
-            </div>
-            
-            <div className="border-t border-[#222] pt-4">
-              <div className="text-[10px] font-bold text-[#666] uppercase mb-1">{t("关联技术栈/依赖", "Underlying dependency")}</div>
-              <div className="font-mono text-xs text-white">{ARCH_NODES[activeArchNode].tech}</div>
-            </div>
+        {/* Node detail block */}
+        <div className="glass-card max-w-3xl mx-auto">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">
+            {t("选定阶段诊断与工程指标", "Diagnostic Specs & Purpose")}
+          </div>
+          <h3 className="text-lg font-bold text-white mb-3">
+            {language === "zh" ? ARCH_STEPS[activeNode].title_zh : ARCH_STEPS[activeNode].title_en}
+          </h3>
+          <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-6">
+            {language === "zh" ? ARCH_STEPS[activeNode].desc_zh : ARCH_STEPS[activeNode].desc_en}
+          </p>
+          <div className="border-t border-[#1e293b] pt-4 flex justify-between items-center">
+            <span className="text-[10px] font-bold text-slate-500 uppercase">{t("涉及基础设施", "Infrastructure Dependency")}</span>
+            <span className="font-mono text-xs text-sky-400">{ARCH_STEPS[activeNode].tech}</span>
           </div>
         </div>
       </section>
 
-      {/* Developer API Explorer */}
-      <section id="api" className="relative z-10 max-w-7xl mx-auto px-6 py-20 border-t border-[#1b1b1b]">
-        <div className="text-center mb-12">
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight mb-4">{t("开发者 API 资源浏览器", "Developer API Explorer")}</h2>
-          <p className="text-[#a3a3a3] text-sm sm:text-base max-w-2xl mx-auto">
-            {t("MemoryNode 拥有精简优雅的后端接口规范，支持 SDK、cURL 或命令行。以下是核心生命周期接口概览。", "Explore HTTP contracts, SDK, and curl endpoints. MemoryNode keeps the lifecycle API clean.")}
+      {/* Developer API Docs */}
+      <section id="api" className="relative z-10 max-w-7xl mx-auto px-6 py-24 border-t border-[#111]">
+        <div className="text-center mb-16">
+          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-4">
+            {t("极简的集成协议 (API Reference)", "Minimal API reference")}
+          </h2>
+          <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">
+            {t("开箱即用的 RESTful 风格的 HTTP 接口，可轻松与您的任何 AI Agents 智能体框架无缝整合。", "Integrate MemoryNode into your custom LangChain, AutoGen, or custom agent flow with REST contracts.")}
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          {/* Left menu */}
-          <div className="glow-card p-4 space-y-1">
-            <div className="text-[10px] font-bold text-[#666] uppercase px-3 mb-2">{t("后端服务路径", "HTTP Endpoints")}</div>
-            {Object.keys(API_TABS).map((key) => (
+          {/* Menu */}
+          <div className="glass-card p-4 space-y-1">
+            <div className="text-[10px] font-bold text-slate-500 uppercase px-3 mb-3">{t("核心生命周期接口", "Core API routes")}</div>
+            {Object.keys(DEV_API_DATA).map((key) => (
               <button
                 key={key}
                 onClick={() => setActiveApiTab(key)}
-                className={`w-full flex items-center justify-between text-left p-3 rounded-lg text-sm font-semibold transition-all ${
-                  activeApiTab === key 
-                    ? 'bg-[#181818] text-white border-l-2 border-white pl-4' 
-                    : 'text-[#a3a3a3] hover:bg-[#0c0c0c] hover:text-white pl-3'
+                className={`w-full flex items-center justify-between text-left p-3.5 rounded-xl text-xs font-bold transition-all ${
+                  activeApiTab === key
+                    ? 'bg-[#0f172a] text-white border-l-2 border-sky-400 pl-4'
+                    : 'text-slate-400 hover:bg-[#070a0f] hover:text-white pl-3'
                 }`}
               >
                 <div>
-                  <span className={`text-[10px] font-bold mr-2 ${
-                    API_TABS[key].method === 'POST' ? 'text-emerald-400' : 'text-blue-400'
+                  <span className={`text-[9px] font-extrabold mr-2 uppercase ${
+                    DEV_API_DATA[key].method === 'POST' ? 'text-emerald-400' : 'text-sky-400'
                   }`}>
-                    {API_TABS[key].method}
+                    {DEV_API_DATA[key].method}
                   </span>
-                  <span>{API_TABS[key].url}</span>
+                  <span>{DEV_API_DATA[key].url}</span>
                 </div>
               </button>
             ))}
           </div>
 
-          {/* Right payload viewer */}
+          {/* Snippet Viewer */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="glow-card">
-              <div className="flex justify-between items-center border-b border-[#222] pb-4 mb-4">
+            <div className="glass-card">
+              <div className="flex justify-between items-center border-b border-[#1e293b] pb-4 mb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-white mb-1">
-                    {API_TABS[activeApiTab].method} {API_TABS[activeApiTab].url}
+                  <h3 className="text-xs sm:text-sm font-bold text-white mb-1 font-mono">
+                    {DEV_API_DATA[activeApiTab].method} {DEV_API_DATA[activeApiTab].url}
                   </h3>
-                  <p className="text-xs text-[#a3a3a3]">
-                    {language === "zh" ? API_TABS[activeApiTab].desc_zh : API_TABS[activeApiTab].desc_en}
+                  <p className="text-[11px] text-slate-400">
+                    {language === "zh" ? DEV_API_DATA[activeApiTab].desc_zh : DEV_API_DATA[activeApiTab].desc_en}
                   </p>
                 </div>
                 
-                <div className="flex gap-2">
+                <div className="flex gap-2 bg-[#070a0f] p-1 rounded-lg border border-[#1e293b]">
                   <button 
-                    onClick={() => setCodeType("python")} 
-                    className={`text-xs px-2.5 py-1 rounded ${
-                      codeType === 'python' ? 'bg-white/10 text-white font-bold' : 'text-[#666]'
+                    onClick={() => setCodeLang("python")}
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-md transition-all ${
+                      codeLang === 'python' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'
                     }`}
                   >
                     Python
                   </button>
                   <button 
-                    onClick={() => setCodeType("curl")} 
-                    className={`text-xs px-2.5 py-1 rounded ${
-                      codeType === 'curl' ? 'bg-white/10 text-white font-bold' : 'text-[#666]'
+                    onClick={() => setCodeLang("curl")}
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-md transition-all ${
+                      codeLang === 'curl' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'
                     }`}
                   >
                     cURL
@@ -1227,61 +989,40 @@ export default function PortalPage() {
                 </div>
               </div>
 
-              {/* Code Snippet */}
-              <div className="terminal-frame mb-6">
-                <div className="terminal-header py-2 px-4 border-b border-[#222] bg-[#0c0c0c] flex justify-between items-center">
-                  <span className="text-[10px] text-[#666] font-mono">
-                    {codeType === 'python' ? 'main.py' : 'terminal'}
+              {/* Code viewer */}
+              <div className="editor-frame bg-[#060810] border-[#1e293b]">
+                <div className="editor-header bg-[#0e131f] py-2 px-4 border-b border-[#1e293b] flex justify-between items-center">
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {codeLang === 'python' ? 'main.py' : 'terminal'}
                   </span>
-                  <button 
-                    onClick={() => handleCopyCode(codeType === 'python' ? API_TABS[activeApiTab].python : API_TABS[activeApiTab].curl)}
-                    className="text-[10px] text-[#a3a3a3] hover:text-white transition-colors"
+                  <button
+                    onClick={() => handleCopy(codeLang === 'python' ? DEV_API_DATA[activeApiTab].python : DEV_API_DATA[activeApiTab].curl)}
+                    className="text-[10px] text-slate-400 hover:text-white font-semibold"
                   >
                     {copyFeedback ? t("已复制!", "Copied!") : t("复制代码", "Copy")}
                   </button>
                 </div>
-                <div className="terminal-body p-4 overflow-x-auto font-mono text-[12px] bg-[#070707] text-[#c9c9c9] min-h-0">
-                  <pre className="whitespace-pre">{codeType === 'python' ? API_TABS[activeApiTab].python : API_TABS[activeApiTab].curl}</pre>
+                <div className="editor-body p-4 overflow-x-auto text-[11.5px] bg-[#060810] text-slate-300">
+                  <pre className="whitespace-pre">{codeLang === "python" ? DEV_API_DATA[activeApiTab].python : DEV_API_DATA[activeApiTab].curl}</pre>
                 </div>
               </div>
-
-              {/* Payload details */}
-              {API_TABS[activeApiTab].payload && (
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">{t("请求参数 (JSON Body)", "Request Payload")}</h4>
-                  <div className="terminal-frame bg-[#070707] border-[#222]">
-                    <div className="terminal-body p-4 text-[12px] min-h-0">
-                      <pre className="text-sky-400">{JSON.stringify(API_TABS[activeApiTab].payload, null, 2)}</pre>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-2 mt-4">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider">{t("响应载荷 (Response Preview)", "Response Preview")}</h4>
-                <div className="terminal-frame bg-[#070707] border-[#222]">
-                  <div className="terminal-body p-4 text-[12px] min-h-0">
-                    <pre className="text-emerald-400">{JSON.stringify(API_TABS[activeApiTab].response, null, 2)}</pre>
-                  </div>
-                </div>
-              </div>
-
             </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-[#1b1b1b] bg-[#090909]/40 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-6 text-[#666] text-xs">
+      <footer className="relative z-10 border-t border-[#111] bg-[#070a0f]/40 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-6 py-16 flex flex-col md:flex-row items-center justify-between gap-6 text-slate-600 text-xs">
           <div className="flex items-center gap-3">
-            <span className="w-1.5 h-1.5 bg-[#444] rounded-full"></span>
-            <span>MemoryNode: Governed memory layer for AI agents</span>
+            <span className="w-1.5 h-1.5 bg-slate-700 rounded-full"></span>
+            <span>MemoryNode: Governed memory infrastructure for AI agents</span>
           </div>
           
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-8 font-semibold">
             <a href="https://github.com/unnoderes/MemoryNode" target="_blank" className="hover:text-white transition-colors">GitHub</a>
-            <span>Apache 2.0 / MIT License</span>
+            <a href="https://github.com/unnoderes/MemoryNode/releases" className="hover:text-white transition-colors">Downloads</a>
+            <span>MIT License</span>
           </div>
 
           <div>

@@ -15,17 +15,17 @@ export default function ApiExplorer({ language, t }) {
   };
 
   return (
-    <section id="api" className="relative z-10 max-w-7xl mx-auto px-6 py-24 border-t border-[#111]">
-      <div className="text-center mb-16">
-        <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-4">
+    <section id="api">
+      <div className="section-header-block">
+        <h2 className="section-title">
           {t("极简的集成协议 (API Reference)", "Minimal API reference")}
         </h2>
-        <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">
+        <p className="section-desc">
           {t("开箱即用的 RESTful 风格的 HTTP 接口，可轻松与您的任何 AI Agents 智能体框架无缝整合。", "Integrate MemoryNode into your custom LangChain, AutoGen, or custom agent flow with REST contracts.")}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      <div className="api-explorer-grid">
         {/* Menu */}
         <div className="glass-card p-4 space-y-1">
           <div className="text-[10px] font-bold text-slate-500 uppercase px-3 mb-3">{t("核心生命周期接口", "Core API routes")}</div>
@@ -52,7 +52,7 @@ export default function ApiExplorer({ language, t }) {
         </div>
 
         {/* Snippet Viewer */}
-        <div className="lg:col-span-2 space-y-6">
+        <div>
           <div className="glass-card">
             <div className="flex justify-between items-center border-b border-[#1e293b] pb-4 mb-4">
               <div>

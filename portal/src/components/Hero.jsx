@@ -12,17 +12,17 @@ export default function Hero({ t }) {
   };
 
   return (
-    <main className="relative z-10 max-w-7xl mx-auto px-6 pt-24 pb-20 text-center">
+    <main className="hero-section">
       <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/60 border border-[#1e293b] text-[10.5px] font-semibold text-slate-400 mb-8">
         <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-[0_0_6px_#34d399] animate-pulse"></span>
         <span>{t("自治记忆治理层：开源 v0.4.2", "Governed Memory Layer: Open Source v0.4.2")}</span>
       </div>
 
-      <h1 className="text-4xl sm:text-7xl font-extrabold tracking-tight max-w-5xl mx-auto leading-[1.05] mb-8 bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
+      <h1 className="hero-title">
         {t("自治记忆，归于人治。", "Autonomous Memory, Governed by Humans.")}
       </h1>
       
-      <p className="text-slate-400 text-lg sm:text-xl max-w-3xl mx-auto leading-relaxed mb-12">
+      <p className="hero-subtitle">
         {t(
           "智能体不应盲目吸纳上下文。MemoryNode 提供基于证据的事实提取、人类在环的待审缓冲、基于关联的冲突覆盖与审计追踪。为高安全性的编码智能体与工作流而生。",
           "Stop blindly committing raw contexts. MemoryNode parses evidence-backed proposals, isolates untrusted memories in a drafts buffer, resolves semantic overrides, and maintains absolute audit history."
@@ -30,7 +30,7 @@ export default function Hero({ t }) {
       </p>
 
       {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+      <div className="hero-cta-buttons">
         <a href="#playground" className="pill-btn pill-btn-white text-sm py-3 px-8">
           {t("体验交互沙盒", "Explore Simulator")}
         </a>
@@ -40,7 +40,7 @@ export default function Hero({ t }) {
       </div>
 
       {/* Installation and CLI Command bar */}
-      <div className="max-w-2xl mx-auto mb-24">
+      <div className="hero-terminal-container">
         <div className="editor-frame bg-[#060910]">
           <div className="editor-header">
             <div className="editor-dots">
@@ -62,7 +62,7 @@ export default function Hero({ t }) {
           </div>
         </div>
         
-        <div className="flex justify-center gap-6 mt-4 text-[11px] text-slate-500 font-semibold">
+        <div className="hero-integrations-bar">
           <span>{t("支持集成：", "Integrations:")} Cursor / Claude Code / Windsurf / FastHTML</span>
           <span>•</span>
           <a href="https://github.com/unnoderes/MemoryNode/releases" className="hover:text-white transition-colors">{t("下载 CLI 二进制包", "Download CLI Binaries")}</a>
@@ -70,7 +70,7 @@ export default function Hero({ t }) {
       </div>
 
       {/* Core Capabilities */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto text-left">
+      <div className="hero-features-grid">
         <div className="feature-box">
           <h3 className="text-white font-bold text-sm mb-2">{t("1. 证据出处（Provenance）", "1. Strict Provenance")}</h3>
           <p className="text-xs text-slate-400 leading-relaxed">

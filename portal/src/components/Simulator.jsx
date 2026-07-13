@@ -160,18 +160,18 @@ export default function Simulator({ language, t }) {
   };
 
   return (
-    <section id="playground" className="relative z-10 max-w-7xl mx-auto px-6 py-24 border-t border-[#111]">
-      <div className="text-center mb-12">
-        <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-4">
+    <section id="playground">
+      <div className="section-header-block">
+        <h2 className="section-title">
           {t("记忆生命周期交互演练沙盒", "Interactive Memory Sandbox")}
         </h2>
-        <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">
+        <p className="section-desc">
           {t("在下方体验记忆被提取、缓存、人工审核、亚毫秒级检索及一键废除的完整过程。此演示 100% 运行于浏览器本地。", "Walk through the full process of memory suggesting, buffering, human approval, and FTS5 revocation in this local simulator.")}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="simulator-layout">
+        <div className="simulator-column-left">
           
           {/* Input logs */}
           <div className="glass-card">
@@ -295,7 +295,7 @@ export default function Simulator({ language, t }) {
         </div>
 
         {/* Right logs & library */}
-        <div className="space-y-6">
+        <div className="simulator-column-right">
           
           {/* Logs console */}
           <div className="editor-frame">

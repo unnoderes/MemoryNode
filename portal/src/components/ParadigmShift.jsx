@@ -4,17 +4,17 @@ import React from "react";
 
 export default function ParadigmShift({ t }) {
   return (
-    <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 border-t border-[#111]">
-      <div className="text-center mb-16">
-        <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-4">
+    <section>
+      <div className="section-header-block">
+        <h2 className="section-title">
           {t("设计理念革命：自治记忆 vs 传统向量记忆", "Paradigm Shift: Governed Memory vs Vector DB")}
         </h2>
-        <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">
+        <p className="section-desc">
           {t("为什么传统智能体将记忆直接写入向量库是危险且低效 of？", "Why traditional direct database commits are dangerous for production agents.")}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+      <div className="paradigm-comparison-grid">
         {/* Traditional Vector DB */}
         <div className="p-8 rounded-2xl border border-red-500/10 bg-[#0a0505] text-left">
           <h3 className="text-base font-bold text-red-500 mb-4">{t("✕ 传统盲目记忆 (Vector DB Auto-commit)", "Traditional Vector DB Auto-commit")}</h3>

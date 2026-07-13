@@ -7,12 +7,12 @@ export default function Architecture({ language, t }) {
   const [activeNode, setActiveNode] = useState("extractor");
 
   return (
-    <section id="architecture" className="relative z-10 max-w-7xl mx-auto px-6 py-24 border-t border-[#111]">
-      <div className="text-center mb-12">
-        <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-4">
+    <section id="architecture">
+      <div className="section-header-block">
+        <h2 className="section-title">
           {t("系统架构数据流看板", "Dynamic Dataflow Architecture")}
         </h2>
-        <p className="text-slate-400 text-sm sm:text-base max-w-2xl mx-auto">
+        <p className="section-desc">
           {t("点击下方任意阶段节点，查看该阶段在 AI 智能体场景下的具体设计意图与工程依赖。", "Click any stage node below to view details and specifications.")}
         </p>
       </div>

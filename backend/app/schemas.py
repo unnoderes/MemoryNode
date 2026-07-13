@@ -49,3 +49,21 @@ class DecisionRequest(BaseModel):
     note: Optional[str] = None
     supersede_memory_id: Optional[str] = None
     expires_at: Optional[datetime] = None
+    idempotency_key: Optional[str] = None
+
+
+FeedbackType = Literal["useful", "not_useful", "possibly_stale"]
+
+
+class FeedbackRequest(BaseModel):
+    feedback: FeedbackType
+    actor_id: str
+    note: Optional[str] = Field(default=None, max_length=1000)
+    idempotency_key: Optional[str] = None
+
+
+class ExpiryRequest(BaseModel):
+    actor_id: str
+    note: str = Field(min_length=1, max_length=1000)
+    expires_at: datetime
+    idempotency_key: Optional[str] = None

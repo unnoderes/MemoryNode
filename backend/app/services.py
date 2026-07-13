@@ -1,9 +1,11 @@
+import hashlib
 import re
 from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import HTTPException
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import text
@@ -78,11 +80,72 @@ def event_dict(event):
     }
 
 
+def _normalized_key(idempotency_key: Optional[str]) -> Optional[str]:
+    if idempotency_key is None:
+        return None
+    value = idempotency_key.strip()
+    if not value or len(value) > 128 or any(ord(char) < 32 or ord(char) == 127 for char in value):
+        bad_request("idempotency_key must be 1-128 characters without control characters")
+    return value
+
+
+def _idempotent_event_id(idempotency_key: Optional[str]) -> Optional[str]:
+    value = _normalized_key(idempotency_key)
+    if value is None:
+        return None
+    return f"event_idem_{hashlib.sha256(value.encode('utf-8')).hexdigest()}"
+
+
+def _event_id_kwargs(idempotency_key: Optional[str]):
+    event_id = _idempotent_event_id(idempotency_key)
+    return {"id": event_id} if event_id else {}
+
+
+def _receipt(db: Session, idempotency_key: Optional[str]):
+    event_id = _idempotent_event_id(idempotency_key)
+    return (event_id, db.query(models.MemoryEvent).get(event_id) if event_id else None)
+
+
+def _check_receipt(event, event_type: str, *, proposal_id: Optional[str] = None, memory_id: Optional[str] = None, supersede_memory_id: Optional[str] = None):
+    if event.event_type != event_type:
+        conflict("idempotency key conflicts with a different action")
+    if proposal_id is not None and event.proposal_id != proposal_id:
+        conflict("idempotency key conflicts with a different proposal")
+    if memory_id is not None and event.memory_id != memory_id:
+        conflict("idempotency key conflicts with a different memory")
+    if event_type == "approve" and proposal_id is not None:
+        memory = event.memory_id and event._sa_instance_state.session.query(models.Memory).get(event.memory_id)
+        if memory is not None and memory.supersedes_memory_id != supersede_memory_id:
+            conflict("idempotency key conflicts with a different supersession target")
+
+
+def _read_receipt(db: Session, idempotency_key: Optional[str], event_type: str, **target):
+    _, event = _receipt(db, idempotency_key)
+    if event is None:
+        return None
+    _check_receipt(event, event_type, **target)
+    return event
+
+
 def get_proposal(db: Session, proposal_id: str):
     proposal = db.query(models.MemoryProposal).get(proposal_id)
     if proposal is None:
         not_found("proposal")
     return proposal
+
+
+def get_source(db: Session, source_id: str):
+    source = db.query(models.MemorySource).get(source_id)
+    if source is None:
+        not_found("source")
+    return source
+
+
+def get_event(db: Session, event_id: str):
+    event = db.query(models.MemoryEvent).get(event_id)
+    if event is None:
+        not_found("event")
+    return event
 
 
 def get_memory(db: Session, memory_id: str):
@@ -183,6 +246,56 @@ def list_proposals(db: Session, status: Optional[str] = None):
     return query.all()
 
 
+def list_recent_events(db: Session, limit: int = 50):
+    return db.query(models.MemoryEvent).order_by(models.MemoryEvent.created_at.desc()).limit(limit).all()
+
+
+def validate_datetime_filter(value: Optional[datetime], name: str):
+    if value is None:
+        return None
+    if value.tzinfo is None or value.utcoffset() is None:
+        bad_request(f"{name} must include a timezone")
+    return value
+
+
+def list_memories(
+    db: Session,
+    *,
+    actor_id: Optional[str] = None,
+    project_id: Optional[str] = None,
+    status: str = "active",
+    type: Optional[str] = None,
+    source_id: Optional[str] = None,
+    created_after: Optional[datetime] = None,
+    created_before: Optional[datetime] = None,
+    limit: int = 50,
+    offset: int = 0,
+):
+    expire_due_memories(db)
+    created_after = validate_datetime_filter(created_after, "created_after")
+    created_before = validate_datetime_filter(created_before, "created_before")
+    query = (
+        db.query(models.Memory)
+        .join(models.MemoryProposal, models.Memory.proposal_id == models.MemoryProposal.id)
+        .join(models.MemorySource, models.MemoryProposal.source_id == models.MemorySource.id)
+    )
+    if status:
+        query = query.filter(models.Memory.status == status)
+    if type:
+        query = query.filter(models.Memory.type == type)
+    if source_id:
+        query = query.filter(models.MemoryProposal.source_id == source_id)
+    if actor_id:
+        query = query.filter(models.MemorySource.actor_id == actor_id)
+    if project_id:
+        query = query.filter(models.MemorySource.project_id == project_id)
+    if created_after:
+        query = query.filter(models.Memory.created_at >= created_after)
+    if created_before:
+        query = query.filter(models.Memory.created_at <= created_before)
+    return query.order_by(models.Memory.created_at.desc()).offset(offset).limit(limit).all()
+
+
 def approve_proposal(
     db: Session,
     proposal_id: str,
@@ -190,9 +303,22 @@ def approve_proposal(
     note: Optional[str],
     supersede_memory_id: Optional[str] = None,
     expires_at: Optional[datetime] = None,
+    idempotency_key: Optional[str] = None,
 ):
     expire_due_memories(db)
     validate_expires_at(expires_at)
+    receipt = _read_receipt(
+        db,
+        idempotency_key,
+        "approve",
+        proposal_id=proposal_id,
+        supersede_memory_id=supersede_memory_id,
+    )
+    if receipt is not None:
+        memory = db.query(models.Memory).get(receipt.memory_id)
+        if memory is None:
+            not_found("memory")
+        return memory
     proposal = get_proposal(db, proposal_id)
     if proposal.status != "pending":
         conflict("only pending proposals can be approved")
@@ -226,6 +352,7 @@ def approve_proposal(
         expires_at=expires_at,
     )
     event = models.MemoryEvent(
+        **_event_id_kwargs(idempotency_key),
         memory_id=memory_id,
         proposal_id=proposal.id,
         event_type="approve",
@@ -258,6 +385,18 @@ def approve_proposal(
     sync_memory_fts(db, memory_id, memory.content)
     try:
         db.commit()
+    except IntegrityError:
+        db.rollback()
+        receipt = _read_receipt(
+            db,
+            idempotency_key,
+            "approve",
+            proposal_id=proposal_id,
+            supersede_memory_id=supersede_memory_id,
+        )
+        if receipt is None:
+            raise
+        return db.query(models.Memory).get(receipt.memory_id)
     except Exception:
         db.rollback()
         raise
@@ -265,7 +404,10 @@ def approve_proposal(
     return memory
 
 
-def reject_proposal(db: Session, proposal_id: str, actor_id: str, note: Optional[str]):
+def reject_proposal(db: Session, proposal_id: str, actor_id: str, note: Optional[str], idempotency_key: Optional[str] = None):
+    receipt = _read_receipt(db, idempotency_key, "reject", proposal_id=proposal_id)
+    if receipt is not None:
+        return get_proposal(db, proposal_id)
     proposal = get_proposal(db, proposal_id)
     if proposal.status != "pending":
         conflict("only pending proposals can be rejected")
@@ -273,13 +415,19 @@ def reject_proposal(db: Session, proposal_id: str, actor_id: str, note: Optional
     proposal.status = "rejected"
     proposal.decided_at = models.now()
     event = models.MemoryEvent(
+        **_event_id_kwargs(idempotency_key),
         proposal_id=proposal.id,
         event_type="reject",
         actor_id=actor_id,
         note=note,
     )
     db.add(event)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        if _read_receipt(db, idempotency_key, "reject", proposal_id=proposal_id) is None:
+            raise
     db.refresh(proposal)
     return proposal
 
@@ -395,7 +543,10 @@ def related_memories(db: Session, proposal_id: str):
     )
 
 
-def revoke_memory(db: Session, memory_id: str, actor_id: str, note: Optional[str]):
+def revoke_memory(db: Session, memory_id: str, actor_id: str, note: Optional[str], idempotency_key: Optional[str] = None):
+    receipt = _read_receipt(db, idempotency_key, "revoke", memory_id=memory_id)
+    if receipt is not None:
+        return db.query(models.Memory).get(memory_id)
     memory = get_memory(db, memory_id)
     if memory.status != "active":
         conflict("only active memories can be revoked")
@@ -403,6 +554,7 @@ def revoke_memory(db: Session, memory_id: str, actor_id: str, note: Optional[str
     memory.status = "revoked"
     memory.updated_at = models.now()
     event = models.MemoryEvent(
+        **_event_id_kwargs(idempotency_key),
         memory_id=memory.id,
         proposal_id=memory.proposal_id,
         event_type="revoke",
@@ -410,7 +562,74 @@ def revoke_memory(db: Session, memory_id: str, actor_id: str, note: Optional[str
         note=note,
     )
     db.add(event)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        if _read_receipt(db, idempotency_key, "revoke", memory_id=memory_id) is None:
+            raise
+    db.refresh(memory)
+    return memory
+
+
+def memory_feedback(db: Session, memory_id: str, feedback: str, actor_id: str, note: Optional[str] = None, idempotency_key: Optional[str] = None):
+    event_type = f"feedback_{feedback}"
+    receipt = _read_receipt(db, idempotency_key, event_type, memory_id=memory_id)
+    if receipt is not None:
+        return receipt
+    memory = db.query(models.Memory).get(memory_id)
+    if memory is None:
+        not_found("memory")
+    event = models.MemoryEvent(
+        **_event_id_kwargs(idempotency_key),
+        memory_id=memory.id,
+        proposal_id=memory.proposal_id,
+        event_type=event_type,
+        actor_id=actor_id,
+        note=note,
+    )
+    db.add(event)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        receipt = _read_receipt(db, idempotency_key, event_type, memory_id=memory_id)
+        if receipt is None:
+            raise
+        return receipt
+    db.refresh(event)
+    return event
+
+
+def set_memory_expiry(db: Session, memory_id: str, actor_id: str, note: str, expires_at: datetime, idempotency_key: Optional[str] = None):
+    validate_expires_at(expires_at)
+    receipt = _read_receipt(db, idempotency_key, "set_expiry", memory_id=memory_id)
+    if receipt is not None:
+        memory = db.query(models.Memory).get(memory_id)
+        if memory is None:
+            not_found("memory")
+        return memory
+    memory = get_memory(db, memory_id)
+    if memory.status != "active":
+        conflict("only active memories can have expiry set")
+    memory.expires_at = expires_at
+    memory.updated_at = models.now()
+    event = models.MemoryEvent(
+        **_event_id_kwargs(idempotency_key),
+        memory_id=memory.id,
+        proposal_id=memory.proposal_id,
+        event_type="set_expiry",
+        actor_id=actor_id,
+        note=note,
+    )
+    db.add(event)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        receipt = _read_receipt(db, idempotency_key, "set_expiry", memory_id=memory_id)
+        if receipt is None:
+            raise
     db.refresh(memory)
     return memory
 

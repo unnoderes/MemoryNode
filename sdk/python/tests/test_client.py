@@ -20,15 +20,29 @@ def memory(**changes):
     value.update(changes); return value
 
 
+def source(**changes):
+    value = {"id": "src_1", "actor_id": "a", "project_id": "p", "raw_text": "text", "created_at": NOW}
+    value.update(changes); return value
+
+
+def event(**changes):
+    value = {"id": "evt_1", "memory_id": "mem_1", "proposal_id": "proposal_1", "event_type": "approve", "actor_id": "reviewer", "note": None, "created_at": NOW}
+    value.update(changes); return value
+
+
 def explanation():
-    return {"source": {"id": "src_1", "actor_id": "a", "project_id": "p", "raw_text": "text", "created_at": NOW}, "proposal": proposal(), "memory": memory(), "events": [{"id": "evt_1", "memory_id": "mem_1", "proposal_id": "proposal_1", "event_type": "approve", "actor_id": "reviewer", "note": None, "created_at": NOW}], "supersedes": None, "superseded_by": None}
+    return {"source": source(), "proposal": proposal(), "memory": memory(), "events": [event()], "supersedes": None, "superseded_by": None}
 
 
 def response(path, method="GET"):
     if path == "/health": return {"ok": True, "service": "memorynode"}
     if path.endswith("/extract"): return {"source_id": "src_1", "proposals": [proposal()]}
-    if path.endswith("/related-memories") or path.endswith("/search"): return {"memories": [memory(score=-1.2)]}
+    if path.endswith("/related-memories") or path.endswith("/search") or path == "/v1/memories": return {"memories": [memory(score=-1.2)]}
     if path.endswith("/explain"): return explanation()
+    if path.startswith("/v1/sources/"): return source()
+    if path == "/v1/events": return {"events": [event()]}
+    if path.startswith("/v1/events/"): return event()
+    if path.endswith("/feedback"): return event(event_type="feedback_useful")
     if path == "/v1/proposals": return {"proposals": [proposal()]} if method == "GET" else proposal()
     if "/proposals/" in path and path.endswith("/approve"): return memory()
     if "/proposals/" in path and path.endswith("/reject"): return proposal(status="rejected", decided_at=NOW)
@@ -42,25 +56,33 @@ def test_all_resource_shapes_types_paths_timeout_and_request_id():
     with MemoryNodeClient(timeout=7, transport=httpx.MockTransport(handler)) as api:
         assert isinstance(api.status.check(request_id="safe-1", timeout=2), Health)
         assert isinstance(api.proposals.create("text", raw_text="raw"), Proposal)
-        assert isinstance(api.proposals.extract(actor_id="a", project_id="p", content="中 文"), ProposalExtraction)
+        assert isinstance(api.proposals.extract(actor_id="a", project_id="p", content="中文"), ProposalExtraction)
         assert isinstance(api.proposals.extract(actor_id="a", project_id="p", messages=[{"role": "system", "content": "one"}, {"role": "user", "content": "two"}]), ProposalExtraction)
         assert isinstance(api.proposals.list("pending"), ProposalList)
-        assert isinstance(api.proposals.related_memories("proposal/中"), MemoryList)
-        assert isinstance(api.proposals.approve("proposal/中", note="ok", supersede_memory_id="mem_0", expires_at=datetime(2099, 1, 1, tzinfo=timezone.utc)), Memory)
-        assert isinstance(api.proposals.reject("proposal_2", note="no"), Proposal)
-        assert isinstance(api.memories.search("语言 偏好", include_inactive=True), MemoryList)
-        assert isinstance(api.memories.get("mem/中"), Memory)
-        assert isinstance(api.memories.explain("mem/中"), MemoryExplanation)
-        assert isinstance(api.memories.revoke("mem/中", note="bad"), Memory)
+        assert isinstance(api.proposals.get("proposal_1"), Proposal)
+        assert isinstance(api.proposals.related_memories("proposal/中文"), MemoryList)
+        assert isinstance(api.proposals.approve("proposal/中文", note="ok", supersede_memory_id="mem_0", expires_at=datetime(2099, 1, 1, tzinfo=timezone.utc), idempotency_key="approve-key"), Memory)
+        assert isinstance(api.proposals.reject("proposal_2", note="no", idempotency_key="reject-key"), Proposal)
+        assert isinstance(api.sources.get("src_1"), Source)
+        assert isinstance(api.events.get("evt_1"), MemoryEvent)
+        assert isinstance(api.events.list_recent(), MemoryEventList)
+        assert isinstance(api.memories.search("中文 preference", include_inactive=True), MemoryList)
+        assert isinstance(api.memories.list(actor_id="a", limit=10), MemoryList)
+        assert isinstance(api.memories.get("mem/中文"), Memory)
+        assert isinstance(api.memories.explain("mem/中文"), MemoryExplanation)
+        assert isinstance(api.memories.revoke("mem/中文", note="bad", idempotency_key="revoke-key"), Memory)
+        assert isinstance(api.memories.feedback("mem_1", feedback="useful", actor_id="agent", idempotency_key="feedback-key"), MemoryEvent)
+        assert isinstance(api.memories.set_expiry("mem_1", actor_id="reviewer", note="why", expires_at=datetime(2099, 1, 1, tzinfo=timezone.utc), idempotency_key="expiry-key"), Memory)
     assert requests[0].headers["X-Request-ID"] == "safe-1"
     assert set(requests[0].extensions["timeout"].values()) == {2}
     assert set(requests[1].extensions["timeout"].values()) == {7}
     assert len(requests[1].headers["X-Request-ID"]) == 32
-    assert requests[5].url.raw_path.startswith(b"/v1/proposals/proposal%2F")
-    assert dict(requests[8].url.params) == {"q": "语言 偏好", "include_inactive": "true"}
-    assert json.loads(requests[2].content)["messages"] == [{"role": "user", "content": "中 文"}]
+    assert requests[6].url.raw_path.startswith(b"/v1/proposals/proposal%2F")
+    assert dict(requests[12].url.params) == {"q": "中文 preference", "include_inactive": "true"}
+    assert json.loads(requests[2].content)["messages"] == [{"role": "user", "content": "中文"}]
     assert json.loads(requests[3].content)["messages"][0]["role"] == "system"
-    assert json.loads(requests[6].content)["expires_at"].endswith("+00:00")
+    assert json.loads(requests[7].content)["expires_at"].endswith("+00:00")
+    assert json.loads(requests[7].content)["idempotency_key"] == "approve-key"
 
 
 def test_extract_requires_exactly_one_input_without_request():

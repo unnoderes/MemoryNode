@@ -10,6 +10,7 @@ MemoryType = Literal[
 ]
 ProposalStatus = Literal["pending", "approved", "rejected"]
 MemoryStatus = Literal["active", "revoked", "expired"]
+FeedbackType = Literal["useful", "not_useful", "possibly_stale"]
 
 
 class Model(BaseModel):
@@ -86,6 +87,10 @@ class ProposalList(Model):
 
 class MemoryList(Model):
     memories: list[Memory]
+
+
+class MemoryEventList(Model):
+    events: list[MemoryEvent]
 
 
 class MemoryExplanation(Model):

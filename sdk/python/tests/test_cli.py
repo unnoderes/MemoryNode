@@ -22,7 +22,7 @@ def test_help_version_and_status_text_codes(tmp_path, capsys):
     assert cli.dispatch(args("version"), paths(tmp_path)) == 0
     assert cli.status(paths(tmp_path)) == 1
     output = capsys.readouterr().out
-    assert "0.2.0" in output and "overall: stopped" in output
+    assert "0.3.0" in output and "overall: stopped" in output
 
 
 def test_status_stale_foreign_partial_and_stop_never_kills(tmp_path, monkeypatch, capsys):
@@ -144,3 +144,13 @@ def test_doctor_rejects_nonfixed_ports(tmp_path, capsys):
     home.create(); home.config_file.write_text(f'[server]\nport=8001\n[source]\nroot="{root.as_posix()}"\n')
     assert cli.doctor(home) == 1
     assert "deferred to Phase 6" in capsys.readouterr().out
+
+
+def test_doctor_rejects_nonboolean_governance_without_crashing(tmp_path, capsys):
+    home = paths(tmp_path); root = tmp_path / "repo"
+    (root / "backend/app").mkdir(parents=True); (root / "backend/app/main.py").touch()
+    (root / "frontend").mkdir(); (root / "frontend/package.json").touch()
+    home.create()
+    home.config_file.write_text(f'[source]\nroot="{root.as_posix()}"\n[governance]\nallow_agent_reject = "true"\n')
+    assert cli.doctor(home) == 1
+    assert "TOML boolean" in capsys.readouterr().out

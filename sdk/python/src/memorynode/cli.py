@@ -8,7 +8,7 @@ from pathlib import Path
 from .config import Paths, initialize, load_config, valid_source_root
 from .processes import atomic_write, identity, port_free, read_records, record, stop_tree, wait_http
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 
 def parser():
@@ -163,6 +163,6 @@ def doctor(paths=None):
     for name in ("QWEN_API_KEY", "QWEN_BASE_URL", "QWEN_MODEL"):
         print(f"WARN: {name} {'configured' if os.getenv(name) else 'unconfigured'}")
     try: from .mcp_server import mcp; available = mcp is not None
-    except ImportError: available = False
+    except (ImportError, ValueError): available = False
     check(available, "MCP entry point importable", "reinstall memorynode")
     return 1 if failures else 0

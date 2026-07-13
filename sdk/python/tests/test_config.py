@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from memorynode.config import Paths, initialize, load_config
+from memorynode.config import Paths, initialize, load_config, load_governance_policy
 
 
 def source(tmp_path):
@@ -19,6 +19,8 @@ def test_init_is_idempotent_and_rejects_invalid_source(tmp_path):
     root = source(tmp_path / "repo")
     assert initialize(root, paths)
     original = paths.config_file.read_text()
+    assert "allow_agent_set_expiry = false" in original
+    assert not load_governance_policy(paths).allow_agent_revoke
     assert not initialize(root, paths) and paths.config_file.read_text() == original
     with pytest.raises(ValueError): initialize(tmp_path / "missing", paths)
     assert not (tmp_path / ".env").exists()
@@ -59,6 +61,17 @@ def test_phase3_rejects_toml_ports(tmp_path):
     paths.config_file.write_text(paths.config_file.read_text().replace("port = 8000", "port = 9000"))
     with pytest.raises(ValueError, match="API port 8000 and console port 3000"):
         load_config(paths=paths, environ={})
+
+
+def test_governance_policy_requires_real_toml_booleans(tmp_path):
+    paths = Paths(*(tmp_path / name for name in ("config", "data", "logs", "run")))
+    initialize(source(tmp_path / "repo"), paths)
+    text = paths.config_file.read_text().replace("allow_agent_reject = false", "allow_agent_reject = true")
+    paths.config_file.write_text(text)
+    assert load_governance_policy(paths).allow_agent_reject
+    paths.config_file.write_text(text.replace("allow_agent_reject = true", 'allow_agent_reject = "true"'))
+    with pytest.raises(ValueError, match="TOML boolean"):
+        load_governance_policy(paths)
 
 
 @pytest.mark.parametrize("system", ["Windows", "Darwin", "Linux"])

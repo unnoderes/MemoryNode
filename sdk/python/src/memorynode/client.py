@@ -11,11 +11,15 @@ from .errors import (
     MemoryNodeNotFoundError, MemoryNodeResponseError, MemoryNodeServerError,
     MemoryNodeTimeoutError, MemoryNodeValidationError,
 )
-from .models import Health, Memory, MemoryExplanation, MemoryList, Proposal, ProposalExtraction, ProposalList
+from .models import Health, Memory, MemoryEvent, MemoryEventList, MemoryExplanation, MemoryList, Proposal, ProposalExtraction, ProposalList, Source
 
 
 def _path(value: str) -> str:
     return quote(value, safe="")
+
+
+def _params(values: dict) -> dict:
+    return {key: value for key, value in values.items() if value is not None}
 
 
 class StatusResource:
@@ -38,23 +42,45 @@ class ProposalsResource:
     def list(self, status: str | None = None, **options) -> ProposalList:
         return self._client._request("GET", "/v1/proposals", ProposalList, params={"status": status} if status is not None else None, **options)
 
+    def get(self, proposal_id: str, **options) -> Proposal:
+        return self._client._request("GET", f"/v1/proposals/{_path(proposal_id)}", Proposal, **options)
+
     def related_memories(self, proposal_id: str, **options) -> MemoryList:
         return self._client._request("GET", f"/v1/proposals/{_path(proposal_id)}/related-memories", MemoryList, **options)
 
-    def approve(self, proposal_id: str, *, actor_id: str = "reviewer", note: str | None = None, supersede_memory_id: str | None = None, expires_at: datetime | str | None = None, **options) -> Memory:
+    def approve(self, proposal_id: str, *, actor_id: str = "reviewer", note: str | None = None, supersede_memory_id: str | None = None, expires_at: datetime | str | None = None, idempotency_key: str | None = None, **options) -> Memory:
         if isinstance(expires_at, datetime): expires_at = expires_at.isoformat()
-        return self._client._request("POST", f"/v1/proposals/{_path(proposal_id)}/approve", Memory, json={"actor_id": actor_id, "note": note, "supersede_memory_id": supersede_memory_id, "expires_at": expires_at}, **options)
+        return self._client._request("POST", f"/v1/proposals/{_path(proposal_id)}/approve", Memory, json={"actor_id": actor_id, "note": note, "supersede_memory_id": supersede_memory_id, "expires_at": expires_at, "idempotency_key": idempotency_key}, **options)
 
-    def reject(self, proposal_id: str, *, actor_id: str = "reviewer", note: str | None = None, **options) -> Proposal:
-        return self._client._request("POST", f"/v1/proposals/{_path(proposal_id)}/reject", Proposal, json={"actor_id": actor_id, "note": note}, **options)
+    def reject(self, proposal_id: str, *, actor_id: str = "reviewer", note: str | None = None, idempotency_key: str | None = None, **options) -> Proposal:
+        return self._client._request("POST", f"/v1/proposals/{_path(proposal_id)}/reject", Proposal, json={"actor_id": actor_id, "note": note, "idempotency_key": idempotency_key}, **options)
+
+
+class SourcesResource:
+    def __init__(self, client): self._client = client
+    def get(self, source_id: str, **options) -> Source: return self._client._request("GET", f"/v1/sources/{_path(source_id)}", Source, **options)
+
+
+class EventsResource:
+    def __init__(self, client): self._client = client
+    def get(self, event_id: str, **options) -> MemoryEvent: return self._client._request("GET", f"/v1/events/{_path(event_id)}", MemoryEvent, **options)
+    def list_recent(self, limit: int = 50, **options) -> MemoryEventList: return self._client._request("GET", "/v1/events", MemoryEventList, params={"limit": limit}, **options)
 
 
 class MemoriesResource:
     def __init__(self, client): self._client = client
     def search(self, query: str, *, include_inactive: bool = False, **options) -> MemoryList: return self._client._request("GET", "/v1/memories/search", MemoryList, params={"q": query, "include_inactive": include_inactive}, **options)
+    def list(self, *, actor_id: str | None = None, project_id: str | None = None, status: str = "active", type: str | None = None, source_id: str | None = None, created_after: datetime | str | None = None, created_before: datetime | str | None = None, limit: int = 50, offset: int = 0, **options) -> MemoryList:
+        if isinstance(created_after, datetime): created_after = created_after.isoformat()
+        if isinstance(created_before, datetime): created_before = created_before.isoformat()
+        return self._client._request("GET", "/v1/memories", MemoryList, params=_params({"actor_id": actor_id, "project_id": project_id, "status": status, "type": type, "source_id": source_id, "created_after": created_after, "created_before": created_before, "limit": limit, "offset": offset}), **options)
     def get(self, memory_id: str, **options) -> Memory: return self._client._request("GET", f"/v1/memories/{_path(memory_id)}", Memory, **options)
     def explain(self, memory_id: str, **options) -> MemoryExplanation: return self._client._request("GET", f"/v1/memories/{_path(memory_id)}/explain", MemoryExplanation, **options)
-    def revoke(self, memory_id: str, *, actor_id: str = "reviewer", note: str | None = None, **options) -> Memory: return self._client._request("POST", f"/v1/memories/{_path(memory_id)}/revoke", Memory, json={"actor_id": actor_id, "note": note}, **options)
+    def revoke(self, memory_id: str, *, actor_id: str = "reviewer", note: str | None = None, idempotency_key: str | None = None, **options) -> Memory: return self._client._request("POST", f"/v1/memories/{_path(memory_id)}/revoke", Memory, json={"actor_id": actor_id, "note": note, "idempotency_key": idempotency_key}, **options)
+    def feedback(self, memory_id: str, *, feedback: str, actor_id: str, note: str | None = None, idempotency_key: str | None = None, **options) -> MemoryEvent: return self._client._request("POST", f"/v1/memories/{_path(memory_id)}/feedback", MemoryEvent, json={"feedback": feedback, "actor_id": actor_id, "note": note, "idempotency_key": idempotency_key}, **options)
+    def set_expiry(self, memory_id: str, *, actor_id: str, note: str, expires_at: datetime | str, idempotency_key: str | None = None, **options) -> Memory:
+        if isinstance(expires_at, datetime): expires_at = expires_at.isoformat()
+        return self._client._request("POST", f"/v1/memories/{_path(memory_id)}/expiry", Memory, json={"actor_id": actor_id, "note": note, "expires_at": expires_at, "idempotency_key": idempotency_key}, **options)
 
 
 class MemoryNodeClient:
@@ -62,7 +88,7 @@ class MemoryNodeClient:
 
     def __init__(self, base_url: str = "http://127.0.0.1:8000", timeout: float | httpx.Timeout = 10.0, *, transport: httpx.BaseTransport | None = None):
         self._client = httpx.Client(base_url=base_url.rstrip("/"), timeout=timeout, transport=transport, trust_env=False)
-        self.status, self.proposals, self.memories = StatusResource(self), ProposalsResource(self), MemoriesResource(self)
+        self.status, self.sources, self.proposals, self.memories, self.events = StatusResource(self), SourcesResource(self), ProposalsResource(self), MemoriesResource(self), EventsResource(self)
 
     def __enter__(self): return self
     def __exit__(self, *_): self.close()

@@ -1,7 +1,7 @@
 # MemoryNode Python SDK
 
 Synchronous typed access to the existing MemoryNode FastAPI service, plus the
-Phase 1 stdio MCP server. The SDK and MCP process never access SQLite or start
+Phase 4 stdio MCP server. The SDK and MCP process never access SQLite or start
 the API.
 
 ```python
@@ -20,8 +20,10 @@ with MemoryNodeClient("http://127.0.0.1:8000", timeout=10) as client:
 Resources:
 
 - `status.check()`
-- `proposals.create/extract/list/related_memories/approve/reject()`
-- `memories.search/get/explain/revoke()`
+- `sources.get()`
+- `proposals.create/extract/list/get/related_memories/approve/reject()`
+- `events.get/list_recent()`
+- `memories.search/list/get/explain/revoke/feedback/set_expiry()`
 
 Every method accepts `timeout=` and `request_id=`. The SDK sends a generated
 `X-Request-ID` by default and retains it in errors for client-side correlation;
@@ -31,8 +33,10 @@ fields are accepted, while missing or invalid required fields raise
 
 Phase 1 compatibility methods `health()`, `extract_proposals()`,
 `search_memories()`, and `explain_memory()` still return JSON-compatible dicts.
-The MCP entry point remains `memorynode-mcp` (or `python -m memorynode`) and
-still exposes only `memory_propose`, `memory_search`, and `memory_explain`.
+The MCP entry point remains `memorynode-mcp` (or `python -m memorynode`). Default
+discovery exposes `memory_propose`, `memory_search`, `memory_get`,
+`memory_explain`, `memory_list`, and `memory_feedback`. Governance tools are
+hidden unless true TOML booleans in local `config.toml` enable them.
 
 The `memorynode` CLI provides `init`, `start`, `stop`, `restart`, `status`,
 `doctor`, `mcp`, and `version`. Phase 3 requires a local source checkout because

@@ -12,7 +12,7 @@ Turn raw interactions into human-reviewed, searchable, explainable, and revocabl
 ![Next.js](https://img.shields.io/badge/Next.js-React-111827?style=flat-square)
 ![SQLite](https://img.shields.io/badge/SQLite-FTS5-2563EB?style=flat-square)
 ![Qwen](https://img.shields.io/badge/Qwen-Compatible-7C3AED?style=flat-square)
-![Tests](https://img.shields.io/badge/tests-12%20passing-10B981?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-67%20passing-10B981?style=flat-square)
 
 </div>
 
@@ -155,13 +155,20 @@ For an optional governance extension, load related memories and explicitly selec
 | `POST` | `/v1/proposals/extract` | Extract pending proposals with Qwen |
 | `POST` | `/v1/proposals` | Create a manual proposal |
 | `GET` | `/v1/proposals` | List proposals by status |
+| `GET` | `/v1/proposals/{id}` | Read one proposal |
 | `GET` | `/v1/proposals/{id}/related-memories` | Load reviewer-facing replacement candidates |
 | `POST` | `/v1/proposals/{id}/approve` | Approve, optionally expire or supersede |
 | `POST` | `/v1/proposals/{id}/reject` | Reject a proposal |
+| `GET` | `/v1/sources/{id}` | Read source evidence |
+| `GET` | `/v1/events` | Read recent audit events |
+| `GET` | `/v1/events/{id}` | Read one audit event |
+| `GET` | `/v1/memories` | List memories by lifecycle filters |
 | `GET` | `/v1/memories/search` | Search active memories with FTS5 |
 | `GET` | `/v1/memories/{id}` | Read memory state |
 | `GET` | `/v1/memories/{id}/explain` | Read evidence, relationships, and events |
 | `POST` | `/v1/memories/{id}/revoke` | Revoke an active memory |
+| `POST` | `/v1/memories/{id}/feedback` | Record usage feedback without changing memory state |
+| `POST` | `/v1/memories/{id}/expiry` | Set future expiry on an active memory |
 
 ## Verify
 
@@ -173,11 +180,11 @@ cd ../frontend
 npm run build
 ```
 
-Current release baseline: **12 backend tests passing** and a successful Next.js production build.
+Current release baseline: **17 backend tests**, **50 SDK/MCP/CLI tests**, and a successful Next.js production build.
 
 ## Scope
 
-This competition prototype intentionally proves the governed-memory contract before adding infrastructure. It does not yet include authentication, an SDK, an MCP adapter, Docker deployment, or vector retrieval.
+This competition prototype intentionally proves the governed-memory contract before adding infrastructure. It includes a local Python SDK, CLI, and stdio MCP adapter, but does not include authentication, Docker deployment, cloud services, or vector retrieval.
 
 ---
 

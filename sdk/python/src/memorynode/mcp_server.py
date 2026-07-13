@@ -15,7 +15,7 @@ from .config import Paths, load_governance_policy
 from .errors import MemoryNodeError
 
 
-VERSION = "0.3.0"
+VERSION = "0.4.2"
 JSON_MIME = "application/json"
 INSTRUCTIONS = (
     "New information must be submitted with memory_propose; proposals are pending until reviewed. "

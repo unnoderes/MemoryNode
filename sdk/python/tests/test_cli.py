@@ -1,10 +1,13 @@
 from argparse import Namespace
+import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
-from memorynode import cli
+import memorynode
+from memorynode import cli, mcp_server
 from memorynode.config import Config, Paths
 
 
@@ -23,7 +26,21 @@ def test_help_version_and_status_text_codes(tmp_path, capsys):
     assert cli.dispatch(args("version"), paths(tmp_path)) == 0
     assert cli.status(paths(tmp_path)) == 1
     output = capsys.readouterr().out
-    assert "0.4.1" in output and "overall: stopped" in output
+    assert "0.4.2" in output and "overall: stopped" in output
+
+
+def test_public_versions_and_mcp_status_match(monkeypatch):
+    policy = SimpleNamespace(
+        allow_agent_approval=False,
+        allow_agent_reject=False,
+        allow_agent_revoke=False,
+        allow_agent_supersede=False,
+        allow_agent_set_expiry=False,
+    )
+    monkeypatch.setattr(mcp_server, "_call", lambda _function: {"status": "ok"})
+    monkeypatch.setattr(mcp_server, "_policy", lambda: policy)
+    assert memorynode.__version__ == cli.VERSION == mcp_server.VERSION == "0.4.2"
+    assert json.loads(mcp_server.status_resource())["mcp_version"] == "0.4.2"
 
 
 def test_status_stale_foreign_partial_and_stop_never_kills(tmp_path, monkeypatch, capsys):

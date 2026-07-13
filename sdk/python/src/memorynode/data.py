@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import gc
+import hashlib
 import json
 import os
 import re
 import shutil
 import sqlite3
+import sys
 import time
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -50,16 +53,20 @@ SCHEMA = [
 
 def connect(path):
     conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    for statement in ("PRAGMA foreign_keys=ON", "PRAGMA busy_timeout=5000", "PRAGMA journal_mode=WAL", "PRAGMA synchronous=NORMAL"):
-        conn.execute(statement)
-    return conn
+    try:
+        conn.row_factory = sqlite3.Row
+        for statement in ("PRAGMA foreign_keys=ON", "PRAGMA busy_timeout=5000", "PRAGMA journal_mode=WAL", "PRAGMA synchronous=NORMAL"):
+            conn.execute(statement)
+        return conn
+    except Exception:
+        conn.close()
+        raise
 
 
 def create_empty_database(path):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with connect(path) as conn:
+    with closing(connect(path)) as conn:
         for statement in SCHEMA:
             conn.execute(statement)
         conn.execute(f"PRAGMA user_version={CURRENT_SCHEMA_VERSION}")
@@ -78,7 +85,7 @@ def check_database(path, *, require_current=True):
         return {"ok": False, "schema_version": None, "checks": [{"name": "database_file", "ok": False, "message": "missing"}]}
     try:
         uri = f"file:{path.resolve().as_posix()}?mode=ro"
-        with sqlite3.connect(uri, uri=True) as conn:
+        with closing(sqlite3.connect(uri, uri=True)) as conn:
             version = int(conn.execute("PRAGMA user_version").fetchone()[0])
             _add(checks, "schema_version", version == CURRENT_SCHEMA_VERSION if require_current else version <= CURRENT_SCHEMA_VERSION, str(version))
             quick = conn.execute("PRAGMA quick_check").fetchone()[0]
@@ -111,29 +118,8 @@ def backup_database(database, output):
     if output.exists():
         raise ValueError("output already exists")
     output.parent.mkdir(parents=True, exist_ok=True)
-    temporary = output.with_name(output.name + ".tmp")
-    source = _connect_readonly(database)
-    target = sqlite3.connect(temporary)
-    try:
-        source.backup(target)
-        target.commit()
-        target.close()
-        source.close()
-        result = check_database(temporary)
-        if not result["ok"]:
-            raise ValueError("backup integrity check failed")
-        _replace(temporary, output)
-        return output
-    finally:
-        try:
-            source.close()
-        except Exception:
-            pass
-        try:
-            target.close()
-        except Exception:
-            pass
-        temporary.unlink(missing_ok=True)
+    _sqlite_backup(database, output)
+    return output
 
 
 def default_backup_path(paths):
@@ -180,6 +166,8 @@ def import_jsonl(database, source):
     database.parent.mkdir(parents=True, exist_ok=True)
     working = _working_path(database)
     rollback = _working_path(database, ".rollback")
+    rollback_ready = False
+    rollback_hash = None
     report = {"inserted": 0, "skipped": 0, "conflicts": 0}
     try:
         if target_existed:
@@ -193,26 +181,38 @@ def import_jsonl(database, source):
         if not check_database(working)["ok"]:
             raise ValueError("database integrity check failed before replace")
         if target_existed:
-            _sqlite_backup(database, rollback)
+            rollback_hash = _rollback_snapshot(database, rollback)
+            rollback_ready = True
         _release_sqlite(database)
         _replace(working, database)
         _remove_sqlite_sidecars(database)
         if not check_database(database)["ok"]:
             raise ValueError("database integrity check failed after import")
         return report
-    except Exception:
-        if target_existed and rollback.exists():
+    except Exception as exc:
+        if target_existed and rollback_ready and rollback.exists():
+            if not check_database(rollback)["ok"] or _file_hash(rollback) != rollback_hash:
+                raise ValueError("rollback snapshot failed integrity check; refusing unsafe restore") from exc
             _release_sqlite(database)
             _replace(rollback, database)
             _remove_sqlite_sidecars(database)
+            if not check_database(database)["ok"] or _file_hash(database) != rollback_hash:
+                raise ValueError("rollback restore verification failed") from exc
         elif not target_existed:
             database.unlink(missing_ok=True)
             _remove_sqlite_sidecars(database)
         raise
     finally:
+        preserve_error = sys.exc_info()[0] is not None
+        cleanup_error = None
         for path in (working, rollback):
-            path.unlink(missing_ok=True)
-            _remove_sqlite_sidecars(path)
+            try:
+                path.unlink(missing_ok=True)
+                _remove_sqlite_sidecars(path)
+            except OSError as cleanup_exc:
+                cleanup_error = cleanup_error or cleanup_exc
+        if cleanup_error is not None and not preserve_error:
+            raise cleanup_error
 
 
 def restore_database(database, backup):
@@ -473,12 +473,15 @@ def _add(checks, name, ok, message):
 def _release_sqlite(path):
     if not Path(path).exists():
         return
+    conn = None
     try:
         conn = sqlite3.connect(path)
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-        conn.close()
     except sqlite3.Error:
         pass
+    finally:
+        if conn is not None:
+            conn.close()
     gc.collect()
 
 
@@ -503,22 +506,129 @@ def _replace(source, target):
 def _connect_readonly(path):
     uri = f"file:{Path(path).resolve().as_posix()}?mode=ro"
     conn = sqlite3.connect(uri, uri=True)
-    conn.execute("PRAGMA busy_timeout=5000")
-    return conn
+    try:
+        conn.execute("PRAGMA busy_timeout=5000")
+        return conn
+    except Exception:
+        conn.close()
+        raise
 
 
 def _sqlite_backup(source, target):
+    source, target = Path(source), Path(target)
     if target.exists():
-        target.unlink()
-    _remove_sqlite_sidecars(target)
-    src = _connect_readonly(source)
-    dst = sqlite3.connect(target)
+        raise ValueError("backup target already exists")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = _working_path(target, ".snapshot")
+    src = dst = None
+    active_error = None
     try:
-        src.backup(dst)
-        dst.commit()
+        try:
+            src = _connect_readonly(source)
+            dst = sqlite3.connect(temporary)
+            src.backup(dst)
+            _commit(dst)
+        except Exception as exc:
+            active_error = exc
+            raise
+        finally:
+            close_error = None
+            for conn in (dst, src):
+                if conn is None:
+                    continue
+                try:
+                    _close(conn)
+                except Exception as exc:
+                    close_error = close_error or exc
+            if active_error is None and close_error is not None:
+                raise close_error
+        if not check_database(temporary)["ok"]:
+            raise ValueError("backup integrity check failed")
+        _replace(temporary, target)
+        return target
     finally:
-        src.close()
-        dst.close()
+        preserve_error = sys.exc_info()[0] is not None
+        try:
+            temporary.unlink(missing_ok=True)
+            _remove_sqlite_sidecars(temporary)
+        except OSError:
+            if not preserve_error:
+                raise
+
+
+def _rollback_snapshot(source, target):
+    source, target = Path(source), Path(target)
+    if target.exists():
+        raise ValueError("rollback target already exists")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = _working_path(target, ".snapshot")
+    try:
+        _release_sqlite(source)
+        expected_hash = _file_hash(source)
+        _copy_database_file(source, temporary)
+        if not check_database(temporary)["ok"]:
+            raise ValueError("rollback snapshot failed integrity check")
+        if _file_hash(temporary) != expected_hash:
+            raise ValueError("rollback snapshot hash mismatch")
+        _replace(temporary, target)
+        return expected_hash
+    finally:
+        preserve_error = sys.exc_info()[0] is not None
+        try:
+            temporary.unlink(missing_ok=True)
+            _remove_sqlite_sidecars(temporary)
+        except OSError:
+            if not preserve_error:
+                raise
+
+
+def _copy_database_file(source, target):
+    source_stream = target_stream = None
+    active_error = None
+    try:
+        source_stream = Path(source).open("rb")
+        target_stream = Path(target).open("xb")
+        shutil.copyfileobj(source_stream, target_stream)
+        _flush(target_stream)
+        _fsync(target_stream)
+    except Exception as exc:
+        active_error = exc
+        raise
+    finally:
+        close_error = None
+        for stream in (target_stream, source_stream):
+            if stream is None:
+                continue
+            try:
+                _close(stream)
+            except Exception as exc:
+                close_error = close_error or exc
+        if active_error is None and close_error is not None:
+            raise close_error
+
+
+def _file_hash(path):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _commit(conn):
+    conn.commit()
+
+
+def _close(conn):
+    conn.close()
+
+
+def _flush(stream):
+    stream.flush()
+
+
+def _fsync(stream):
+    os.fsync(stream.fileno())
 
 
 def _working_path(database, suffix=".import"):

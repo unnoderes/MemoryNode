@@ -1,5 +1,7 @@
 import hashlib
 import json
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -13,14 +15,14 @@ FINGERPRINT = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 def make_db(path, content="Unicode 记忆 roundtrip"):
     if path.exists():
-        with data.connect(path) as conn:
+        with closing(data.connect(path)) as conn:
             for table in reversed(data.TABLES):
                 conn.execute(f"DELETE FROM {table}")
             conn.execute("DELETE FROM memory_fts")
             conn.commit()
     else:
         data.create_empty_database(path)
-    with data.connect(path) as conn:
+    with closing(data.connect(path)) as conn:
         conn.execute("INSERT INTO memory_sources VALUES (?,?,?,?,?)", ("src_1", "actor", "project", content, "2026-07-13T00:00:00+00:00"))
         conn.execute("INSERT INTO memory_proposals VALUES (?,?,?,?,?,?,?,?,?,?)", ("proposal_1", "src_1", content, "fact", 1.0, content, "reason", "approved", "2026-07-13T00:00:00+00:00", "2026-07-13T00:00:00+00:00"))
         conn.execute("INSERT INTO memories VALUES (?,?,?,?,?,?,?,?,?)", ("mem_1", "proposal_1", None, content, "fact", "active", None, "2026-07-13T00:00:00+00:00", "2026-07-13T00:00:00+00:00"))
@@ -34,6 +36,8 @@ def test_backup_export_import_restore_roundtrip(tmp_path):
     make_db(source)
 
     backup = data.backup_database(source, tmp_path / "backup.db")
+    with pytest.raises(ValueError, match="already exists"):
+        data.backup_database(source, backup)
     exported = data.export_jsonl(source, tmp_path / "export.jsonl")
     assert data.check_database(backup)["ok"]
     lines = exported.read_text(encoding="utf-8").splitlines()
@@ -46,12 +50,12 @@ def test_backup_export_import_restore_roundtrip(tmp_path):
     report = data.import_jsonl(imported, exported)
     assert report == {"inserted": 4, "skipped": 0, "conflicts": 0}
     assert data.import_jsonl(imported, exported) == {"inserted": 0, "skipped": 4, "conflicts": 0}
-    with data.connect(imported) as conn:
+    with closing(data.connect(imported)) as conn:
         assert conn.execute("SELECT memory_id FROM memory_fts WHERE memory_fts MATCH 'roundtrip'").fetchone()[0] == "mem_1"
 
     make_db(source, "changed content")
     data.restore_database(source, backup)
-    with data.connect(source) as conn:
+    with closing(data.connect(source)) as conn:
         assert conn.execute("SELECT content FROM memories WHERE id='mem_1'").fetchone()[0].endswith("roundtrip")
 
 
@@ -59,8 +63,8 @@ def test_import_conflict_and_invalid_inputs_roll_back(tmp_path):
     db = tmp_path / "db.db"
     make_db(db)
     exported = data.export_jsonl(db, tmp_path / "export.jsonl")
-    before_hash = file_hash(db)
     before_rows = row_counts(db)
+    before_hash = file_hash(db)
     rows = exported.read_text(encoding="utf-8").splitlines()
     changed = json.loads(rows[1])
     changed["data"]["raw_text"] = "different"
@@ -71,7 +75,7 @@ def test_import_conflict_and_invalid_inputs_roll_back(tmp_path):
         data.import_jsonl(db, bad)
     assert file_hash(db) == before_hash
     assert row_counts(db) == before_rows
-    with data.connect(db) as conn:
+    with closing(data.connect(db)) as conn:
         assert conn.execute("SELECT raw_text FROM memory_sources WHERE id='src_1'").fetchone()[0] != "different"
 
     huge = tmp_path / "huge.jsonl"
@@ -111,9 +115,9 @@ def test_import_failure_injection_preserves_target(tmp_path, monkeypatch, failur
     exported = data.export_jsonl(source, tmp_path / "export.jsonl")
     target = tmp_path / "target.db"
     if failure != "post_check_missing":
-        make_db(target, "existing content")
-        before_hash = file_hash(target)
+        data.create_empty_database(target)
         before_rows = row_counts(target)
+        before_hash = file_hash(target)
     else:
         before_hash = before_rows = None
 
@@ -138,13 +142,211 @@ def test_import_failure_injection_preserves_target(tmp_path, monkeypatch, failur
 
         monkeypatch.setattr(data, "check_database", fake_check)
 
-    with pytest.raises((ValueError, RuntimeError, PermissionError)):
+    expected = sqlite3.IntegrityError if failure == "insert" else (ValueError, RuntimeError, PermissionError)
+    with pytest.raises(expected):
         data.import_jsonl(target, import_file)
     if failure == "post_check_missing":
         assert not target.exists()
     else:
         assert file_hash(target) == before_hash
         assert row_counts(target) == before_rows
+    assert_no_target_artifacts(target)
+
+
+def test_check_and_create_release_sqlite_files(tmp_path):
+    database = tmp_path / "database.db"
+    data.create_empty_database(database)
+    assert data.check_database(database)["ok"]
+    renamed = database.with_suffix(".renamed")
+    database.rename(renamed)
+    renamed.unlink()
+
+
+@pytest.mark.parametrize("failure", ["partial", "commit", "close", "check", "replace"])
+def test_import_working_snapshot_failures_preserve_target(tmp_path, monkeypatch, failure):
+    source = tmp_path / "source.db"
+    target = tmp_path / "target.db"
+    make_db(source)
+    data.create_empty_database(target)
+    exported = data.export_jsonl(source, tmp_path / "export.jsonl")
+    before_rows = row_counts(target)
+    before_hash = file_hash(target)
+
+    if failure == "partial":
+        real_connect = data._connect_readonly
+
+        class PartialSource:
+            def __init__(self, conn):
+                self.conn = conn
+
+            def backup(self, dst):
+                dst.execute("CREATE TABLE partial_snapshot (id)")
+                dst.commit()
+                raise RuntimeError("partial backup failed")
+
+            def close(self):
+                self.conn.close()
+
+        def fake_connect(path):
+            conn = real_connect(path)
+            return PartialSource(conn) if Path(path) == target else conn
+
+        monkeypatch.setattr(data, "_connect_readonly", fake_connect)
+    elif failure == "commit":
+        monkeypatch.setattr(data, "_commit", lambda _conn: (_ for _ in ()).throw(RuntimeError("commit failed")))
+    elif failure == "close":
+        real_close = data._close
+
+        def fake_close(resource):
+            files = [row[2] for row in resource.execute("PRAGMA database_list")] if isinstance(resource, sqlite3.Connection) else []
+            real_close(resource)
+            if any(".import-" in name and ".snapshot-" in name for name in files):
+                raise RuntimeError("close failed")
+
+        monkeypatch.setattr(data, "_close", fake_close)
+    elif failure == "check":
+        real_check = data.check_database
+
+        def fake_check(path, *args, **kwargs):
+            if ".import-" in Path(path).name and ".snapshot-" in Path(path).name:
+                return failed_check()
+            return real_check(path, *args, **kwargs)
+
+        monkeypatch.setattr(data, "check_database", fake_check)
+    elif failure == "replace":
+        real_replace = data._replace
+
+        def fake_replace(source_path, dest_path):
+            if ".import-" in Path(dest_path).name:
+                raise PermissionError("snapshot publish failed")
+            return real_replace(source_path, dest_path)
+
+        monkeypatch.setattr(data, "_replace", fake_replace)
+
+    with pytest.raises((RuntimeError, PermissionError, ValueError)):
+        data.import_jsonl(target, exported)
+    assert file_hash(target) == before_hash
+    assert row_counts(target) == before_rows
+    assert_no_target_artifacts(target)
+
+
+@pytest.mark.parametrize("failure", ["copy", "flush", "fsync", "close", "integrity", "hash", "replace"])
+def test_import_rollback_creation_failures_preserve_target(tmp_path, monkeypatch, failure):
+    source = tmp_path / "source.db"
+    target = tmp_path / "target.db"
+    make_db(source)
+    data.create_empty_database(target)
+    exported = data.export_jsonl(source, tmp_path / "export.jsonl")
+    before_rows = row_counts(target)
+    before_hash = file_hash(target)
+
+    if failure == "copy":
+        def partial_copy(source_stream, target_stream):
+            target_stream.write(source_stream.read(64))
+            raise RuntimeError("copy failed")
+        monkeypatch.setattr(data.shutil, "copyfileobj", partial_copy)
+    elif failure == "flush":
+        monkeypatch.setattr(data, "_flush", lambda _stream: (_ for _ in ()).throw(OSError("flush failed")))
+    elif failure == "fsync":
+        monkeypatch.setattr(data, "_fsync", lambda _stream: (_ for _ in ()).throw(OSError("fsync failed")))
+    elif failure == "close":
+        real_close = data._close
+        def fake_close(resource):
+            name = str(getattr(resource, "name", ""))
+            real_close(resource)
+            if ".rollback-" in name:
+                raise OSError("close failed")
+        monkeypatch.setattr(data, "_close", fake_close)
+    elif failure == "integrity":
+        real_check = data.check_database
+        monkeypatch.setattr(data, "check_database", lambda path, *args, **kwargs: failed_check() if ".rollback-" in Path(path).name and ".snapshot-" in Path(path).name else real_check(path, *args, **kwargs))
+    elif failure == "hash":
+        real_hash = data._file_hash
+        monkeypatch.setattr(data, "_file_hash", lambda path: "0" * 64 if ".rollback-" in Path(path).name and ".snapshot-" in Path(path).name else real_hash(path))
+    elif failure == "replace":
+        real_replace = data._replace
+        monkeypatch.setattr(data, "_replace", lambda source_path, dest_path: (_ for _ in ()).throw(PermissionError("publish failed")) if ".rollback-" in Path(dest_path).name else real_replace(source_path, dest_path))
+
+    with pytest.raises((RuntimeError, OSError, ValueError)):
+        data.import_jsonl(target, exported)
+    assert file_hash(target) == before_hash
+    assert row_counts(target) == before_rows
+    assert_no_target_artifacts(target)
+
+
+@pytest.mark.parametrize("failure", ["working_replace", "final_check"])
+def test_ready_rollback_restores_exact_target(tmp_path, monkeypatch, failure):
+    source = tmp_path / "source.db"
+    target = tmp_path / "target.db"
+    make_db(source)
+    data.create_empty_database(target)
+    exported = data.export_jsonl(source, tmp_path / "export.jsonl")
+    before_rows = row_counts(target)
+    before_hash = file_hash(target)
+    real_replace = data._replace
+    real_check = data.check_database
+    installed = {"working": False}
+
+    def fake_replace(source_path, dest_path):
+        if Path(dest_path) == target and ".import-" in Path(source_path).name:
+            if failure == "working_replace":
+                raise PermissionError("working replace failed")
+            result = real_replace(source_path, dest_path)
+            installed["working"] = True
+            return result
+        return real_replace(source_path, dest_path)
+
+    def fake_check(path, *args, **kwargs):
+        if failure == "final_check" and Path(path) == target and installed["working"]:
+            return failed_check()
+        return real_check(path, *args, **kwargs)
+
+    monkeypatch.setattr(data, "_replace", fake_replace)
+    monkeypatch.setattr(data, "check_database", fake_check)
+    with pytest.raises((PermissionError, ValueError)):
+        data.import_jsonl(target, exported)
+    assert file_hash(target) == before_hash
+    assert row_counts(target) == before_rows
+    assert real_check(target)["ok"]
+    assert_no_target_artifacts(target)
+
+
+def test_import_refuses_damaged_ready_rollback_before_restore(tmp_path, monkeypatch):
+    source = tmp_path / "source.db"
+    target = tmp_path / "target.db"
+    make_db(source)
+    data.create_empty_database(target)
+    exported = data.export_jsonl(source, tmp_path / "export.jsonl")
+    before_rows = row_counts(target)
+    before_hash = file_hash(target)
+    real_snapshot = data._rollback_snapshot
+    real_replace = data._replace
+    real_remove_sidecars = data._remove_sqlite_sidecars
+
+    def damaged_snapshot(source_path, target_path):
+        digest = real_snapshot(source_path, target_path)
+        Path(target_path).write_bytes(b"not a database")
+        return digest
+
+    def fail_working_replace(source_path, dest_path):
+        if Path(dest_path) == target and ".import-" in Path(source_path).name:
+            raise PermissionError("original replace failure")
+        return real_replace(source_path, dest_path)
+
+    def fail_cleanup(path):
+        if ".rollback-" in Path(path).name and ".snapshot-" not in Path(path).name:
+            raise PermissionError("cleanup failed")
+        return real_remove_sidecars(path)
+
+    monkeypatch.setattr(data, "_rollback_snapshot", damaged_snapshot)
+    monkeypatch.setattr(data, "_replace", fail_working_replace)
+    monkeypatch.setattr(data, "_remove_sqlite_sidecars", fail_cleanup)
+    with pytest.raises(ValueError, match="rollback snapshot") as caught:
+        data.import_jsonl(target, exported)
+    assert isinstance(caught.value.__cause__, PermissionError)
+    assert file_hash(target) == before_hash
+    assert row_counts(target) == before_rows
+    assert_no_target_artifacts(target)
 
 
 def test_import_rejects_same_path_symlink_directory_and_device_like_targets(tmp_path):
@@ -169,7 +371,7 @@ def test_import_rejects_same_path_symlink_directory_and_device_like_targets(tmp_
 def test_integrity_detects_fts_damage(tmp_path):
     db = tmp_path / "db.db"
     make_db(db)
-    with data.connect(db) as conn:
+    with closing(data.connect(db)) as conn:
         conn.execute("DELETE FROM memory_fts")
         conn.commit()
     result = data.check_database(db)
@@ -195,8 +397,20 @@ def file_hash(path):
 
 
 def row_counts(path):
-    with data.connect(path) as conn:
+    with closing(data.connect(path)) as conn:
         return {table: conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] for table in data.TABLES}
+
+
+def assert_no_target_artifacts(target):
+    data._release_sqlite(target)
+    names = {path.name for path in target.parent.iterdir() if path.name.startswith(target.name)}
+    assert target.name + "-wal" not in names
+    assert target.name + "-shm" not in names
+    assert not any(".import-" in name or ".rollback-" in name or ".snapshot-" in name for name in names)
+
+
+def failed_check():
+    return {"ok": False, "schema_version": data.CURRENT_SCHEMA_VERSION, "checks": [{"name": "injected", "ok": False, "message": "fail"}]}
 
 
 def mutate_export(source, target, mutator):

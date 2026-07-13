@@ -168,6 +168,8 @@ def import_jsonl(database, source):
     rollback = _working_path(database, ".rollback")
     rollback_ready = False
     rollback_hash = None
+    working_installed = False
+    retain_rollback = False
     report = {"inserted": 0, "skipped": 0, "conflicts": 0}
     try:
         if target_existed:
@@ -185,6 +187,7 @@ def import_jsonl(database, source):
             rollback_ready = True
         _release_sqlite(database)
         _replace(working, database)
+        working_installed = True
         _remove_sqlite_sidecars(database)
         if not check_database(database)["ok"]:
             raise ValueError("database integrity check failed after import")
@@ -193,11 +196,17 @@ def import_jsonl(database, source):
         if target_existed and rollback_ready and rollback.exists():
             if not check_database(rollback)["ok"] or _file_hash(rollback) != rollback_hash:
                 raise ValueError("rollback snapshot failed integrity check; refusing unsafe restore") from exc
-            _release_sqlite(database)
-            _replace(rollback, database)
-            _remove_sqlite_sidecars(database)
-            if not check_database(database)["ok"] or _file_hash(database) != rollback_hash:
-                raise ValueError("rollback restore verification failed") from exc
+            if working_installed:
+                retain_rollback = True
+                try:
+                    _release_sqlite(database)
+                    _replace(rollback, database)
+                    retain_rollback = False
+                except Exception as recovery_exc:
+                    raise ValueError(f"import recovery failed; verified rollback retained at {rollback.resolve()}") from recovery_exc
+                _remove_sqlite_sidecars(database)
+                if not check_database(database)["ok"] or _file_hash(database) != rollback_hash:
+                    raise ValueError("rollback restore verification failed") from exc
         elif not target_existed:
             database.unlink(missing_ok=True)
             _remove_sqlite_sidecars(database)
@@ -206,6 +215,12 @@ def import_jsonl(database, source):
         preserve_error = sys.exc_info()[0] is not None
         cleanup_error = None
         for path in (working, rollback):
+            if retain_rollback and path == rollback:
+                try:
+                    _remove_sqlite_sidecars(path)
+                except OSError as cleanup_exc:
+                    cleanup_error = cleanup_error or cleanup_exc
+                continue
             try:
                 path.unlink(missing_ok=True)
                 _remove_sqlite_sidecars(path)

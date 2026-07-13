@@ -311,6 +311,67 @@ def test_ready_rollback_restores_exact_target(tmp_path, monkeypatch, failure):
     assert_no_target_artifacts(target)
 
 
+@pytest.mark.parametrize("restore_failure", ["replace", "release"])
+def test_restore_failure_retains_verified_rollback_for_manual_recovery(tmp_path, monkeypatch, restore_failure):
+    source = tmp_path / "source.db"
+    target = tmp_path / "target.db"
+    make_db(source)
+    data.create_empty_database(target)
+    exported = data.export_jsonl(source, tmp_path / "export.jsonl")
+    before_rows = row_counts(target)
+    before_hash = file_hash(target)
+    real_replace = data._replace
+    real_check = data.check_database
+    real_release = data._release_sqlite
+    working_installed = {"value": False}
+
+    def fail_restore(source_path, dest_path):
+        if Path(dest_path) == target and ".import-" in Path(source_path).name:
+            result = real_replace(source_path, dest_path)
+            working_installed["value"] = True
+            return result
+        if restore_failure == "replace" and Path(dest_path) == target and ".rollback-" in Path(source_path).name:
+            raise PermissionError("restore blocked")
+        return real_replace(source_path, dest_path)
+
+    def fail_release(path):
+        if restore_failure == "release" and Path(path) == target and working_installed["value"]:
+            raise RuntimeError("release blocked")
+        return real_release(path)
+
+    def fail_final_check(path, *args, **kwargs):
+        if Path(path) == target and working_installed["value"]:
+            return failed_check()
+        return real_check(path, *args, **kwargs)
+
+    monkeypatch.setattr(data, "_replace", fail_restore)
+    monkeypatch.setattr(data, "check_database", fail_final_check)
+    monkeypatch.setattr(data, "_release_sqlite", fail_release)
+    with pytest.raises(ValueError, match="verified rollback") as caught:
+        data.import_jsonl(target, exported)
+    monkeypatch.setattr(data, "_release_sqlite", real_release)
+
+    rollbacks = list(tmp_path.glob(f"{target.name}.rollback-*.tmp"))
+    assert len(rollbacks) == 1
+    rollback = rollbacks[0]
+    assert str(rollback.resolve()) in str(caught.value)
+    assert "Traceback" not in str(caught.value) and "Unicode" not in str(caught.value)
+    assert isinstance(caught.value.__cause__, PermissionError if restore_failure == "replace" else RuntimeError)
+    assert "after import" in str(caught.value.__cause__.__context__)
+    assert data._file_hash(rollback) == before_hash
+    assert real_check(rollback)["ok"]
+    data._remove_sqlite_sidecars(rollback)
+    assert_target_artifacts(target, {rollback.name})
+
+    real_release(target)
+    real_replace(rollback, target)
+    data._remove_sqlite_sidecars(target)
+    assert file_hash(target) == before_hash
+    assert row_counts(target) == before_rows
+    assert real_check(target)["ok"]
+    assert_no_target_artifacts(target)
+
+
 def test_import_refuses_damaged_ready_rollback_before_restore(tmp_path, monkeypatch):
     source = tmp_path / "source.db"
     target = tmp_path / "target.db"
@@ -402,11 +463,16 @@ def row_counts(path):
 
 
 def assert_no_target_artifacts(target):
+    assert_target_artifacts(target, set())
+
+
+def assert_target_artifacts(target, expected_rollbacks):
     data._release_sqlite(target)
     names = {path.name for path in target.parent.iterdir() if path.name.startswith(target.name)}
     assert target.name + "-wal" not in names
     assert target.name + "-shm" not in names
-    assert not any(".import-" in name or ".rollback-" in name or ".snapshot-" in name for name in names)
+    assert {name for name in names if ".rollback-" in name} == expected_rollbacks
+    assert not any(".import-" in name or ".snapshot-" in name for name in names)
 
 
 def failed_check():

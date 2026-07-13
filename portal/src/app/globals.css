@@ -13,7 +13,7 @@
   --border-color-hover: rgba(255, 255, 255, 0.1);
   
   --bg-main: #020202;
-  --bg-card: rgba(10, 14, 22, 0.45);
+  --bg-card: rgba(10, 14, 22, 0.8);
   --bg-sidebar: #05070a;
   
   --text-primary: #f8fafc;
@@ -67,6 +67,8 @@ html, body {
   background-position: center;
   z-index: 0;
   pointer-events: none;
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .grid-overlay::after {
@@ -88,6 +90,8 @@ html, body {
   pointer-events: none;
   border-radius: 50%;
   filter: blur(100px);
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .radial-glow-2 {
@@ -99,6 +103,8 @@ html, body {
   pointer-events: none;
   border-radius: 50%;
   filter: blur(80px);
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .radial-glow-3 {
@@ -110,6 +116,8 @@ html, body {
   pointer-events: none;
   border-radius: 50%;
   filter: blur(110px);
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 /* Custom Scrollbar */
@@ -132,7 +140,7 @@ html, body {
 .glass-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(8px);
   border-radius: 20px;
   padding: 32px;
   position: relative;
@@ -140,6 +148,8 @@ html, body {
   box-shadow: 
     0 15px 40px -15px rgba(0, 0, 0, 0.8),
     inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  transform: translateZ(0);
+  will-change: transform;
 }
 .glass-card:hover {
   border-color: var(--border-color-hover);
@@ -714,4 +724,24 @@ section {
     grid-template-columns: 1fr;
     gap: 32px;
   }
+}
+
+/* Hardware accelerated orbiting particles animation */
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(120px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
+}
+@keyframes orbit-reverse {
+  from { transform: rotate(360deg) translateX(160px) rotate(-360deg); }
+  to { transform: rotate(0deg) translateX(160px) rotate(0deg); }
+}
+.animate-orbit {
+  animation: orbit 30s infinite linear;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.animate-orbit-reverse {
+  animation: orbit-reverse 35s infinite linear;
+  transform-style: preserve-3d;
+  will-change: transform;
 }

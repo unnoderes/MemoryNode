@@ -325,9 +325,72 @@ textarea.interactive-textarea:focus {
 }
 .flow-arrow-line.active {
   background: #38bdf8;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+  overflow: hidden;
+}
+.flow-arrow-line.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 40px;
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.8), transparent);
+  animation: flow-beam 1.5s infinite linear;
+}
+@keyframes flow-beam {
+  0% { left: -40px; }
+  100% { left: 100%; }
 }
 .flow-arrow-line.active::after {
   border-left-color: #38bdf8;
+}
+
+/* Glow border card effect */
+.glow-border {
+  position: relative;
+  z-index: 1;
+}
+.glow-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(139, 92, 246, 0.25));
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0.3;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.glow-border:hover::before {
+  opacity: 0.8;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.45), rgba(139, 92, 246, 0.45));
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.05);
+}
+
+/* Paradigm Shift Cards */
+.vector-db-card {
+  background: rgba(239, 68, 68, 0.02);
+  border: 1px solid rgba(239, 68, 68, 0.12);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.vector-db-card:hover {
+  border-color: rgba(239, 68, 68, 0.25);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(239, 68, 68, 0.03);
+  transform: translateY(-2px);
+}
+
+.governed-mem-card {
+  background: rgba(16, 185, 129, 0.02);
+  border: 1px solid rgba(16, 185, 129, 0.12);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.governed-mem-card:hover {
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(16, 185, 129, 0.05);
+  transform: translateY(-2px);
 }
 
 /* Feature grid items styling */
@@ -337,11 +400,26 @@ textarea.interactive-textarea:focus {
   border-radius: 12px;
   padding: 24px;
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+.feature-box::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), transparent);
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.feature-box:hover::after {
+  opacity: 1;
 }
 .feature-box:hover {
   background: rgba(255, 255, 255, 0.02);
-  border-color: #334155;
+  border-color: rgba(56, 189, 248, 0.35);
   transform: translateY(-1.5px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
 }
 
 /* Responsive grid overrides */

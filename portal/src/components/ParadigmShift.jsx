@@ -16,7 +16,7 @@ export default function ParadigmShift({ t }) {
 
       <div className="paradigm-comparison-grid">
         {/* Traditional Vector DB */}
-        <div className="p-8 rounded-2xl border border-red-500/10 bg-[#0a0505] text-left">
+        <div className="p-8 rounded-2xl text-left vector-db-card">
           <h3 className="text-base font-bold text-red-500 mb-4">{t("✕ 传统盲目记忆 (Vector DB Auto-commit)", "Traditional Vector DB Auto-commit")}</h3>
           <ul className="space-y-4 text-xs sm:text-sm text-slate-400 leading-relaxed">
             <li className="flex gap-2.5">
@@ -39,7 +39,7 @@ export default function ParadigmShift({ t }) {
         </div>
 
         {/* Governed Memory */}
-        <div className="p-8 rounded-2xl border border-white/5 bg-[#090d14]/40 text-left">
+        <div className="p-8 rounded-2xl text-left governed-mem-card">
           <h3 className="text-base font-bold text-emerald-400 mb-4">{t("✓ MemoryNode 受管记忆 (Governed Memory)", "MemoryNode Governed Memory")}</h3>
           <ul className="space-y-4 text-xs sm:text-sm text-slate-300 leading-relaxed">
             <li className="flex gap-2.5">

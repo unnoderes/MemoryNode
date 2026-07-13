@@ -6,9 +6,10 @@ import sys
 from pathlib import Path
 
 from .config import Paths, initialize, load_config, valid_source_root
+from .data import backup_database, check_database, default_backup_path, default_export_path, export_jsonl, import_jsonl, restore_database
 from .processes import atomic_write, identity, port_free, read_records, record, stop_tree, wait_http
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 
 def parser():
@@ -23,6 +24,16 @@ def parser():
     commands.add_parser("stop", help="stop managed processes")
     commands.add_parser("status", help="show managed process status")
     commands.add_parser("doctor", help="diagnose local installation")
+    backup = commands.add_parser("backup", help="create a SQLite snapshot backup")
+    backup.add_argument("--output")
+    restore = commands.add_parser("restore", help="replace the local database from a backup")
+    restore.add_argument("backup")
+    restore.add_argument("--confirm", action="store_true")
+    export = commands.add_parser("export", help="export database facts as JSONL")
+    export.add_argument("--output")
+    import_cmd = commands.add_parser("import", help="import database facts from JSONL")
+    import_cmd.add_argument("file")
+    import_cmd.add_argument("--confirm", action="store_true")
     commands.add_parser("mcp", help="run the stdio MCP server")
     commands.add_parser("version", help="show package version")
     return result
@@ -51,6 +62,10 @@ def dispatch(args, paths=None):
         from .mcp_server import main as mcp_main
         mcp_main(); return 0
     if args.command == "doctor": return doctor(paths)
+    if args.command == "backup": return backup_cmd(args, paths)
+    if args.command == "restore": return restore_cmd(args, paths)
+    if args.command == "export": return export_cmd(args, paths)
+    if args.command == "import": return import_cmd(args, paths)
     if args.command == "status": return status(paths)
     if args.command == "stop": return stop(paths)
     if args.command == "restart":
@@ -102,6 +117,7 @@ def start(args, paths=None):
     if running: print("MemoryNode is already running"); return 0
     environment = os.environ.copy()
     environment["MEMORYNODE_DB_PATH"] = str(paths.database)
+    environment["MEMORYNODE_BACKUP_DIR"] = str(paths.backups)
     creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
     processes, logs = [], []
     try:
@@ -160,9 +176,63 @@ def doctor(paths=None):
         check(not records.get("_invalid") and all(s != "foreign" for s in states.values()), f"process identity {states}", "inspect status and process record")
         print(f"{'PASS' if wait_http(f'http://{config.api_host}:{config.api_port}/health', .5) else 'WARN'}: API health")
     check(paths.data.exists() and os.access(paths.data, os.W_OK), "database parent writable", "fix directory permissions")
+    if paths.database.exists():
+        result = check_database(paths.database)
+        for item in result["checks"]:
+            check(item["ok"], f"database {item['name']} {item['message']}", "run backup/restore or inspect the database")
+    else:
+        print("WARN: database not created yet")
     for name in ("QWEN_API_KEY", "QWEN_BASE_URL", "QWEN_MODEL"):
         print(f"WARN: {name} {'configured' if os.getenv(name) else 'unconfigured'}")
     try: from .mcp_server import mcp; available = mcp is not None
     except (ImportError, ValueError): available = False
     check(available, "MCP entry point importable", "reinstall memorynode")
     return 1 if failures else 0
+
+
+def _offline(paths):
+    records, states = _states(paths)
+    if records.get("_invalid") or any(state == "foreign" for state in states.values()):
+        raise ValueError(f"managed process identity is not safe for data operation: {states}")
+    if any(state == "running" for state in states.values()):
+        raise ValueError("stop MemoryNode before restore/import")
+    if not port_free("127.0.0.1", 8000) or not port_free("127.0.0.1", 3000):
+        raise ValueError("fixed API/console port is in use by an unmanaged process")
+
+
+def backup_cmd(args, paths):
+    paths.create()
+    output = Path(args.output).expanduser().resolve() if args.output else default_backup_path(paths)
+    backup_database(paths.database, output)
+    print(f"Backup created: {output}")
+    print("WARNING: backup may contain sensitive memories.")
+    return 0
+
+
+def restore_cmd(args, paths):
+    if not args.confirm:
+        raise ValueError("restore requires --confirm")
+    _offline(paths)
+    restore_database(paths.database, Path(args.backup).expanduser().resolve())
+    print("Restore complete")
+    return 0
+
+
+def export_cmd(args, paths):
+    paths.create()
+    output = Path(args.output).expanduser().resolve() if args.output else default_export_path(paths)
+    export_jsonl(paths.database, output)
+    print(f"Export created: {output}")
+    print("WARNING: export may contain sensitive memories.")
+    return 0
+
+
+def import_cmd(args, paths):
+    if not args.confirm:
+        raise ValueError("import requires --confirm")
+    _offline(paths)
+    paths.create()
+    backup_database(paths.database, default_backup_path(paths)) if paths.database.exists() else None
+    report = import_jsonl(paths.database, Path(args.file).expanduser().resolve())
+    print(f"Import complete: inserted={report['inserted']} skipped={report['skipped']} conflicts={report['conflicts']}")
+    return 0

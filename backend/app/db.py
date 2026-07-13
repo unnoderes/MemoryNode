@@ -1,6 +1,6 @@
 import os
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import text
@@ -24,34 +24,47 @@ def engine():
             f"sqlite:///{path}",
             connect_args={"check_same_thread": False},
         )
+        event.listen(_engine, "connect", _set_sqlite_pragmas)
         _engine_path = path
     return _engine
 
 
+def _set_sqlite_pragmas(dbapi_connection, _connection_record):
+    cursor = dbapi_connection.cursor()
+    for statement in (
+        "PRAGMA foreign_keys=ON",
+        "PRAGMA busy_timeout=5000",
+        "PRAGMA journal_mode=WAL",
+        "PRAGMA synchronous=NORMAL",
+    ):
+        cursor.execute(statement)
+    cursor.close()
+
+
 def init_db():
     from . import models  # noqa: F401
+    from .migrations import ensure_schema
 
-    Base.metadata.create_all(bind=engine())
-    with engine().begin() as conn:
-        columns = {row[1] for row in conn.execute(text("PRAGMA table_info(memories)"))}
-        if "supersedes_memory_id" not in columns:
-            conn.execute(text("ALTER TABLE memories ADD COLUMN supersedes_memory_id VARCHAR"))
-    rebuild_fts()
+    ensure_schema(engine(), Base.metadata, db_path())
 
 
 def rebuild_fts():
     with engine().begin() as conn:
-        conn.execute(
-            text(
-                "CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts "
-                "USING fts5(memory_id UNINDEXED, content)"
-            )
-        )
+        ensure_fts(conn)
         conn.execute(text("DELETE FROM memory_fts"))
         conn.execute(
             text(
                 "INSERT INTO memory_fts(memory_id, content) "
                 "SELECT id, content FROM memories"
+            )
+        )
+
+
+def ensure_fts(conn):
+        conn.execute(
+            text(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts "
+                "USING fts5(memory_id UNINDEXED, content)"
             )
         )
 

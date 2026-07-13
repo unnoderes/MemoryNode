@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 class MemoryNodeError(Exception):
     """Base error for MemoryNode client operations."""
 

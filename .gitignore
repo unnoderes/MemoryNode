@@ -8,6 +8,10 @@ __pycache__/
 *.db
 *.sqlite
 *.sqlite3
+backups/
+exports/
+memorynode-backup-*.db
+memorynode-export-*.jsonl
 .venv/
 venv/
 

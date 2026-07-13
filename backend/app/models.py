@@ -69,3 +69,5 @@ class MemoryEvent(Base):
     actor_id = Column(String, nullable=False)
     note = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=now)
+    idempotency_key = Column(String, nullable=True)
+    request_fingerprint = Column(String, nullable=True)

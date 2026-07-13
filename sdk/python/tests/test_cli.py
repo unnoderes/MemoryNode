@@ -13,7 +13,8 @@ def paths(tmp_path): return Paths(*(tmp_path / name for name in ("config", "data
 
 def args(command, **kwargs):
     defaults = dict(source_root=None, api_host=None, api_port=None, console_host=None, console_port=None)
-    return Namespace(command=command, **(defaults | kwargs))
+    defaults.update(kwargs)
+    return Namespace(command=command, **defaults)
 
 
 def test_help_version_and_status_text_codes(tmp_path, capsys):
@@ -22,7 +23,7 @@ def test_help_version_and_status_text_codes(tmp_path, capsys):
     assert cli.dispatch(args("version"), paths(tmp_path)) == 0
     assert cli.status(paths(tmp_path)) == 1
     output = capsys.readouterr().out
-    assert "0.3.0" in output and "overall: stopped" in output
+    assert "0.4.0" in output and "overall: stopped" in output
 
 
 def test_status_stale_foreign_partial_and_stop_never_kills(tmp_path, monkeypatch, capsys):

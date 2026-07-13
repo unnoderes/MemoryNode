@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Literal
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -47,56 +49,56 @@ class Proposal(Model):
     type: MemoryType
     confidence: float
     source_quote: str
-    reason: str | None
+    reason: Optional[str]
     status: ProposalStatus
     created_at: datetime
-    decided_at: datetime | None
+    decided_at: Optional[datetime]
 
 
 class Memory(Model):
     id: str
     proposal_id: str
-    supersedes_memory_id: str | None
+    supersedes_memory_id: Optional[str]
     content: str
     type: MemoryType
     status: MemoryStatus
-    expires_at: datetime | None
+    expires_at: Optional[datetime]
     created_at: datetime
     updated_at: datetime
-    score: float | None = None
+    score: Optional[float] = None
 
 
 class MemoryEvent(Model):
     id: str
-    memory_id: str | None
-    proposal_id: str | None
+    memory_id: Optional[str]
+    proposal_id: Optional[str]
     event_type: str
     actor_id: str
-    note: str | None
+    note: Optional[str]
     created_at: datetime
 
 
 class ProposalExtraction(Model):
     source_id: str
-    proposals: list[Proposal]
+    proposals: List[Proposal]
 
 
 class ProposalList(Model):
-    proposals: list[Proposal]
+    proposals: List[Proposal]
 
 
 class MemoryList(Model):
-    memories: list[Memory]
+    memories: List[Memory]
 
 
 class MemoryEventList(Model):
-    events: list[MemoryEvent]
+    events: List[MemoryEvent]
 
 
 class MemoryExplanation(Model):
     source: Source
     proposal: Proposal
     memory: Memory
-    events: list[MemoryEvent]
-    supersedes: Memory | None
-    superseded_by: Memory | None
+    events: List[MemoryEvent]
+    supersedes: Optional[Memory]
+    superseded_by: Optional[Memory]

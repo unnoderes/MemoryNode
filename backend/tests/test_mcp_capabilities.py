@@ -98,6 +98,8 @@ def test_expiry_replay_and_key_conflict():
         other = approve(client, create(client, "phase4 expiry other"))
         conflict = client.post(f"/v1/memories/{other['id']}/expiry", json=payload)
         assert conflict.status_code == 409
+        changed = dict(payload, expires_at=(models.now() + timedelta(days=2)).isoformat())
+        assert client.post(f"/v1/memories/{memory['id']}/expiry", json=changed).status_code == 409
 
 
 def test_governance_idempotency_for_approve_reject_revoke_and_supersede():
@@ -124,3 +126,33 @@ def test_governance_idempotency_for_approve_reject_revoke_and_supersede():
         replacement = approve(client, proposal, **payload)
         replay = approve(client, proposal, **payload)
         assert replacement["id"] == replay["id"] and replacement["supersedes_memory_id"] == old["id"]
+
+
+def test_idempotency_key_rejects_same_target_different_payloads():
+    with TestClient(app) as client:
+        approved = create(client, "phase5 approve fingerprint")
+        payload = {"actor_id": "reviewer", "note": "ok", "idempotency_key": "approve-fingerprint"}
+        assert client.post(f"/v1/proposals/{approved['id']}/approve", json=payload).status_code == 200
+        assert client.post(f"/v1/proposals/{approved['id']}/approve", json={**payload, "note": "changed"}).status_code == 409
+
+        rejected = create(client, "phase5 reject fingerprint")
+        payload = {"actor_id": "reviewer", "note": "no", "idempotency_key": "reject-fingerprint"}
+        assert client.post(f"/v1/proposals/{rejected['id']}/reject", json=payload).status_code == 200
+        assert client.post(f"/v1/proposals/{rejected['id']}/reject", json={**payload, "actor_id": "other"}).status_code == 409
+
+        revoked = approve(client, create(client, "phase5 revoke fingerprint"))
+        payload = {"actor_id": "reviewer", "note": "bad", "idempotency_key": "revoke-fingerprint"}
+        assert client.post(f"/v1/memories/{revoked['id']}/revoke", json=payload).status_code == 200
+        assert client.post(f"/v1/memories/{revoked['id']}/revoke", json={**payload, "note": "worse"}).status_code == 409
+
+        feedback = approve(client, create(client, "phase5 feedback fingerprint"))
+        payload = {"feedback": "useful", "actor_id": "agent", "note": "ok", "idempotency_key": "feedback-fingerprint"}
+        assert client.post(f"/v1/memories/{feedback['id']}/feedback", json=payload).status_code == 200
+        assert client.post(f"/v1/memories/{feedback['id']}/feedback", json={**payload, "feedback": "not_useful"}).status_code == 409
+
+        old = approve(client, create(client, "phase5 supersede old", type="project_decision"))
+        other = approve(client, create(client, "phase5 supersede other", type="project_decision"))
+        proposal = create(client, "phase5 supersede new", type="project_decision")
+        payload = {"supersede_memory_id": old["id"], "idempotency_key": "supersede-fingerprint"}
+        assert client.post(f"/v1/proposals/{proposal['id']}/approve", json=payload).status_code == 200
+        assert client.post(f"/v1/proposals/{proposal['id']}/approve", json={**payload, "supersede_memory_id": other["id"]}).status_code == 409

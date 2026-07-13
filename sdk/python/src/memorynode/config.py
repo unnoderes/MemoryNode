@@ -1,9 +1,20 @@
+from __future__ import annotations
+
 import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from platformdirs import PlatformDirs
+try:
+    from platformdirs import PlatformDirs
+except ImportError:
+    class PlatformDirs:
+        def __init__(self, appname, appauthor=False):
+            root = Path.home() / f".{appname.lower()}"
+            self.user_config_path = root / "config"
+            self.user_data_path = root / "data"
+            self.user_log_path = root / "logs"
+            self.user_runtime_path = root / "run"
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -17,19 +28,27 @@ class Paths:
     data: Path
     logs: Path
     run: Path
+    backups: Path | None = None
+    exports: Path | None = None
+
+    def __post_init__(self):
+        if self.backups is None:
+            object.__setattr__(self, "backups", self.data / "backups")
+        if self.exports is None:
+            object.__setattr__(self, "exports", self.data / "exports")
 
     @classmethod
     def current(cls):
         if home := os.getenv("MEMORYNODE_HOME"):
             root = Path(home).expanduser().resolve()
-            return cls(root / "config", root / "data", root / "logs", root / "run")
+            return cls(root / "config", root / "data", root / "logs", root / "run", root / "backups", root / "exports")
         dirs = PlatformDirs("MemoryNode", appauthor=False)
         data = Path(dirs.user_data_path)
         runtime = Path(dirs.user_runtime_path) if dirs.user_runtime_path else data / "run"
-        return cls(Path(dirs.user_config_path), data, Path(dirs.user_log_path), runtime)
+        return cls(Path(dirs.user_config_path), data, Path(dirs.user_log_path), runtime, data / "backups", data / "exports")
 
     def create(self):
-        for path in (self.config, self.data, self.logs, self.run):
+        for path in (self.config, self.data, self.logs, self.run, self.backups, self.exports):
             path.mkdir(parents=True, exist_ok=True)
 
     @property

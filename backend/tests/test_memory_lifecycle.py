@@ -8,7 +8,7 @@ os.environ["MEMORYNODE_DB_PATH"] = str(Path(tempfile.mkdtemp()) / "test.db")
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 
-from app.db import init_db, session_local
+from app.db import init_db, rebuild_fts, session_local
 from app.main import app
 from app import models
 from app.qwen import extract_memory_proposals
@@ -142,7 +142,7 @@ def test_fts_search_empty_query_and_rebuild():
             "memories"
         ] == []
 
-        init_db()
+        rebuild_fts()
         rebuilt_response = client.get("/v1/memories/search", params={"q": "SQLite"})
         assert [item["id"] for item in rebuilt_response.json()["memories"]] == [
             memory["id"]
@@ -351,10 +351,32 @@ def test_init_db_adds_supersedes_column_to_existing_database(monkeypatch, tmp_pa
     with old_engine.begin() as conn:
         conn.execute(
             text(
+                "CREATE TABLE memory_sources ("
+                "id VARCHAR PRIMARY KEY, actor_id VARCHAR NOT NULL, project_id VARCHAR NOT NULL, "
+                "raw_text TEXT NOT NULL, created_at DATETIME NOT NULL)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE memory_proposals ("
+                "id VARCHAR PRIMARY KEY, source_id VARCHAR NOT NULL, content TEXT NOT NULL, "
+                "type VARCHAR NOT NULL, confidence FLOAT NOT NULL, source_quote TEXT NOT NULL, "
+                "reason TEXT, status VARCHAR NOT NULL, created_at DATETIME NOT NULL, decided_at DATETIME)"
+            )
+        )
+        conn.execute(
+            text(
                 "CREATE TABLE memories ("
                 "id VARCHAR PRIMARY KEY, proposal_id VARCHAR NOT NULL, content TEXT NOT NULL, "
                 "type VARCHAR NOT NULL, status VARCHAR NOT NULL, expires_at DATETIME, "
                 "created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL)"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE memory_events ("
+                "id VARCHAR PRIMARY KEY, memory_id VARCHAR, proposal_id VARCHAR, event_type VARCHAR NOT NULL, "
+                "actor_id VARCHAR NOT NULL, note TEXT, created_at DATETIME NOT NULL)"
             )
         )
 

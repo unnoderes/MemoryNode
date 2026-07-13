@@ -55,7 +55,7 @@ export const PRESETS = [
         type: "project_decision",
         confidence: 0.89,
         source_quote: "use the built-in FTS5 engine as the search index",
-        source_quote_zh: "使用 SQLite 内置 of FTS5 引擎作为检索索引",
+        source_quote_zh: "使用 SQLite 内置的 FTS5 引擎作为检索索引",
         reason: "Engine decided for text retrieval capability.",
         reason_zh: "确立了文本检索的引擎规格。"
       }

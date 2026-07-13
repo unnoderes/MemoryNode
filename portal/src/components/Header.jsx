@@ -7,9 +7,12 @@ export default function Header({ language, setLanguage, t }) {
     <nav className="fixed top-0 left-0 w-full z-50 bg-[#020202]/75 backdrop-blur-md border-b border-white/5 py-4 px-6 md:px-12">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <span className="w-2 h-2 bg-sky-400 rounded-full shadow-[0_0_10px_#38bdf8] animate-pulse"></span>
+          <span className="w-2 h-2 bg-[#9845E8] rounded-full shadow-[0_0_10px_#9845E8] animate-pulse"></span>
           <span className="text-base font-bold tracking-tight text-white">
             MemoryNode
+          </span>
+          <span className="text-[9px] font-extrabold text-[#9845E8] border border-[#9845E8]/20 bg-[#9845E8]/5 px-2 py-0.5 rounded uppercase tracking-wider hidden sm:inline-block">
+            Qwen Hackathon Submission
           </span>
         </div>
         

@@ -10,7 +10,7 @@ export default function ParadigmShift({ t }) {
           {t("设计理念革命：自治记忆 vs 传统向量记忆", "Paradigm Shift: Governed Memory vs Vector DB")}
         </h2>
         <p className="section-desc">
-          {t("为什么传统智能体将记忆直接写入向量库是危险且低效 of？", "Why traditional direct database commits are dangerous for production agents.")}
+          {t("为什么传统智能体将记忆直接写入向量库是危险且低效？", "Why traditional direct database commits are dangerous for production agents.")}
         </p>
       </div>
 

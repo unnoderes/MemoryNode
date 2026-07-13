@@ -23,17 +23,17 @@
   --color-primary: #ffffff;
   --color-primary-hover: #f1f5f9;
   
-  --color-cyan: #38bdf8;
-  --color-cyan-glow: rgba(56, 189, 248, 0.08);
+  --color-cyan: #1C11FC;
+  --color-cyan-glow: rgba(28, 17, 252, 0.08);
   
-  --color-purple: #8b5cf6;
-  --color-purple-glow: rgba(139, 92, 246, 0.08);
+  --color-purple: #9845E8;
+  --color-purple-glow: rgba(152, 69, 232, 0.08);
   
   --color-danger: #f87171;
   --color-danger-glow: rgba(248, 113, 113, 0.06);
   
-  --color-success: #34d399;
-  --color-success-glow: rgba(52, 211, 153, 0.06);
+  --color-success: #11AC85;
+  --color-success-glow: rgba(17, 172, 133, 0.06);
 }
 
 * {
@@ -268,13 +268,13 @@ textarea.interactive-textarea:focus {
 }
 
 .pill-btn-gradient {
-  background: linear-gradient(135deg, #38bdf8 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #9845E8 0%, #1C11FC 50%, #11AC85 100%);
   color: #ffffff;
-  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.15);
+  box-shadow: 0 4px 15px rgba(152, 69, 232, 0.15);
 }
 .pill-btn-gradient:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(139, 92, 246, 0.35);
+  box-shadow: 0 10px 25px rgba(152, 69, 232, 0.35);
 }
 
 /* Steps badges */

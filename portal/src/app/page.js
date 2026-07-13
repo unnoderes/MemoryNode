@@ -390,7 +390,7 @@ export default function PortalPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#030303]">
+    <div className="relative min-h-screen bg-[#030303]">
       {/* Background Grids */}
       <div className="grid-overlay"></div>
       <div className="radial-glow-1" style={{ top: "-150px", left: "-100px" }}></div>

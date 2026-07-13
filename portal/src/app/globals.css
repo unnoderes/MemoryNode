@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'Inter', var(--font-geist-sans), "PingFang SC", "MiSans", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --font-mono: 'DM Mono', var(--font-geist-mono), monospace;
+}
+
 :root {
   --background: #030303;
   --foreground: #f8fafc;
@@ -29,9 +34,6 @@
   
   --color-success: #10b981;
   --color-success-glow: rgba(16, 185, 129, 0.15);
-  
-  --font-sans: 'Inter', var(--font-geist-sans), system-ui, -apple-system, sans-serif;
-  --font-mono: 'DM Mono', var(--font-geist-mono), monospace;
 }
 
 * {

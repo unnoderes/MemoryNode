@@ -1,9 +1,9 @@
 /* Footer Styles */
 .footer {
-  padding: 4rem 0;
+  padding: 1.5rem 0;
   border-top: 1px solid var(--border-color);
   background-color: rgba(0, 0, 0, 0.2);
-  margin-top: 4rem;
+  margin-top: 2rem;
 }
 
 .footer-container {

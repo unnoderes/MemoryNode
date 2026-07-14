@@ -313,7 +313,7 @@ export default function Simulator() {
                   </div>
                 </div>
                 <div className="action-row">
-                  <button className="btn btn-secondary" onClick={handleRevoke} style={{ color: 'var(--color-danger)', borderColor: 'rgba(239, 68, 68, 0.3)' }}>
+                  <button className="btn btn-secondary" onClick={handleRevoke} style={{ color: 'var(--text-primary)', borderColor: 'var(--border-color)' }}>
                     立即废除此记忆 (Revoke Memory)
                   </button>
                   <button className="btn btn-secondary" onClick={() => setActiveStep(2)}>

@@ -43,21 +43,21 @@
 }
 
 .contrast-card-danger {
-  border-color: rgba(239, 68, 68, 0.2);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .contrast-card-danger:hover {
-  border-color: rgba(239, 68, 68, 0.4);
-  box-shadow: 0 10px 40px rgba(239, 68, 68, 0.08);
+  border-color: var(--text-muted);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
 .contrast-card-success {
-  border-color: rgba(0, 191, 165, 0.2);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .contrast-card-success:hover {
-  border-color: rgba(0, 191, 165, 0.4);
-  box-shadow: 0 10px 40px rgba(0, 191, 165, 0.08);
+  border-color: var(--color-primary);
+  box-shadow: 0 10px 40px rgba(255, 255, 255, 0.05);
 }
 
 .card-icon {

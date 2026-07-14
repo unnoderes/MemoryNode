@@ -56,7 +56,7 @@
   background: var(--bg-card-hover);
   border-color: var(--color-primary);
   color: var(--text-primary);
-  box-shadow: 0 4px 20px rgba(0, 191, 165, 0.15);
+  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.08);
 }
 
 .step-number {
@@ -116,7 +116,7 @@
 
 .simulator-textarea:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 10px rgba(0, 191, 165, 0.2);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
 }
 
 /* Step 2: Review Styles */
@@ -124,7 +124,7 @@
   border: 1px dashed var(--color-secondary);
   border-radius: var(--radius-md);
   padding: 1.5rem;
-  background: rgba(139, 92, 246, 0.04);
+  background: rgba(255, 255, 255, 0.02);
   margin-top: 1rem;
 }
 
@@ -144,21 +144,21 @@
 }
 
 .badge-proposal {
-  background: rgba(139, 92, 246, 0.15);
-  color: #c084fc;
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .badge-active {
   background: var(--color-success-bg);
   color: var(--color-success);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .badge-revoked {
   background: var(--color-danger-bg);
   color: var(--color-danger);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .confidence-indicator {
@@ -308,14 +308,14 @@
 .revoke-card {
   text-align: center;
   padding: 2rem;
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  background: rgba(239, 68, 68, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.01);
   border-radius: var(--radius-md);
   margin-top: 1rem;
 }
 
 .revoke-title {
-  color: var(--color-danger);
+  color: var(--text-primary);
   margin-bottom: 0.5rem;
   font-size: 1.25rem;
 }

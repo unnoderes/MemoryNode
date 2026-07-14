@@ -22,17 +22,17 @@ body {
   position: relative;
 }
 
-/* Background Glowing Blurs */
+/* Background Glowing Blurs - Very subtle monochrome glow */
 body::before,
 body::after {
   content: "";
   position: absolute;
-  width: 50vw;
-  height: 50vw;
+  width: 40vw;
+  height: 40vw;
   border-radius: 50%;
-  filter: blur(140px);
+  filter: blur(160px);
   z-index: -1;
-  opacity: 0.15;
+  opacity: 0.04;
   pointer-events: none;
 }
 
@@ -48,9 +48,9 @@ body::after {
   background: var(--color-secondary);
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar - High contrast terminal scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -58,7 +58,7 @@ body::after {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: #222222;
   border-radius: var(--radius-full);
 }
 
@@ -69,8 +69,8 @@ body::after {
 /* Typography Utilities */
 h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
 }
 
 a {
@@ -79,10 +79,10 @@ a {
   transition: var(--transition-smooth);
 }
 
-/* Selection highlight */
+/* Selection highlight - Monochrome */
 ::selection {
-  background: var(--color-secondary-glow);
-  color: #fff;
+  background: #333333;
+  color: #ffffff;
 }
 
 /* Helper Utilities */
@@ -93,7 +93,7 @@ a {
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #888888 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -102,64 +102,63 @@ a {
 
 .glass-card {
   background: var(--bg-card);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-glass);
+  box-shadow: none;
   transition: var(--transition-smooth);
 }
 
 .glass-card:hover {
   border-color: var(--border-color-hover);
-  box-shadow: 0 10px 40px rgba(139, 92, 246, 0.15);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.08);
 }
 
-/* Styled Interactive Buttons */
+/* Styled Interactive Buttons - Monochromatic Console buttons */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.75rem;
+  padding: 0.6rem 1.5rem;
   font-family: var(--font-sans);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   border-radius: var(--radius-full);
   cursor: pointer;
-  transition: var(--transition-elastic);
+  transition: var(--transition-smooth);
   border: 1px solid transparent;
   outline: none;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-  color: #ffffff;
-  box-shadow: 0 4px 15px rgba(0, 191, 165, 0.3);
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #ffffff;
 }
 
 .btn-primary:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.5);
+  background: #cccccc;
+  border-color: #cccccc;
+  transform: translateY(-2px);
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #333333;
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--border-color-hover);
-  transform: translateY(-3px);
+  background: #111111;
+  border-color: #ffffff;
+  transform: translateY(-2px);
 }
 
 /* Animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -168,5 +167,5 @@ a {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

@@ -10,7 +10,7 @@ export default function Footer() {
           <span className="gradient-text">MemoryNode</span>
         </div>
         <div className="footer-text">
-          © {new Date().getFullYear()} MemoryNode Project. Apache 2.0 Licensed.
+          © {new Date().getFullYear()} MemoryNode Project. Apache 2.0 Licensed. - unnode
         </div>
         <ul className="footer-links">
           <li><a href="https://github.com/unnoderes/MemoryNode" target="_blank" rel="noopener noreferrer" className="footer-link">GitHub Repository</a></li>

@@ -1,21 +1,96 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 export default function Hero({ t }) {
+  const [activeTab, setActiveTab] = useState("specs"); // specs or cli
+  const [cliCommand, setCliCommand] = useState("");
+  const [cliOutput, setCliOutput] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
+
+  const runCli = (cmd) => {
+    if (isTyping) return;
+    setCliCommand(`memorynode ${cmd}`);
+    setIsTyping(true);
+    setCliOutput([]);
+
+    let lines = [];
+    if (cmd === "init") {
+      lines = [
+        `$ memorynode init`,
+        `[INFO] Initializing MemoryNode workspace at ~/.memorynode ...`,
+        `[INFO] Creating config.toml with default settings ...`,
+        `[INFO] Generating SQLite database schema ...`,
+        `[INFO] SQLite FTS5 index registered successfully.`,
+        `✓ Workspace initialized successfully. Ready to run!`,
+      ];
+    } else if (cmd === "start") {
+      lines = [
+        `$ memorynode start`,
+        `[INFO] Starting MemoryNode core backend on 127.0.0.1:8000 ...`,
+        `[INFO] Starting Next.js Dashboard server on 127.0.0.1:3000 ...`,
+        `[INFO] Checking database connection... (SQLite connected)`,
+        `[INFO] Relaying logs to stdout...`,
+        ``,
+        `  API Server running at:      http://127.0.0.1:8000`,
+        `  Governance Console at:      http://127.0.0.1:3000`,
+        ``,
+        `✓ MemoryNode services are running in the background.`,
+      ];
+    } else if (cmd === "doctor") {
+      lines = [
+        `$ memorynode doctor`,
+        `[DOCTOR] Checking MemoryNode environment diagnostics ...`,
+        `[DOCTOR] Backend Port 8000 status:   AVAILABLE`,
+        `[DOCTOR] Console Port 3000 status:   AVAILABLE`,
+        `[DOCTOR] Qwen API connectivity:      SUCCESS (Response in 340ms)`,
+        `[DOCTOR] SQLite Database FTS5 test:  SUCCESS (Matched query in 0.8ms)`,
+        `[DOCTOR] Memory isolation buffer:    NOMINAL (12 draft proposals sandboxed)`,
+        ``,
+        `✓ All systems nominal. Ready for Qwen agent requests.`,
+      ];
+    } else if (cmd === "stop") {
+      lines = [
+        `$ memorynode stop`,
+        `[INFO] Stopping MemoryNode console services (Port 3000) ...`,
+        `[INFO] Stopping MemoryNode backend daemon (Port 8000) ...`,
+        `✓ Services stopped. SQLite connection pool safely closed.`,
+      ];
+    }
+
+    // Simulate terminal typing and stream output line by line
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < lines.length) {
+        setCliOutput((prev) => [...prev, lines[i]]);
+        i++;
+      } else {
+        clearInterval(interval);
+        setIsTyping(false);
+      }
+    }, 200);
+  };
+
+  // Pre-fill terminal output on first switch to CLI tab
+  useEffect(() => {
+    if (activeTab === "cli" && cliOutput.length === 0) {
+      runCli("init");
+    }
+  }, [activeTab]);
+
   return (
     <main className="hero-section">
       {/* Background Orbiting Particles */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] pointer-events-none hidden md:block z-0">
-        <div className="animate-orbit absolute w-2 h-2 rounded-full bg-white/10"></div>
-        <div className="animate-orbit-reverse absolute w-1.5 h-1.5 rounded-full bg-white/15"></div>
+        <div className="animate-orbit absolute w-2.5 h-2.5 rounded-full bg-cyan-400/30 shadow-[0_0_12px_rgba(6,182,212,0.8)]"></div>
+        <div className="animate-orbit-reverse absolute w-2 h-2 rounded-full bg-purple-400/30 shadow-[0_0_12px_rgba(168,85,247,0.8)]"></div>
       </div>
 
       <div className="relative z-10">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded bg-neutral-900 border border-white/5 text-[10.5px] font-bold text-slate-400 mb-8 uppercase tracking-wider">
+        <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-indigo-950/40 border border-indigo-500/20 text-[10px] font-bold text-indigo-300 mb-8 uppercase tracking-wider shadow-[0_0_15px_rgba(99,102,241,0.05)]">
           <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded bg-white opacity-75"></span>
-            <span className="relative inline-flex rounded h-1.5 w-1.5 bg-white"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-400"></span>
           </span>
           <span>{t("阿里云通义千问 Hackathon 参赛作品：MemoryAgent 赛道", "Qwen Cloud Global AI Hackathon Entry: MemoryAgent Track")}</span>
         </div>
@@ -44,48 +119,111 @@ export default function Hero({ t }) {
           </a>
         </div>
 
-        {/* Hackathon Project Metadata Specs Card */}
+        {/* Interactive Specs / CLI Terminal container */}
         <div className="hero-terminal-container max-w-3xl mx-auto mt-12 mb-16">
-          <div className="editor-frame bg-[#050505]">
+          <div className="editor-frame bg-[#050505] text-left">
             <div className="editor-header flex items-center justify-between border-b border-white/5 px-4 py-2 bg-black/40">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] animate-pulse"></span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Project Specifications</span>
+                <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)] animate-pulse"></span>
+                {/* Tabs */}
+                <div className="flex gap-4 ml-2">
+                  <button 
+                    onClick={() => setActiveTab("specs")}
+                    className={`text-[10px] font-bold uppercase tracking-widest cursor-pointer pb-0.5 border-b transition-all ${
+                      activeTab === "specs" ? "text-white border-white" : "text-slate-500 border-transparent hover:text-slate-300"
+                    }`}
+                  >
+                    {t("项目指标", "Project Specs")}
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab("cli")}
+                    className={`text-[10px] font-bold uppercase tracking-widest cursor-pointer pb-0.5 border-b transition-all ${
+                      activeTab === "cli" ? "text-white border-white" : "text-slate-500 border-transparent hover:text-slate-300"
+                    }`}
+                  >
+                    {t("极客 CLI 实操", "Interactive CLI")}
+                  </button>
+                </div>
               </div>
               <span className="text-[9px] font-mono text-slate-500">SUBMISSION MANIFEST</span>
             </div>
             
-            <div className="p-5 text-left text-xs text-slate-300 grid grid-cols-1 md:grid-cols-2 gap-4 leading-relaxed font-sans">
-              <div className="space-y-3">
-                <div className="flex justify-between border-b border-white/5 pb-2">
-                  <span className="text-slate-500 font-medium">{t("目标赛事", "Target Arena")}</span>
-                  <span className="font-bold text-white text-right">{t("Qwen Cloud 挑战赛", "Qwen Cloud Global AI Hackathon")}</span>
+            {activeTab === "specs" ? (
+              <div className="p-5 text-xs text-slate-300 grid grid-cols-1 md:grid-cols-2 gap-4 leading-relaxed font-sans">
+                <div className="space-y-3">
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-slate-500 font-medium">{t("目标赛事", "Target Arena")}</span>
+                    <span className="font-bold text-white text-right">{t("Qwen Cloud 挑战赛", "Qwen Cloud Global AI Hackathon")}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-slate-500 font-medium">{t("申报赛道", "Challenge Track")}</span>
+                    <span className="font-bold text-white text-right">MemoryAgent Track</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-slate-500 font-medium">{t("主办单位", "Host Sponsor")}</span>
+                    <span className="font-bold text-white text-right">{t("阿里巴巴云 (Alibaba Cloud)", "Alibaba Cloud")}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between border-b border-white/5 pb-2">
-                  <span className="text-slate-500 font-medium">{t("申报赛道", "Challenge Track")}</span>
-                  <span className="font-bold text-white text-right">MemoryAgent Track</span>
-                </div>
-                <div className="flex justify-between border-b border-white/5 pb-2">
-                  <span className="text-slate-500 font-medium">{t("主办单位", "Host Sponsor")}</span>
-                  <span className="font-bold text-white text-right">{t("阿里巴巴云 (Alibaba Cloud)", "Alibaba Cloud")}</span>
+                
+                <div className="space-y-3">
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-slate-500 font-medium">{t("基础大模型", "Agent Core Model")}</span>
+                    <span className="font-bold text-white text-right">Qwen-2.5-Coder / 3.7-Max</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-slate-500 font-medium">{t("底层核心依赖", "Tech Core Stack")}</span>
+                    <span className="font-bold text-white text-right">FastAPI + SQLite FTS5</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-slate-500 font-medium">{t("安全控制模式", "Security Architecture")}</span>
+                    <span className="font-bold text-white text-right">{t("人类在环主动校验", "Human-in-the-loop Gate")}</span>
+                  </div>
                 </div>
               </div>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between border-b border-white/5 pb-2">
-                  <span className="text-slate-500 font-medium">{t("基础大模型", "Agent Core Model")}</span>
-                  <span className="font-bold text-white text-right">Qwen-2.5-Coder / 3.7-Max</span>
+            ) : (
+              <div className="p-4 font-mono text-xs text-slate-300">
+                {/* Terminal Area */}
+                <div className="bg-[#030303] border border-white/5 p-4 rounded min-h-[180px] mb-4 overflow-y-auto leading-relaxed text-slate-300 select-all">
+                  {cliOutput.map((line, idx) => (
+                    <div key={idx} className={line.startsWith("$") ? "text-white font-bold" : line.includes("✓") || line.includes("SUCCESS") ? "text-emerald-400" : "text-slate-400"}>
+                      {line}
+                    </div>
+                  ))}
+                  {isTyping && <span className="inline-block w-1.5 h-3.5 bg-white animate-pulse ml-0.5 align-middle"></span>}
                 </div>
-                <div className="flex justify-between border-b border-white/5 pb-2">
-                  <span className="text-slate-500 font-medium">{t("底层核心依赖", "Tech Core Stack")}</span>
-                  <span className="font-bold text-white text-right">FastAPI + SQLite FTS5</span>
-                </div>
-                <div className="flex justify-between border-b border-white/5 pb-2">
-                  <span className="text-slate-500 font-medium">{t("安全控制模式", "Security Architecture")}</span>
-                  <span className="font-bold text-white text-right">{t("人类在环主动校验", "Human-in-the-loop Gate")}</span>
+                {/* CLI Trigger Buttons */}
+                <div className="flex flex-wrap gap-2">
+                  <button 
+                    disabled={isTyping} 
+                    onClick={() => runCli("init")} 
+                    className="text-[10px] font-bold px-3 py-1.5 bg-neutral-900 border border-white/5 rounded hover:bg-neutral-800 text-slate-200 cursor-pointer disabled:opacity-50"
+                  >
+                    memorynode init
+                  </button>
+                  <button 
+                    disabled={isTyping} 
+                    onClick={() => runCli("start")} 
+                    className="text-[10px] font-bold px-3 py-1.5 bg-neutral-900 border border-white/5 rounded hover:bg-neutral-800 text-slate-200 cursor-pointer disabled:opacity-50"
+                  >
+                    memorynode start
+                  </button>
+                  <button 
+                    disabled={isTyping} 
+                    onClick={() => runCli("doctor")} 
+                    className="text-[10px] font-bold px-3 py-1.5 bg-neutral-900 border border-white/5 rounded hover:bg-neutral-800 text-slate-200 cursor-pointer disabled:opacity-50"
+                  >
+                    memorynode doctor
+                  </button>
+                  <button 
+                    disabled={isTyping} 
+                    onClick={() => runCli("stop")} 
+                    className="text-[10px] font-bold px-3 py-1.5 bg-neutral-900 border border-white/5 rounded hover:bg-neutral-800 text-slate-200 cursor-pointer disabled:opacity-50"
+                  >
+                    memorynode stop
+                  </button>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 

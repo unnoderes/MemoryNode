@@ -5,11 +5,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .config import Paths, initialize, load_config
+from .config import Paths, initialize, load_config, load_mcp_http_config, rotate_mcp_http_token
 from .data import backup_database, check_database, default_backup_path, default_export_path, export_jsonl, import_jsonl, restore_database
 from .processes import atomic_write, identity, port_free, read_records, record, stop_tree, wait_http
 
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 
 
 def _backend_available():
@@ -39,7 +39,11 @@ def parser():
     import_cmd = commands.add_parser("import", help="import database facts from JSONL")
     import_cmd.add_argument("file")
     import_cmd.add_argument("--confirm", action="store_true")
-    commands.add_parser("mcp", help="run the stdio MCP server")
+    mcp = commands.add_parser("mcp", help="run the stdio or local Streamable HTTP MCP server")
+    mcp.add_argument("--transport", choices=("stdio", "http"), default="stdio")
+    mcp.add_argument("--host")
+    mcp.add_argument("--port", type=int)
+    mcp.add_argument("--print-token-once", action="store_true", help="rotate and print the HTTP bearer token once")
     commands.add_parser("version", help="show package version")
     return result
 
@@ -59,13 +63,28 @@ def dispatch(args, paths=None):
     if args.command == "init":
         created = initialize(args.source_root, paths)
         print(f"MemoryNode {'initialized' if created else 'already initialized'}: {paths.config_file}")
+        if created:
+            token = rotate_mcp_http_token(paths)
+            print(f"MCP HTTP bearer token (shown once; store it securely): {token}", file=sys.stderr)
         return 0
     if args.command == "version": print(VERSION); return 0
     if args.command == "mcp":
         config = load_config(args, paths)
         os.environ.setdefault("MEMORYNODE_API_URL", f"http://{config.api_host}:{config.api_port}")
-        from .mcp_server import main as mcp_main
-        mcp_main(); return 0
+        if getattr(args, "transport", "stdio") == "stdio":
+            from .mcp_server import main as mcp_main
+            mcp_main(); return 0
+        http_config = load_mcp_http_config(args, paths)
+        if getattr(args, "print_token_once", False):
+            token = rotate_mcp_http_token(paths)
+            print(f"MCP HTTP bearer token (shown once; store it securely): {token}", file=sys.stderr)
+            http_config = load_mcp_http_config(args, paths)
+        if not http_config.token_hash:
+            raise ValueError("MCP HTTP token is not configured; run memorynode mcp --transport http --print-token-once")
+        if not port_free(http_config.host, http_config.port):
+            raise ValueError(f"MCP HTTP port {http_config.port} is already in use")
+        from .mcp_server import run_http
+        run_http(http_config.host, http_config.port, http_config.token_hash); return 0
     if args.command == "doctor": return doctor(paths)
     if args.command == "backup": return backup_cmd(args, paths)
     if args.command == "restore": return restore_cmd(args, paths)

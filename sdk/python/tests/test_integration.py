@@ -13,6 +13,9 @@ import pytest
 import uvicorn
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from mcp.client.streamable_http import streamable_http_client
+from memorynode import mcp_server
+from memorynode.config import mcp_http_token_hash
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -173,3 +176,71 @@ def test_default_policy_and_single_authorized_governance_tool(api_url, tmp_path)
     rejected = call(api_url, "proposal_reject", payload, {"MEMORYNODE_HOME": str(tmp_path)})
     replay = call(api_url, "proposal_reject", payload, {"MEMORYNODE_HOME": str(tmp_path)})
     assert rejected["status"] == replay["status"] == "rejected"
+
+
+async def http_call(url, token, name, arguments=None, operation="tool"):
+    async with httpx.AsyncClient(headers={"Authorization": f"Bearer {token}"}, trust_env=False) as client:
+        async with streamable_http_client(f"{url}/mcp", http_client=client) as (read, write, _session_id):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                if operation == "tools":
+                    return [tool.name for tool in (await session.list_tools()).tools]
+                if operation == "resource":
+                    response = await session.read_resource(arguments)
+                    return json.loads(response.contents[0].text)
+                response = await session.call_tool(name, arguments or {})
+                assert not response.isError
+                return json.loads(response.content[0].text)
+
+
+async def two_http_proposals(url, token):
+    return await asyncio.gather(
+        http_call(url, token, "memory_propose", {"content": "http shared proposal alpha", "actor_id": "http-a", "project_id": "shared"}),
+        http_call(url, token, "memory_propose", {"content": "http shared proposal beta", "actor_id": "http-b", "project_id": "shared"}),
+    )
+
+
+def test_streamable_http_shared_governance_loop_and_audit(api_url, tmp_path, monkeypatch):
+    monkeypatch.setenv("MEMORYNODE_API_URL", api_url)
+    monkeypatch.setenv("MEMORYNODE_HOME", str(tmp_path))
+    token = "integration-local-bearer-token"
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    server = uvicorn.Server(uvicorn.Config(mcp_server.make_http_app(mcp_http_token_hash(token)), host="127.0.0.1", port=port, log_level="error"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    url = f"http://127.0.0.1:{port}"
+    try:
+        for _ in range(100):
+            try:
+                if httpx.post(f"{url}/mcp", json={}, timeout=.1, trust_env=False).status_code == 401:
+                    break
+            except httpx.HTTPError:
+                threading.Event().wait(.02)
+        else:
+            pytest.fail("HTTP MCP server did not start")
+
+        unauthorized = httpx.post(f"{url}/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, timeout=5, trust_env=False)
+        assert unauthorized.status_code == 401
+        created = asyncio.run(two_http_proposals(url, token))
+        proposals = [item["proposals"][0] for item in created]
+        assert [item["status"] for item in proposals] == ["pending", "pending"]
+        assert httpx.get(f"{api_url}/v1/memories/search", params={"q": "http shared proposal"}, trust_env=False).json()["memories"] == []
+        assert asyncio.run(http_call(url, token, operation="tools", name=None)) == DEFAULT_TOOLS
+
+        memory = approve(api_url, proposals[0]["id"])
+        search = asyncio.run(http_call(url, token, "memory_search", {"query": "http shared proposal alpha"}))
+        assert [item["id"] for item in search["memories"]] == [memory["id"]]
+        explained = asyncio.run(http_call(url, token, "memory_explain", {"memory_id": memory["id"]}))
+        assert explained["memory"]["id"] == memory["id"]
+        assert asyncio.run(http_call(url, token, operation="resource", name=None, arguments=f"memorynode://memories/{memory['id']}"))["memory"]["id"] == memory["id"]
+
+        log = (tmp_path / "logs" / "mcp.log").read_text(encoding="utf-8")
+        assert all(secret not in log for secret in (token, "http shared proposal alpha", "http shared proposal beta"))
+        rows = [json.loads(line) for line in log.splitlines()]
+        assert {"auth_denied", "connection_open", "tool_call", "resource_read"} <= {row["event"] for row in rows}
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5)
+        assert not thread.is_alive()

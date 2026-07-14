@@ -87,7 +87,8 @@ The backend owns all lifecycle transitions. SQLite stores sources, proposals, me
 
 ## Run locally
 
-MemoryNode 0.5.0 ships the SDK, stdio MCP server, FastAPI backend, and static
+MemoryNode 0.6.0 ships the SDK, stdio and local shared Streamable HTTP MCP
+servers, FastAPI backend, and static
 governance console in one Python distribution:
 
 ```bash
@@ -111,6 +112,30 @@ For MCP clients, use `memorynode mcp`; stdout remains protocol-only:
 ```json
 {"mcpServers":{"memorynode":{"command":"memorynode","args":["mcp"]}}}
 ```
+
+For multiple local clients, start the FastAPI service first and run the shared
+endpoint in a separate foreground terminal. `memorynode init` prints a
+high-entropy bearer token once and persists only its SHA-256 hash in local
+`config.toml`; store that printed value securely.
+
+```powershell
+memorynode start
+memorynode mcp --transport http --host 127.0.0.1 --port 8765
+```
+
+Clients connect to `http://127.0.0.1:8765/mcp` with
+`Authorization: Bearer <token>`. Missing or invalid tokens are rejected before
+MCP tools or resources run. Existing installations without a token can rotate
+one explicitly with `memorynode mcp --transport http --print-token-once`.
+The HTTP server binds only to `127.0.0.1`; there is no LAN exposure, cloud
+authentication, system service, or high-throughput multi-user guarantee.
+
+Sanitized MCP connection and call summaries are written locally to
+`MEMORYNODE_HOME/logs/mcp.log`. They contain operation names, outcomes, timing,
+and a token fingerprint only—never a bearer token, Authorization header,
+memory content, query, request parameters, or response. The static governance
+console intentionally has no MCP panel yet: it cannot safely read local log
+files without a UI/API expansion, so that overview is deferred.
 
 ### 1. Configure
 
@@ -195,7 +220,7 @@ See `RELEASING.md` for the gated publication procedure.
 
 ## Scope
 
-This competition prototype intentionally proves the governed-memory contract before adding infrastructure. It includes a local Python SDK, CLI, and stdio MCP adapter, but does not include authentication, Docker deployment, cloud services, or vector retrieval.
+This competition prototype intentionally proves the governed-memory contract before adding infrastructure. It includes a local Python SDK, CLI, stdio MCP adapter, and token-protected loopback Streamable HTTP MCP, but does not include Docker deployment, cloud services, LAN exposure, or vector retrieval.
 
 ---
 

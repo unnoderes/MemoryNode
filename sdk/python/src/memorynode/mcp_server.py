@@ -4,18 +4,20 @@ import json
 import os
 import sys
 import time
+from contextvars import ContextVar
 from functools import wraps
 from uuid import uuid4
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
+from starlette.responses import JSONResponse
 
 from .client import MemoryNodeClient
-from .config import Paths, load_governance_policy
+from .config import Paths, load_governance_policy, mcp_http_token_hash, mcp_http_token_matches
 from .errors import MemoryNodeError
 
 
-VERSION = "0.5.0"
+VERSION = "0.6.0"
 JSON_MIME = "application/json"
 INSTRUCTIONS = (
     "New information must be submitted with memory_propose; proposals are pending until reviewed. "
@@ -25,6 +27,9 @@ INSTRUCTIONS = (
     "not change memory state. High-risk governance tools appear only when a local administrator explicitly "
     "enables them in config.toml."
 )
+
+_transport = ContextVar("memorynode_mcp_transport", default="stdio")
+_client_fingerprint = ContextVar("memorynode_mcp_client_fingerprint", default="unknown")
 
 
 def _api_url():
@@ -79,8 +84,10 @@ def _trace(kind, name, operation):
         _write_trace({
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "request_id": request_id,
+            "transport": _transport.get(),
+            "event": "tool_call" if kind == "tool" else "resource_read",
+            "client_fingerprint": _client_fingerprint.get(),
             "capability": name,
-            "kind": kind,
             "duration_ms": round((time.perf_counter() - started) * 1000, 3),
             "outcome": outcome,
             **({"error_category": category} if category else {}),
@@ -95,6 +102,90 @@ def _write_trace(item):
             stream.write(json.dumps(item, separators=(",", ":")) + "\n")
     except Exception:
         print("WARN: MCP trace write failed", file=sys.stderr)
+
+
+def _http_call_summary(body):
+    """Return only protocol operation names; never retain request parameters."""
+    try:
+        payload = json.loads(body)
+    except (TypeError, ValueError):
+        return None, None
+    if not isinstance(payload, dict):
+        return None, None
+    method = payload.get("method")
+    if not isinstance(method, str):
+        return None, None
+    if method == "initialize":
+        return "connection_open", None
+    return None, None
+
+
+class LocalBearerMcpApp:
+    """ASGI transport boundary that authenticates before FastMCP sees a request."""
+
+    def __init__(self, app, token_hash):
+        self.app = app
+        self.token_hash = token_hash
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        authorization = dict(scope.get("headers", [])).get(b"authorization", b"").decode("latin-1")
+        token = authorization[7:] if authorization.startswith("Bearer ") else ""
+        fingerprint = f"token:{mcp_http_token_hash(token)[:12]}" if token else "unknown"
+        if not mcp_http_token_matches(token, self.token_hash):
+            _write_trace({
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "request_id": uuid4().hex,
+                "transport": "http",
+                "event": "auth_denied",
+                "client_fingerprint": "unknown",
+                "outcome": "denied",
+            })
+            await JSONResponse({"error": "Unauthorized"}, status_code=401, headers={"WWW-Authenticate": "Bearer"})(scope, receive, send)
+            return
+
+        chunks = []
+
+        async def inspect_receive():
+            message = await receive()
+            if message["type"] == "http.request":
+                chunks.append(message.get("body", b""))
+            return message
+
+        sent = {"status": 500}
+
+        async def capture_send(message):
+            if message["type"] == "http.response.start":
+                sent["status"] = message["status"]
+            await send(message)
+
+        transport_token = _transport.set("http")
+        client_token = _client_fingerprint.set(fingerprint)
+        started = time.perf_counter()
+        try:
+            await self.app(scope, inspect_receive, capture_send)
+        finally:
+            _transport.reset(transport_token)
+            _client_fingerprint.reset(client_token)
+            event, capability = _http_call_summary(b"".join(chunks))
+            if scope["method"] == "DELETE":
+                event, capability = "connection_close", None
+            if event:
+                outcome = "success" if sent["status"] < 400 else "error"
+                item = {
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "request_id": uuid4().hex,
+                    "transport": "http",
+                    "event": event,
+                    "client_fingerprint": fingerprint,
+                    "outcome": outcome,
+                    "duration_ms": round((time.perf_counter() - started) * 1000, 3),
+                }
+                if capability:
+                    item["capability"] = capability
+                _write_trace(item)
 
 
 def _tool(name):
@@ -358,7 +449,25 @@ def build_mcp(policy=None):
 mcp = build_mcp()
 
 
+def make_http_app(token_hash, policy=None):
+    if not token_hash:
+        raise ValueError("MCP HTTP requires a configured local bearer token")
+    return LocalBearerMcpApp(build_mcp(policy).streamable_http_app(), token_hash)
+
+
+def run_http(host, port, token_hash, policy=None):
+    if host != "127.0.0.1":
+        raise ValueError("MCP HTTP host must be 127.0.0.1")
+    if not 1 <= int(port) <= 65535:
+        raise ValueError("MCP HTTP port must be 1-65535")
+    import uvicorn
+
+    print(f"MemoryNode Streamable HTTP MCP listening at http://{host}:{port}/mcp", file=sys.stderr)
+    uvicorn.run(make_http_app(token_hash, policy), host=host, port=port, log_level="warning")
+
+
 def main():
+    """Run the compatibility stdio entry point; stdout stays MCP protocol-only."""
     mcp.run(transport="stdio")
 
 

@@ -76,7 +76,7 @@ export default function RootLayout({ children }) {
                 <span className="status-dot"></span>
                 <span>{t("服务运行正常", "Service online")}</span>
               </div>
-              <div className="version-info">MemoryNode 0.5.0 · SQLite + Qwen</div>
+              <div className="version-info">MemoryNode 0.6.0 · SQLite + Qwen</div>
             </div>
           </aside>
 

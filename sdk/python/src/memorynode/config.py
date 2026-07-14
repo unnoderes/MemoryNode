@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import os
 import sys
+import hashlib
+import hmac
+import secrets
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -78,6 +81,13 @@ class Config:
     governance: GovernancePolicy = field(default_factory=GovernancePolicy)
 
 
+@dataclass(frozen=True)
+class McpHttpConfig:
+    host: str = "127.0.0.1"
+    port: int = 8765
+    token_hash: str = ""
+
+
 def valid_source_root(root):
     root = Path(root).expanduser().resolve()
     return root if (root / "backend/app/main.py").is_file() and (root / "frontend/package.json").is_file() else None
@@ -112,12 +122,81 @@ def load_config(args=None, paths=None, environ=None):
     return config
 
 
+def load_mcp_http_config(args=None, paths=None, environ=None):
+    paths = paths or Paths.current()
+    environ = os.environ if environ is None else environ
+    raw = _read_toml(paths)
+    section = raw.get("mcp_http", {})
+    if not isinstance(section, dict):
+        raise ValueError("mcp_http must be a TOML table")
+    enabled = section.get("enabled", False)
+    if not isinstance(enabled, bool):
+        raise ValueError("mcp_http.enabled must be a TOML boolean")
+
+    def value(name, env, default):
+        cli_value = getattr(args, name, None)
+        if cli_value is not None:
+            return cli_value
+        if env in environ:
+            return environ[env]
+        return section.get(name, default)
+
+    host = str(value("host", "MEMORYNODE_MCP_HTTP_HOST", "127.0.0.1"))
+    if host != "127.0.0.1":
+        raise ValueError("MCP HTTP host must be 127.0.0.1")
+    token_hash = section.get("token_hash", "")
+    if not isinstance(token_hash, str):
+        raise ValueError("mcp_http.token_hash must be a string")
+    return McpHttpConfig(host, _port(value("port", "MEMORYNODE_MCP_HTTP_PORT", 8765), "MCP HTTP"), token_hash)
+
+
+def _read_toml(paths):
+    if not paths.config_file.is_file():
+        return {}
+    with paths.config_file.open("rb") as stream:
+        return tomllib.load(stream)
+
+
+def mcp_http_token_hash(token):
+    if not isinstance(token, str):
+        return ""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def mcp_http_token_matches(token, expected_hash):
+    return isinstance(token, str) and bool(expected_hash) and hmac.compare_digest(mcp_http_token_hash(token), expected_hash)
+
+
+def rotate_mcp_http_token(paths=None):
+    """Create a high-entropy local token and persist only its SHA-256 hash."""
+    paths = paths or Paths.current()
+    paths.create()
+    token = secrets.token_urlsafe(32)
+    token_hash = mcp_http_token_hash(token)
+    text = paths.config_file.read_text(encoding="utf-8") if paths.config_file.exists() else ""
+    if "[mcp_http]" not in text:
+        suffix = "\n" if text and not text.endswith("\n") else ""
+        text += suffix + '\n[mcp_http]\nenabled = false\nhost = "127.0.0.1"\nport = 8765\n'
+        text += f'token_hash = "{token_hash}"\n'
+    else:
+        lines = text.splitlines(keepends=True)
+        start = next(index for index, line in enumerate(lines) if line.strip() == "[mcp_http]")
+        end = next((index for index in range(start + 1, len(lines)) if lines[index].lstrip().startswith("[")), len(lines))
+        replacement = f'token_hash = "{token_hash}"\n'
+        for index in range(start + 1, end):
+            if lines[index].strip().startswith("token_hash"):
+                lines[index] = replacement
+                break
+        else:
+            lines.insert(end, replacement)
+        text = "".join(lines)
+    paths.config_file.write_text(text, encoding="utf-8")
+    return token
+
+
 def load_governance_policy(paths=None):
     paths = paths or Paths.current()
-    raw = {}
-    if paths.config_file.is_file():
-        with paths.config_file.open("rb") as stream:
-            raw = tomllib.load(stream)
+    raw = _read_toml(paths)
     section = raw.get("governance", {})
     values = {}
     for name in (
@@ -157,6 +236,11 @@ def initialize(source_root=None, paths=None):
         'allow_agent_revoke = false\n'
         'allow_agent_supersede = false\n'
         'allow_agent_set_expiry = false\n'
+        '\n[mcp_http]\n'
+        'enabled = false\n'
+        'host = "127.0.0.1"\n'
+        'port = 8765\n'
+        'token_hash = ""\n'
     )
     if root:
         text += f'\n[source]\nroot = "{root.as_posix()}"\n'

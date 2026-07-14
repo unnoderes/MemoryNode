@@ -1,8 +1,8 @@
 # MemoryNode Python SDK
 
-Synchronous typed access to the existing MemoryNode FastAPI service, plus the
-Phase 4 stdio MCP server. The SDK and MCP process never access SQLite or start
-the API.
+Synchronous typed access to the existing MemoryNode FastAPI service, plus stdio
+and local shared Streamable HTTP MCP. The SDK and MCP process never access
+SQLite or start the API.
 
 ```python
 from memorynode import MemoryNodeClient
@@ -39,7 +39,7 @@ discovery exposes `memory_propose`, `memory_search`, `memory_get`,
 hidden unless true TOML booleans in local `config.toml` enable them.
 
 The `memorynode` CLI provides `init`, `start`, `stop`, `restart`, `status`,
-`doctor`, `mcp`, data commands, and `version`. The 0.5.0 wheel includes the
+`doctor`, `mcp`, data commands, and `version`. The 0.6.0 wheel includes the
 FastAPI backend and static governance console:
 
 ```powershell
@@ -64,3 +64,19 @@ python ../../scripts/build_release.py
 
 Related memories remain reviewer-facing candidates, not automatic conflict
 decisions. Expiration remains request-driven.
+
+`memorynode mcp` remains the stdio default. For a shared local endpoint, first
+run `memorynode init` and store the bearer token printed once, then run:
+
+```powershell
+memorynode start
+memorynode mcp --transport http --host 127.0.0.1 --port 8765
+```
+
+Connect MCP clients to `http://127.0.0.1:8765/mcp` using
+`Authorization: Bearer <token>`. HTTP accepts only `127.0.0.1`; it rejects a
+missing or invalid token before MCP handling. Existing configurations can create
+a replacement token with `--print-token-once`. Only a token hash is persisted,
+and `mcp.log` records sanitized connection/call metadata, never tokens,
+headers, content, queries, parameters, or responses. The static console does
+not yet include an MCP overview because it cannot safely read local log files.

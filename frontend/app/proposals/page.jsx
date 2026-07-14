@@ -419,7 +419,7 @@ export default function ProposalsPage() {
                                 {t("类型", "Type")}：{typeLabels[memory.type] || memory.type} · {t("状态", "Status")}：{statusLabels[memory.status] || memory.status}
                               </small>
                             </span>
-                            <Link href={`/memories/${memory.id}`} target="_blank" className="related-detail-link">
+                            <Link href={`/memories/detail/?id=${encodeURIComponent(memory.id)}`} target="_blank" className="related-detail-link">
                               {t("查看详情", "View Details")} ↗
                             </Link>
                           </label>

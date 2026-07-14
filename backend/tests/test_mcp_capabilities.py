@@ -1,8 +1,9 @@
 from datetime import timedelta
 
 from fastapi.testclient import TestClient
+import pytest
 
-from app.main import app
+from app.main import app, console_origin
 from app import models
 from app.db import session_local
 
@@ -18,6 +19,17 @@ def create(client, content, **changes):
     response = client.post("/v1/proposals", json=payload)
     assert response.status_code == 200
     return response.json()
+
+
+def test_cors_allows_only_configured_console_origin(monkeypatch):
+    with TestClient(app) as client:
+        allowed = client.options("/health", headers={"Origin": "http://127.0.0.1:3000", "Access-Control-Request-Method": "GET"})
+        denied = client.options("/health", headers={"Origin": "http://127.0.0.1:3001", "Access-Control-Request-Method": "GET"})
+    assert allowed.headers["access-control-allow-origin"] == "http://127.0.0.1:3000"
+    assert "access-control-allow-origin" not in denied.headers
+    monkeypatch.setenv("MEMORYNODE_CONSOLE_ORIGIN", "http://0.0.0.0:3000")
+    with pytest.raises(RuntimeError, match="127.0.0.1"):
+        console_origin()
 
 
 def approve(client, proposal, **payload):

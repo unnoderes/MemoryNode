@@ -14,14 +14,14 @@ def source(tmp_path):
     return tmp_path
 
 
-def test_init_is_idempotent_and_rejects_invalid_source(tmp_path):
+def test_init_is_idempotent_without_source_and_rejects_explicit_invalid_source(tmp_path):
     paths = Paths(*(tmp_path / name for name in ("config", "data", "logs", "run")))
-    root = source(tmp_path / "repo")
-    assert initialize(root, paths)
+    assert initialize(paths=paths)
     original = paths.config_file.read_text()
     assert "allow_agent_set_expiry = false" in original
     assert not load_governance_policy(paths).allow_agent_revoke
-    assert not initialize(root, paths) and paths.config_file.read_text() == original
+    assert "[source]" not in original
+    assert not initialize(paths=paths) and paths.config_file.read_text() == original
     with pytest.raises(ValueError): initialize(tmp_path / "missing", paths)
     assert not (tmp_path / ".env").exists()
 
@@ -42,25 +42,36 @@ def test_config_precedence_validation_and_home_override(tmp_path, monkeypatch):
     assert Paths.current().config == (tmp_path / "home/config").resolve()
 
 
-@pytest.mark.parametrize("args,environ", [
-    (Namespace(source_root=None, api_host=None, api_port=8001, console_host=None, console_port=None), {}),
-    (Namespace(source_root=None, api_host=None, api_port=None, console_host=None, console_port=None), {"MEMORYNODE_API_PORT": "8001"}),
-    (Namespace(source_root=None, api_host=None, api_port=None, console_host=None, console_port=3001), {}),
-    (Namespace(source_root=None, api_host=None, api_port=None, console_host=None, console_port=None), {"MEMORYNODE_CONSOLE_PORT": "3001"}),
+@pytest.mark.parametrize("args,environ,ports", [
+    (Namespace(source_root=None, api_host=None, api_port=8001, console_host=None, console_port=None), {}, (8001, 3000)),
+    (Namespace(source_root=None, api_host=None, api_port=None, console_host=None, console_port=None), {"MEMORYNODE_API_PORT": "8001"}, (8001, 3000)),
+    (Namespace(source_root=None, api_host=None, api_port=None, console_host=None, console_port=3001), {}, (8000, 3001)),
+    (Namespace(source_root=None, api_host=None, api_port=None, console_host=None, console_port=None), {"MEMORYNODE_CONSOLE_PORT": "3001"}, (8000, 3001)),
 ])
-def test_phase3_rejects_configurable_ports(tmp_path, args, environ):
+def test_configurable_ports(tmp_path, args, environ, ports):
     paths = Paths(*(tmp_path / name for name in ("config", "data", "logs", "run")))
     initialize(source(tmp_path / "repo"), paths)
-    with pytest.raises(ValueError, match="deferred to Phase 6"):
-        load_config(args, paths, environ)
+    config = load_config(args, paths, environ)
+    assert (config.api_port, config.console_port) == ports
 
 
-def test_phase3_rejects_toml_ports(tmp_path):
+def test_toml_ports_and_legacy_source_are_compatible(tmp_path):
     paths = Paths(*(tmp_path / name for name in ("config", "data", "logs", "run")))
     initialize(source(tmp_path / "repo"), paths)
     paths.config_file.write_text(paths.config_file.read_text().replace("port = 8000", "port = 9000"))
-    with pytest.raises(ValueError, match="API port 8000 and console port 3000"):
-        load_config(paths=paths, environ={})
+    config = load_config(paths=paths, environ={})
+    assert config.api_port == 9000 and config.source_root is not None
+
+
+def test_old_config_is_never_overwritten(tmp_path):
+    paths = Paths(*(tmp_path / name for name in ("config", "data", "logs", "run")))
+    paths.create()
+    old = '[server]\nport=8123\n[source]\nroot="C:/old/repository"\n[governance]\nallow_agent_revoke=true\n'
+    paths.config_file.write_text(old)
+    assert not initialize(paths=paths)
+    assert paths.config_file.read_text() == old
+    config = load_config(paths=paths, environ={})
+    assert config.api_port == 8123 and config.governance.allow_agent_revoke
 
 
 def test_governance_policy_requires_real_toml_booleans(tmp_path):

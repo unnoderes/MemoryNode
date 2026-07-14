@@ -283,7 +283,7 @@ export default function MemoriesPage() {
                   <span className="conf-badge">
                     ID：{selectedDetail.memory.id.substring(0, 8)}…
                   </span>
-                  <Link href={`/memories/${selectedDetail.memory.id}`} className="audit-link-nav">
+                  <Link href={`/memories/detail/?id=${encodeURIComponent(selectedDetail.memory.id)}`} className="audit-link-nav">
                     {t("查看完整记录", "View Full History")} ↗
                   </Link>
                 </div>
@@ -334,7 +334,7 @@ export default function MemoriesPage() {
                         </div>
                       ))}
                       {selectedDetail.events.length > 3 && (
-                        <Link href={`/memories/${selectedDetail.memory.id}`} style={{ fontSize: '11px', color: 'var(--color-accent)', fontWeight: '600', marginTop: '2px' }}>
+                        <Link href={`/memories/detail/?id=${encodeURIComponent(selectedDetail.memory.id)}`} style={{ fontSize: '11px', color: 'var(--color-accent)', fontWeight: '600', marginTop: '2px' }}>
                           {t(`查看全部 ${selectedDetail.events.length} 条记录…`, `View all ${selectedDetail.events.length} events…`)}
                         </Link>
                       )}

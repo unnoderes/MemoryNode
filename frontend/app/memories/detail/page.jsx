@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { explainMemory, revokeMemory } from "../../../lib/api";
 import { useLanguage } from "../../../lib/language";
@@ -46,22 +45,22 @@ export default function MemoryDetailPage() {
     approve: "Approved", reject: "Rejected", revoke: "Revoked",
     supersede: "Replaced old memory", superseded: "Replaced", expire: "Expired",
   };
-  const pathname = usePathname();
-  const id = decodeURIComponent(pathname.split("/").filter(Boolean).pop() || "");
+  const [id, setId] = useState("");
   const [detail, setDetail] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function refresh() {
-    const body = await explainMemory(id);
+  async function refresh(memoryId = id) {
+    const body = await explainMemory(memoryId);
     setDetail(body);
   }
 
   useEffect(() => {
-    if (id) {
-      refresh().catch((err) => setError(err.message));
-    }
-  }, [id]);
+    const memoryId = new URLSearchParams(window.location.search).get("id") || "";
+    setId(memoryId);
+    if (memoryId) refresh(memoryId).catch((err) => setError(err.message));
+    else setError(t("缺少记忆 ID。", "Missing memory ID."));
+  }, []);
 
   async function onRevoke() {
     setBusy(true);
@@ -149,7 +148,7 @@ export default function MemoryDetailPage() {
               {detail.supersedes ? (
                 <div className="supersede-link-item">
                   <span className="supersede-badge">{t("替换了这条旧记忆", "Replaced this older memory")}</span>
-                  <Link href={`/memories/${detail.supersedes.id}`}>
+                  <Link href={`/memories/detail/?id=${encodeURIComponent(detail.supersedes.id)}`}>
                     <span>{detail.supersedes.content}</span>
                     <small>ID: {detail.supersedes.id.substring(0, 8)}… ↗</small>
                   </Link>
@@ -158,7 +157,7 @@ export default function MemoryDetailPage() {
               {detail.superseded_by ? (
                 <div className="supersede-link-item">
                   <span className="supersede-badge superseded-by">{t("后来被这条新记忆替换", "Later replaced by this memory")}</span>
-                  <Link href={`/memories/${detail.superseded_by.id}`}>
+                  <Link href={`/memories/detail/?id=${encodeURIComponent(detail.superseded_by.id)}`}>
                     <span>{detail.superseded_by.content}</span>
                     <small>ID: {detail.superseded_by.id.substring(0, 8)}… ↗</small>
                   </Link>

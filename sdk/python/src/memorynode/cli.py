@@ -1,15 +1,20 @@
 import argparse
+import importlib.util
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-from .config import Paths, initialize, load_config, valid_source_root
+from .config import Paths, initialize, load_config
 from .data import backup_database, check_database, default_backup_path, default_export_path, export_jsonl, import_jsonl, restore_database
 from .processes import atomic_write, identity, port_free, read_records, record, stop_tree, wait_http
 
-VERSION = "0.4.3"
+VERSION = "0.5.0"
+
+
+def _backend_available():
+    try: return importlib.util.find_spec("memorynode.backend.main") is not None
+    except (ImportError, ModuleNotFoundError, ValueError): return False
 
 
 def parser():
@@ -93,45 +98,46 @@ def status(paths=None):
 
 
 def _preflight(config, paths):
-    root = valid_source_root(config.source_root)
-    if not root: raise ValueError("Phase 3 requires a valid source root; run memorynode init --source-root <repository>")
     if sys.version_info < (3, 10): raise ValueError("Python 3.10 or newer is required")
-    if not shutil.which("npm"): raise ValueError("npm is required")
-    if not (root / "frontend/.next").is_dir(): raise ValueError("frontend build missing; run npm run build in frontend")
+    if not _backend_available():
+        raise ValueError("packaged FastAPI backend is missing; reinstall memorynode")
+    from .console import assets_available
+    if not assets_available(): raise ValueError("packaged console assets are missing; reinstall memorynode")
     paths.create()
     records, states = _states(paths)
     if set(states.values()) == {"running"}:
         if not wait_http(f"http://{config.api_host}:{config.api_port}/health", .5) or not wait_http(f"http://{config.console_host}:{config.console_port}", .5):
             raise ValueError("managed processes exist but failed health checks; run restart")
-        return root, True
+        return True
     if set(states.values()) != {"stopped"}:
         raise ValueError(f"managed process state is partial/stale/foreign: {states}; run status, then stop only after verification")
     for host, port, name in ((config.api_host, config.api_port, "API"), (config.console_host, config.console_port, "console")):
         if not port_free(host, port): raise ValueError(f"{name} port {port} is already in use")
-    return root, False
+    return False
 
 
 def start(args, paths=None):
     paths = paths or Paths.current(); config = load_config(args, paths)
-    root, running = _preflight(config, paths)
+    running = _preflight(config, paths)
     if running: print("MemoryNode is already running"); return 0
     environment = os.environ.copy()
     environment["MEMORYNODE_DB_PATH"] = str(paths.database)
     environment["MEMORYNODE_BACKUP_DIR"] = str(paths.backups)
+    environment["MEMORYNODE_CONSOLE_ORIGIN"] = f"http://{config.console_host}:{config.console_port}"
     creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
     processes, logs = [], []
     try:
         api_log = (paths.logs / "api.log").open("ab"); logs.append(api_log)
-        api = subprocess.Popen([sys.executable, "-m", "uvicorn", "app.main:app", "--host", config.api_host, "--port", str(config.api_port)], cwd=root / "backend", env=environment, stdout=api_log, stderr=subprocess.STDOUT, creationflags=creationflags)
+        api = subprocess.Popen([sys.executable, "-m", "uvicorn", "memorynode.backend.main:app", "--host", config.api_host, "--port", str(config.api_port)], cwd=paths.run, env=environment, stdout=api_log, stderr=subprocess.STDOUT, creationflags=creationflags)
         processes.append(api)
         if not wait_http(f"http://{config.api_host}:{config.api_port}/health") or api.poll() is not None: raise RuntimeError("API failed its /health startup check")
         console_log = (paths.logs / "console.log").open("ab"); logs.append(console_log)
-        console = subprocess.Popen([shutil.which("npm"), "run", "start", "--", "--hostname", config.console_host, "--port", str(config.console_port)], cwd=root / "frontend", env=environment, stdout=console_log, stderr=subprocess.STDOUT, creationflags=creationflags)
+        console = subprocess.Popen([sys.executable, "-m", "memorynode.console", "--host", config.console_host, "--port", str(config.console_port), "--api-port", str(config.api_port)], cwd=paths.run, env=environment, stdout=console_log, stderr=subprocess.STDOUT, creationflags=creationflags)
         processes.append(console)
         if not wait_http(f"http://{config.console_host}:{config.console_port}") or console.poll() is not None: raise RuntimeError("console failed its startup check")
         atomic_write(paths.process_file, {
-            "api": record(api, "uvicorn app.main:app", root / "backend", config.api_port),
-            "console": record(console, "run start", root / "frontend", config.console_port),
+            "api": record(api, "uvicorn memorynode.backend.main:app", paths.run, config.api_port),
+            "console": record(console, "-m memorynode.console", paths.run, config.console_port),
         })
         print(f"MemoryNode running: API {config.api_port}, console {config.console_port}"); return 0
     except Exception as exc:
@@ -165,11 +171,15 @@ def doctor(paths=None):
         print(f"{level}: {message}{'; ' + fix if fix and not ok else ''}")
     check(sys.version_info >= (3, 10), f"Python {sys.version_info.major}.{sys.version_info.minor} ({sys.executable})", "install Python 3.10+")
     try: config = load_config(paths=paths); configured = True
-    except (OSError, ValueError, KeyError) as exc: config = None; configured = False; print(f"FAIL: config invalid: {exc}; run memorynode init --source-root <repository>"); failures += 1
-    check(configured and bool(valid_source_root(config.source_root)), "source root", "run memorynode init --source-root <repository>")
-    check(bool(shutil.which("npm")), "npm available", "install Node.js/npm")
-    check(bool(config and (config.source_root / "frontend/.next").is_dir()), "frontend production build", "run npm run build in frontend")
-    for path in (paths.config, paths.data, paths.logs, paths.run):
+    except (OSError, ValueError, KeyError) as exc: config = None; configured = False; print(f"FAIL: config invalid: {exc}; run memorynode init"); failures += 1
+    check(_backend_available(), "packaged FastAPI backend", "reinstall memorynode")
+    try:
+        from .console import assets_available
+        console_available = assets_available()
+    except (ImportError, OSError):
+        console_available = False
+    check(console_available, "packaged console assets", "reinstall memorynode")
+    for path in (paths.config, paths.data, paths.logs, paths.run, paths.backups, paths.exports):
         check(path.exists() and os.access(path, os.W_OK), f"writable directory {path}", "run memorynode init")
     if config:
         records, states = _states(paths)
@@ -196,8 +206,9 @@ def _offline(paths):
         raise ValueError(f"managed process identity is not safe for data operation: {states}")
     if any(state == "running" for state in states.values()):
         raise ValueError("stop MemoryNode before restore/import")
-    if not port_free("127.0.0.1", 8000) or not port_free("127.0.0.1", 3000):
-        raise ValueError("fixed API/console port is in use by an unmanaged process")
+    config = load_config(paths=paths)
+    if not port_free(config.api_host, config.api_port) or not port_free(config.console_host, config.console_port):
+        raise ValueError("configured API/console port is in use by an unmanaged process")
 
 
 def backup_cmd(args, paths):

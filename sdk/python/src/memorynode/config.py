@@ -70,7 +70,7 @@ class GovernancePolicy:
 
 @dataclass(frozen=True)
 class Config:
-    source_root: Path
+    source_root: Path | None = None
     api_host: str = "127.0.0.1"
     api_port: int = 8000
     console_host: str = "127.0.0.1"
@@ -84,7 +84,8 @@ def valid_source_root(root):
 
 
 def load_config(args=None, paths=None, environ=None):
-    paths, environ = paths or Paths.current(), environ or os.environ
+    paths = paths or Paths.current()
+    environ = os.environ if environ is None else environ
     raw = {}
     if paths.config_file.is_file():
         with paths.config_file.open("rb") as stream:
@@ -96,10 +97,8 @@ def load_config(args=None, paths=None, environ=None):
         if env in environ: return environ[env]
         return section.get(name.rsplit("_", 1)[-1], default)
     root_value = value("source_root", "MEMORYNODE_SOURCE_ROOT", source, "")
-    if not root_value:
-        raise ValueError("source root is not configured; run memorynode init --source-root <repository>")
     config = Config(
-        Path(root_value).expanduser().resolve(),
+        Path(root_value).expanduser().resolve() if root_value else None,
         str(value("api_host", "MEMORYNODE_API_HOST", server, "127.0.0.1")),
         _port(value("api_port", "MEMORYNODE_API_PORT", server, 8000), "API"),
         str(value("console_host", "MEMORYNODE_CONSOLE_HOST", console, "127.0.0.1")),
@@ -107,12 +106,9 @@ def load_config(args=None, paths=None, environ=None):
         load_governance_policy(paths),
     )
     if config.api_host != "127.0.0.1" or config.console_host != "127.0.0.1":
-        raise ValueError("Phase 3 only permits host 127.0.0.1")
-    if config.api_port != 8000 or config.console_port != 3000:
-        raise ValueError(
-            "Phase 3 requires API port 8000 and console port 3000 because the current "
-            "console build and CORS contract are fixed; configurable ports are deferred to Phase 6."
-        )
+        raise ValueError("hosts must be 127.0.0.1")
+    if config.api_port == config.console_port:
+        raise ValueError("API and console ports must be different")
     return config
 
 
@@ -147,8 +143,8 @@ def _port(value, label):
 
 def initialize(source_root=None, paths=None):
     paths = paths or Paths.current()
-    root = valid_source_root(source_root or Path.cwd())
-    if not root:
+    root = valid_source_root(source_root) if source_root else None
+    if source_root and not root:
         raise ValueError("invalid source root; run: memorynode init --source-root <MemoryNode repository>")
     paths.create()
     if paths.config_file.exists(): return False
@@ -160,8 +156,9 @@ def initialize(source_root=None, paths=None):
         'allow_agent_reject = false\n'
         'allow_agent_revoke = false\n'
         'allow_agent_supersede = false\n'
-        'allow_agent_set_expiry = false\n\n'
-        f'[source]\nroot = "{root.as_posix()}"\n'
+        'allow_agent_set_expiry = false\n'
     )
+    if root:
+        text += f'\n[source]\nroot = "{root.as_posix()}"\n'
     paths.config_file.write_text(text, encoding="utf-8")
     return True

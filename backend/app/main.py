@@ -1,13 +1,12 @@
 from contextlib import asynccontextmanager
 from datetime import datetime
+import os
 from typing import Optional
+from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 from sqlalchemy.orm import Session
-
-load_dotenv()
 
 from .db import get_db, init_db
 from .schemas import DecisionRequest, ExpiryRequest, FeedbackRequest, ProposalCreate, ProposalExtractRequest
@@ -42,19 +41,18 @@ async def lifespan(app: FastAPI):
     yield
 
 
+def console_origin():
+    origin = os.getenv("MEMORYNODE_CONSOLE_ORIGIN", "http://127.0.0.1:3000").rstrip("/")
+    parsed = urlsplit(origin)
+    if parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or parsed.port is None or parsed.path or parsed.query or parsed.fragment:
+        raise RuntimeError("MEMORYNODE_CONSOLE_ORIGIN must be an http://127.0.0.1:<port> origin")
+    return origin
+
+
 app = FastAPI(title="MemoryNode", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-        "http://localhost:3002",
-        "http://127.0.0.1:3002",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=[console_origin()],
     allow_methods=["*"],
     allow_headers=["*"],
 )

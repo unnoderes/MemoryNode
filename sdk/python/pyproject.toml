@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "memorynode"
-version = "0.4.3"
-description = "Python HTTP client and stdio MCP server for MemoryNode"
+version = "0.5.0"
+description = "Governed local memory with Python SDK, MCP server, API, CLI, and console"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -15,7 +15,6 @@ dependencies = [
   "fastapi>=0.115,<1",
   "platformdirs>=4,<5",
   "psutil>=6,<8",
-  "python-dotenv>=1,<2",
   "sqlalchemy>=1.4,<3",
   "uvicorn>=0.30,<1",
   "tomli>=2,<3; python_version < '3.11'",
@@ -26,7 +25,6 @@ test = [
   "pytest>=8,<10",
   "fastapi>=0.115,<1",
   "sqlalchemy>=1.4,<3",
-  "python-dotenv>=1,<2",
   "uvicorn>=0.30,<1",
   "build>=1,<2",
 ]
@@ -34,6 +32,10 @@ test = [
 [project.scripts]
 memorynode = "memorynode.cli:main"
 memorynode-mcp = "memorynode.mcp_server:main"
+
+[project.urls]
+Homepage = "https://github.com/unnoderes/MemoryNode"
+Repository = "https://github.com/unnoderes/MemoryNode"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

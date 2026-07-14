@@ -26,7 +26,7 @@ def test_help_version_and_status_text_codes(tmp_path, capsys):
     assert cli.dispatch(args("version"), paths(tmp_path)) == 0
     assert cli.status(paths(tmp_path)) == 1
     output = capsys.readouterr().out
-    assert "0.4.3" in output and "overall: stopped" in output
+    assert "0.5.0" in output and "overall: stopped" in output
 
 
 def test_public_versions_and_mcp_status_match(monkeypatch):
@@ -39,8 +39,8 @@ def test_public_versions_and_mcp_status_match(monkeypatch):
     )
     monkeypatch.setattr(mcp_server, "_call", lambda _function: {"status": "ok"})
     monkeypatch.setattr(mcp_server, "_policy", lambda: policy)
-    assert memorynode.__version__ == cli.VERSION == mcp_server.VERSION == "0.4.3"
-    assert json.loads(mcp_server.status_resource())["mcp_version"] == "0.4.3"
+    assert memorynode.__version__ == cli.VERSION == mcp_server.VERSION == "0.5.0"
+    assert json.loads(mcp_server.status_resource())["mcp_version"] == "0.5.0"
 
 
 def test_status_stale_foreign_partial_and_stop_never_kills(tmp_path, monkeypatch, capsys):
@@ -56,12 +56,10 @@ def test_status_stale_foreign_partial_and_stop_never_kills(tmp_path, monkeypatch
 
 
 def test_repeated_start_port_conflict_partial_and_failed_console_rolls_back(tmp_path, monkeypatch):
-    home = paths(tmp_path); home.create(); root = tmp_path / "repo"
-    (root / "backend/app").mkdir(parents=True); (root / "backend/app/main.py").touch()
-    (root / "frontend/.next").mkdir(parents=True); (root / "frontend/package.json").touch()
-    config = Config(root)
+    home = paths(tmp_path); home.create(); config = Config()
     monkeypatch.setattr(cli, "load_config", lambda *_args, **_kwargs: config)
-    monkeypatch.setattr(cli.shutil, "which", lambda _name: "npm")
+    monkeypatch.setattr(cli, "_backend_available", lambda: True)
+    monkeypatch.setattr("memorynode.console.assets_available", lambda: True)
     monkeypatch.setattr(cli, "wait_http", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(cli, "_states", lambda _paths: ({}, {"api": "running", "console": "running"}))
     assert cli.start(args("start"), home) == 0
@@ -82,6 +80,24 @@ def test_repeated_start_port_conflict_partial_and_failed_console_rolls_back(tmp_
     assert stopped == [101, 100] and not home.process_file.exists()
 
 
+def test_failed_api_start_rolls_back_only_api(tmp_path, monkeypatch):
+    home = paths(tmp_path); home.create()
+    monkeypatch.setattr(cli, "load_config", lambda *_args, **_kwargs: Config())
+    monkeypatch.setattr(cli, "_backend_available", lambda: True)
+    monkeypatch.setattr("memorynode.console.assets_available", lambda: True)
+    monkeypatch.setattr(cli, "_states", lambda _paths: ({}, {"api": "stopped", "console": "stopped"}))
+    monkeypatch.setattr(cli, "port_free", lambda *_args: True)
+    process = Mock(pid=100, poll=lambda: 1)
+    monkeypatch.setattr(cli.subprocess, "Popen", lambda *_args, **_kwargs: process)
+    monkeypatch.setattr(cli, "wait_http", lambda *_args, **_kwargs: False)
+    stopped = []
+    monkeypatch.setattr(cli, "stop_tree", lambda item: stopped.append(item.pid))
+    monkeypatch.setattr("psutil.Process", lambda pid: Mock(pid=pid))
+    with pytest.raises(ValueError, match="rolled back"):
+        cli.start(args("start"), home)
+    assert stopped == [100] and not home.process_file.exists()
+
+
 def test_restart_stops_before_start_and_doctor_redacts_values(tmp_path, monkeypatch, capsys):
     home = paths(tmp_path); home.create(); calls = []
     monkeypatch.setattr(cli, "stop", lambda _paths: calls.append("stop") or 0)
@@ -93,9 +109,10 @@ def test_restart_stops_before_start_and_doctor_redacts_values(tmp_path, monkeypa
     assert "configured" in output and "never-print-this" not in output
 
 
-def test_doctor_fails_when_config_is_missing(tmp_path, capsys):
+def test_doctor_uses_safe_defaults_when_config_is_missing(tmp_path, capsys):
     assert cli.doctor(paths(tmp_path)) == 1
-    assert "config invalid" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "config invalid" not in output and "writable directory" in output
 
 
 def test_mcp_reuses_server_and_configured_url(tmp_path, monkeypatch):
@@ -140,35 +157,30 @@ def test_stop_corrupt_record_is_foreign(tmp_path, monkeypatch):
 
 def test_restart_cleans_stale_then_rechecks_ports(tmp_path, monkeypatch):
     home = paths(tmp_path); home.create(); home.process_file.write_text('{"api": {}, "console": {}}')
-    root = tmp_path / "repo"; (root / "backend/app").mkdir(parents=True); (root / "backend/app/main.py").touch()
-    (root / "frontend/.next").mkdir(parents=True); (root / "frontend/package.json").touch()
-    monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(root))
+    monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config())
+    monkeypatch.setattr(cli, "_backend_available", lambda: True)
+    monkeypatch.setattr("memorynode.console.assets_available", lambda: True)
     monkeypatch.setattr(cli, "identity", lambda _item: ("stale", None))
     monkeypatch.setattr(cli, "_states", lambda _paths: (
         ({"api": {}, "console": {}}, {"api": "stale", "console": "stale"})
         if home.process_file.exists() else ({}, {"api": "stopped", "console": "stopped"})
     ))
-    monkeypatch.setattr(cli.shutil, "which", lambda _name: "npm")
     monkeypatch.setattr(cli, "port_free", lambda *_args: False)
     with pytest.raises(ValueError, match="already in use"):
         cli.dispatch(args("restart"), home)
     assert not home.process_file.exists()
 
 
-def test_doctor_rejects_nonfixed_ports(tmp_path, capsys):
-    home = paths(tmp_path); root = tmp_path / "repo"
-    (root / "backend/app").mkdir(parents=True); (root / "backend/app/main.py").touch()
-    (root / "frontend").mkdir(); (root / "frontend/package.json").touch()
-    home.create(); home.config_file.write_text(f'[server]\nport=8001\n[source]\nroot="{root.as_posix()}"\n')
-    assert cli.doctor(home) == 1
-    assert "deferred to Phase 6" in capsys.readouterr().out
+def test_doctor_accepts_configurable_ports(tmp_path, monkeypatch, capsys):
+    home = paths(tmp_path); home.create(); home.config_file.write_text('[server]\nport=8001\n[console]\nport=3001\n')
+    monkeypatch.setattr(cli, "_backend_available", lambda: True)
+    monkeypatch.setattr("memorynode.console.assets_available", lambda: True)
+    cli.doctor(home)
+    assert "config invalid" not in capsys.readouterr().out
 
 
 def test_doctor_rejects_nonboolean_governance_without_crashing(tmp_path, capsys):
-    home = paths(tmp_path); root = tmp_path / "repo"
-    (root / "backend/app").mkdir(parents=True); (root / "backend/app/main.py").touch()
-    (root / "frontend").mkdir(); (root / "frontend/package.json").touch()
-    home.create()
-    home.config_file.write_text(f'[source]\nroot="{root.as_posix()}"\n[governance]\nallow_agent_reject = "true"\n')
+    home = paths(tmp_path); home.create()
+    home.config_file.write_text('[governance]\nallow_agent_reject = "true"\n')
     assert cli.doctor(home) == 1
     assert "TOML boolean" in capsys.readouterr().out

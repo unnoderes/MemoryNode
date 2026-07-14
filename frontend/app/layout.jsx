@@ -16,9 +16,7 @@ export default function RootLayout({ children }) {
       <head>
         <title>{t("MemoryNode - AI 记忆管理", "MemoryNode - AI Memory Management")}</title>
         <meta name="description" content={t("提取、审核、查找和管理 AI 记忆", "Extract, review, search, and manage AI memories")} />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet" />
+        <script src="/memorynode-config.js"></script>
       </head>
       <body>
         <div className="app-container">
@@ -78,7 +76,7 @@ export default function RootLayout({ children }) {
                 <span className="status-dot"></span>
                 <span>{t("服务运行正常", "Service online")}</span>
               </div>
-              <div className="version-info">SQLite + Qwen</div>
+              <div className="version-info">MemoryNode 0.5.0 · SQLite + Qwen</div>
             </div>
           </aside>
 

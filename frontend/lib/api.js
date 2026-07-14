@@ -1,7 +1,9 @@
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+function apiUrl() {
+  return (typeof window !== "undefined" && window.__MEMORYNODE_CONFIG__?.apiOrigin || "http://127.0.0.1:8000").replace(/\/$/, "");
+}
 
 async function request(path, options = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${apiUrl()}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",

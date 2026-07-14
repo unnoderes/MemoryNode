@@ -87,24 +87,30 @@ The backend owns all lifecycle transitions. SQLite stores sources, proposals, me
 
 ## Run locally
 
-Phase 3 provides a local process-management CLI. The current wheel does not
-contain the backend or frontend, so it must point at a checked-out and already
-built MemoryNode source tree:
+MemoryNode 0.5.0 ships the SDK, stdio MCP server, FastAPI backend, and static
+governance console in one Python distribution:
 
 ```bash
-memorynode init --source-root /absolute/path/to/MemoryNode
+uv tool install memorynode
+memorynode init
 memorynode start
 memorynode status
+memorynode doctor
 memorynode stop
 ```
 
-`start` runs uvicorn from `source_root/backend` and `npm run start` from
-`source_root/frontend`; run `npm run build` in `frontend` first. Use
-`memorynode doctor` for read-only diagnostics and `memorynode mcp` for stdio
-MCP. Phase 3 fixes the API at `127.0.0.1:8000` and the console at
-`127.0.0.1:3000` because the current Next.js API URL and FastAPI CORS allowlist
-are build-time contracts. Configurable ports and standalone product assets in
-the wheel are deferred to Phase 6.
+Open `http://127.0.0.1:3000/proposals/`. Both services are Python processes
+bound to `127.0.0.1`; defaults are API `8000` and console `3000`. Override them
+with `--api-port`/`--console-port`, `MEMORYNODE_API_PORT`/
+`MEMORYNODE_CONSOLE_PORT`, or `config.toml`. The ports must differ. Installed
+runtime commands do not need a checkout, Node.js, npm, `node_modules`, or
+`.next`. Existing `[source]` configuration is accepted but ignored at runtime.
+
+For MCP clients, use `memorynode mcp`; stdout remains protocol-only:
+
+```json
+{"mcpServers":{"memorynode":{"command":"memorynode","args":["mcp"]}}}
+```
 
 ### 1. Configure
 
@@ -114,7 +120,9 @@ cd MemoryNode
 cp .env.example .env
 ```
 
-Set the Qwen-compatible endpoint, model, and API key in `.env`. Keep real credentials out of version control.
+Set the Qwen-compatible endpoint, model, and API key as environment variables.
+The installed runtime does not load repository `.env` files. Keep real
+credentials out of version control.
 
 ### 2. Start the backend
 
@@ -180,7 +188,10 @@ cd ../frontend
 npm run build
 ```
 
-Current release baseline: **17 backend tests**, **50 SDK/MCP/CLI tests**, and a successful Next.js production build.
+Release artifacts are built with `python scripts/build_release.py`. The command
+runs `npm ci`, creates a Next.js static export, stages the single backend source,
+builds an sdist and then a wheel from that sdist, and audits both artifacts.
+See `RELEASING.md` for the gated publication procedure.
 
 ## Scope
 

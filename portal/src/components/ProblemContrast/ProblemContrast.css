@@ -16,7 +16,7 @@
   text-align: center;
   color: var(--text-secondary);
   max-width: 600px;
-  margin: 0 auto 4rem auto;
+  margin: 0 auto 1.5rem auto;
   font-size: 1.1rem;
 }
 
@@ -111,4 +111,28 @@
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
+}
+
+.format-badge-container {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 4rem;
+  flex-wrap: wrap;
+}
+
+.format-tag {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed var(--border-color);
+  padding: 0.35rem 1rem;
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: var(--transition-smooth);
+}
+
+.format-tag:hover {
+  border-color: var(--border-color-hover);
+  color: var(--text-primary);
 }

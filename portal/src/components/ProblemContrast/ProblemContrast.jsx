@@ -9,6 +9,12 @@ export default function ProblemContrast() {
         <p className="contrast-subtitle animate-fade-in">
           目前大多数 AI Agent 的记忆机制犹如“黑盒”，缺乏干预手段。MemoryNode 将记忆沉淀设计为显性的治理决策。
         </p>
+        <div className="format-badge-container animate-fade-in">
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', marginRight: '0.25rem' }}>[实现形态]</span>
+          <span className="format-tag">🔌 MCP Server/Herness Agent Plugins</span>
+          <span className="format-tag">📦 SDK</span>
+          <span className="format-tag">🖥️ WebUI && FastAPI</span>
+        </div>
 
         <div className="contrast-grid">
           {/* Opaque Memory Card */}

@@ -77,7 +77,7 @@ export default function Architecture({ language, t }) {
         </p>
         <div className="border-t border-[#1e293b] pt-4 flex justify-between items-center">
           <span className="text-[10px] font-bold text-slate-500 uppercase">{t("涉及基础设施", "Infrastructure Dependency")}</span>
-          <span className="font-mono text-xs text-sky-400">{ARCH_STEPS[activeNode].tech}</span>
+          <span className="font-mono text-xs text-white">{ARCH_STEPS[activeNode].tech}</span>
         </div>
       </div>
     </section>

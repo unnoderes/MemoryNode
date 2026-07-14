@@ -94,8 +94,8 @@ export default function ApiExplorer({ language, t }) {
               className={`api-route-btn ${activeApiTab === key ? 'active' : ''}`}
             >
               <div className="flex items-center gap-2">
-                <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
-                  DEV_API_DATA[key].method === 'POST' ? 'text-emerald-400 bg-emerald-950/20 border border-emerald-900/30' : 'text-sky-400 bg-sky-950/20 border border-sky-900/30'
+                <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded border ${
+                  DEV_API_DATA[key].method === 'POST' ? 'text-white bg-neutral-900 border-white/20' : 'text-neutral-400 bg-neutral-950 border-white/5'
                 }`}>
                   {DEV_API_DATA[key].method}
                 </span>
@@ -119,7 +119,7 @@ export default function ApiExplorer({ language, t }) {
               </div>
               
               {/* Language Selector */}
-              <div className="flex gap-1.5 bg-[#070a0f] p-1 rounded-lg border border-white/5">
+              <div className="flex gap-1.5 bg-[#0f0f0f] p-1 rounded border border-white/5">
                 <button 
                   onClick={() => setCodeLang("python")}
                   className={`text-[10px] font-bold px-2.5 py-1 rounded transition-all cursor-pointer ${
@@ -164,7 +164,7 @@ export default function ApiExplorer({ language, t }) {
                 <div className="editor-header">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-slate-500 font-mono">response.json</span>
-                    <span className="text-[8px] font-mono text-emerald-400 bg-emerald-950/20 border border-emerald-900/30 px-1 py-0.5 rounded">200 OK</span>
+                    <span className="text-[8px] font-mono text-neutral-300 bg-neutral-900 border border-white/10 px-1 py-0.5 rounded">200 OK</span>
                   </div>
                   <button
                     onClick={() => handleCopy(responseJson)}
@@ -173,7 +173,7 @@ export default function ApiExplorer({ language, t }) {
                     {copyFeedback ? t("已复制!", "Copied!") : t("复制 JSON", "Copy JSON")}
                   </button>
                 </div>
-                <div className="editor-body p-4 overflow-x-auto text-[11px] bg-[#04060a] text-emerald-400/90 font-mono min-h-[220px] leading-relaxed">
+                <div className="editor-body p-4 overflow-x-auto text-[11px] bg-[#04060a] text-neutral-300 font-mono min-h-[220px] leading-relaxed">
                   <pre className="whitespace-pre">{responseJson}</pre>
                 </div>
               </div>

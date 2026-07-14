@@ -7,22 +7,22 @@ export default function Hero({ t }) {
     <main className="hero-section">
       {/* Background Orbiting Particles */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] pointer-events-none hidden md:block z-0">
-        <div className="animate-orbit absolute w-2 h-2 rounded-full bg-[#9845E8]/20"></div>
-        <div className="animate-orbit-reverse absolute w-1.5 h-1.5 rounded-full bg-[#11AC85]/25"></div>
+        <div className="animate-orbit absolute w-2 h-2 rounded-full bg-white/10"></div>
+        <div className="animate-orbit-reverse absolute w-1.5 h-1.5 rounded-full bg-white/15"></div>
       </div>
 
       <div className="relative z-10">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/60 border border-white/5 text-[10.5px] font-bold text-slate-400 mb-8 uppercase tracking-wider">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded bg-neutral-900 border border-white/5 text-[10.5px] font-bold text-slate-400 mb-8 uppercase tracking-wider">
           <span className="relative flex h-1.5 w-1.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#9845E8]"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded bg-white opacity-75"></span>
+            <span className="relative inline-flex rounded h-1.5 w-1.5 bg-white"></span>
           </span>
           <span>{t("阿里云通义千问 Hackathon 参赛作品：MemoryAgent 赛道", "Qwen Cloud Global AI Hackathon Entry: MemoryAgent Track")}</span>
         </div>
 
         <h1 className="hero-title">
           <span className="text-white block sm:inline">{t("MemoryNode:", "MemoryNode:")}</span>{" "}
-          <span className="bg-gradient-to-r from-[#9845E8] via-[#1C11FC] to-[#11AC85] bg-clip-text text-transparent block sm:inline">
+          <span className="bg-gradient-to-r from-white via-neutral-300 to-neutral-500 bg-clip-text text-transparent block sm:inline">
             {t("通义千问智能体持久化记忆治理层", "Human-Governed Memory for Qwen Agents")}
           </span>
         </h1>
@@ -46,10 +46,10 @@ export default function Hero({ t }) {
 
         {/* Hackathon Project Metadata Specs Card */}
         <div className="hero-terminal-container max-w-3xl mx-auto mt-12 mb-16">
-          <div className="editor-frame bg-[#04060a]">
+          <div className="editor-frame bg-[#050505]">
             <div className="editor-header flex items-center justify-between border-b border-white/5 px-4 py-2 bg-black/40">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#9845E8] shadow-[0_0_8px_#9845E8]"></span>
+                <span className="w-2 h-2 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] animate-pulse"></span>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Project Specifications</span>
               </div>
               <span className="text-[9px] font-mono text-slate-500">SUBMISSION MANIFEST</span>
@@ -63,7 +63,7 @@ export default function Hero({ t }) {
                 </div>
                 <div className="flex justify-between border-b border-white/5 pb-2">
                   <span className="text-slate-500 font-medium">{t("申报赛道", "Challenge Track")}</span>
-                  <span className="font-bold text-[#9845E8] text-right">MemoryAgent Track</span>
+                  <span className="font-bold text-white text-right">MemoryAgent Track</span>
                 </div>
                 <div className="flex justify-between border-b border-white/5 pb-2">
                   <span className="text-slate-500 font-medium">{t("主办单位", "Host Sponsor")}</span>
@@ -74,7 +74,7 @@ export default function Hero({ t }) {
               <div className="space-y-3">
                 <div className="flex justify-between border-b border-white/5 pb-2">
                   <span className="text-slate-500 font-medium">{t("基础大模型", "Agent Core Model")}</span>
-                  <span className="font-bold text-sky-400 text-right">Qwen-2.5-Coder / 3.7-Max</span>
+                  <span className="font-bold text-white text-right">Qwen-2.5-Coder / 3.7-Max</span>
                 </div>
                 <div className="flex justify-between border-b border-white/5 pb-2">
                   <span className="text-slate-500 font-medium">{t("底层核心依赖", "Tech Core Stack")}</span>
@@ -82,7 +82,7 @@ export default function Hero({ t }) {
                 </div>
                 <div className="flex justify-between border-b border-white/5 pb-2">
                   <span className="text-slate-500 font-medium">{t("安全控制模式", "Security Architecture")}</span>
-                  <span className="font-bold text-[#11AC85] text-right">{t("人类在环主动校验", "Human-in-the-loop Gate")}</span>
+                  <span className="font-bold text-white text-right">{t("人类在环主动校验", "Human-in-the-loop Gate")}</span>
                 </div>
               </div>
             </div>
@@ -90,9 +90,9 @@ export default function Hero({ t }) {
         </div>
 
         {/* Core Capabilities */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 mt-16 max-w-5xl mx-auto border border-white/5 bg-[#05070a]/30 rounded-2xl overflow-hidden divide-y md:divide-y-0 md:divide-x divide-white/5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 mt-16 max-w-5xl mx-auto border border-white/5 bg-[#050505]/45 rounded-lg overflow-hidden divide-y md:divide-y-0 md:divide-x divide-white/5">
           <div className="p-8 group relative text-left hover:bg-white/[0.01] transition-colors">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#9845E8] to-[#1C11FC] flex items-center justify-center text-white text-xs font-bold mb-6 shadow-lg group-hover:scale-110 transition-transform">01</div>
+            <div className="w-10 h-10 rounded border border-neutral-700 bg-neutral-900 flex items-center justify-center text-white text-xs font-bold mb-6 group-hover:scale-105 transition-transform">01</div>
             <h3 className="text-white font-bold text-[14px] mb-3">{t("1. 证据出处 (Provenance)", "1. Strict Provenance")}</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
               {t("基于 Qwen-2.5-Coder 提取的记忆提案均强绑定对话原文引用（Source Quote）和事实推导理由，杜绝大模型的主观凭空捏造与幻觉偏见。", "Every rule suggested by Qwen models retains a direct source quote citation from dialogue logs, preventing fabrications and hallucinated updates.")}
@@ -100,7 +100,7 @@ export default function Hero({ t }) {
           </div>
           
           <div className="p-8 group relative text-left hover:bg-white/[0.01] transition-colors">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#1C11FC] to-[#11AC85] flex items-center justify-center text-white text-xs font-bold mb-6 shadow-lg group-hover:scale-110 transition-transform">02</div>
+            <div className="w-10 h-10 rounded border border-neutral-700 bg-neutral-900 flex items-center justify-center text-white text-xs font-bold mb-6 group-hover:scale-105 transition-transform">02</div>
             <h3 className="text-white font-bold text-[14px] mb-3">{t("2. 待审隔离 (Isolation Buffer)", "2. Isolation Buffer")}</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
               {t("提取提案首先进入 pending 状态进行物理隔离，绝不影响实时上下文召回。只有经过人类管理员控制台或 CLI 显式批准后才激活写入检索库。", "New suggestions are buffered in a pending state, isolated from active recall until approved by an admin via console or CLI.")}
@@ -108,7 +108,7 @@ export default function Hero({ t }) {
           </div>
           
           <div className="p-8 group relative text-left hover:bg-white/[0.01] transition-colors">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#11AC85] to-[#9845E8] flex items-center justify-center text-white text-xs font-bold mb-6 shadow-lg group-hover:scale-110 transition-transform">03</div>
+            <div className="w-10 h-10 rounded border border-neutral-700 bg-neutral-900 flex items-center justify-center text-white text-xs font-bold mb-6 group-hover:scale-105 transition-transform">03</div>
             <h3 className="text-white font-bold text-[14px] mb-3">{t("3. 冲突覆写 (Supersession)", "3. Conflict Resolution")}</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
               {t("允许管理员在核准新事实时关联旧冲突事实 ID 进行覆盖（Approve & Supersede），即刻撤销陈旧或冲突的历史记忆并重建检索链条。", "Allows reviewers to link new approvals to older memory IDs, executing an override that revokes stale context while preserving the audit path.")}

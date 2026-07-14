@@ -4,14 +4,14 @@ import React from "react";
 
 export default function Header({ language, setLanguage, t }) {
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 bg-[#020202]/75 backdrop-blur-md border-b border-white/5 py-4 px-6 md:px-12">
+    <nav className="fixed top-0 left-0 w-full z-50 bg-[#000000]/75 backdrop-blur-md border-b border-white/5 py-4 px-6 md:px-12">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <span className="w-2 h-2 bg-[#9845E8] rounded-full shadow-[0_0_10px_#9845E8] animate-pulse"></span>
+          <span className="w-2 h-2 bg-white rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)] animate-pulse"></span>
           <span className="text-base font-bold tracking-tight text-white">
             MemoryNode
           </span>
-          <span className="text-[9px] font-extrabold text-[#9845E8] border border-[#9845E8]/20 bg-[#9845E8]/5 px-2 py-0.5 rounded uppercase tracking-wider hidden sm:inline-block">
+          <span className="text-[9px] font-extrabold text-neutral-400 border border-white/10 bg-white/5 px-2 py-0.5 rounded uppercase tracking-wider hidden sm:inline-block">
             Qwen Hackathon Submission
           </span>
         </div>
@@ -25,7 +25,7 @@ export default function Header({ language, setLanguage, t }) {
         <div className="flex items-center gap-4">
           <button 
             onClick={() => setLanguage(language === "zh" ? "en" : "zh")}
-            className="text-[11px] font-bold px-3 py-1.5 rounded border border-white/5 bg-[#090d14] hover:bg-[#111827] text-slate-300 hover:text-white transition-all cursor-pointer"
+            className="text-[11px] font-bold px-3 py-1.5 rounded border border-white/5 bg-[#0a0a0a] hover:bg-[#121212] text-slate-300 hover:text-white transition-all cursor-pointer"
           >
             {language === "zh" ? "English" : "中文"}
           </button>

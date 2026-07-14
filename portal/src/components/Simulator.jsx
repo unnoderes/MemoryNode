@@ -123,8 +123,8 @@ export default function Simulator({ language, t }) {
               className={`preset-card ${activePreset === idx ? 'active' : ''}`}
             >
               <div className="flex items-center gap-2 mb-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${
-                  activePreset === idx ? 'bg-sky-400 shadow-[0_0_8px_#38bdf8]' : 'bg-slate-700'
+                <span className={`w-1.5 h-1.5 rounded ${
+                  activePreset === idx ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-neutral-800'
                 }`}></span>
                 <span className="font-bold text-xs text-white">
                   {language === "zh" ? preset.title_zh : preset.title_en}
@@ -144,7 +144,7 @@ export default function Simulator({ language, t }) {
           <div className="glass-card glow-border p-6 h-full flex flex-col">
             <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#10b981] animate-pulse"></span>
+                <span className="w-2 h-2 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] animate-pulse"></span>
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider">{t("原始交互日志", "Raw Chat Transcript")}</h3>
               </div>
               <span className="text-[9.5px] font-mono text-slate-500">ID: session_90d2e8</span>
@@ -155,12 +155,12 @@ export default function Simulator({ language, t }) {
               {/* User message */}
               <div className="flex flex-col items-start gap-2 max-w-[85%]">
                 <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
-                  <span className="w-5 h-5 rounded-full bg-slate-800 border border-white/5 flex items-center justify-center text-[9px] text-slate-300">U</span>
+                  <span className="w-5 h-5 rounded bg-neutral-900 border border-white/5 flex items-center justify-center text-[9px] text-slate-300">U</span>
                   <span>Mike (Developer)</span>
                   <span>•</span>
                   <span>10:42 AM</span>
                 </div>
-                <div className="bg-[#0c1017] border border-white/5 p-4 rounded-2xl rounded-tl-none text-xs text-slate-200 leading-relaxed shadow-sm">
+                <div className="bg-neutral-950 border border-white/5 p-4 rounded text-xs text-slate-200 leading-relaxed shadow-sm">
                   {language === "zh" ? data.user_msg_zh : data.user_msg_en}
                 </div>
               </div>
@@ -171,9 +171,9 @@ export default function Simulator({ language, t }) {
                   <span>10:42 AM</span>
                   <span>•</span>
                   <span>Coding Agent</span>
-                  <span className="w-5 h-5 rounded-full bg-sky-950 border border-sky-800/30 flex items-center justify-center text-[9px] text-sky-400">A</span>
+                  <span className="w-5 h-5 rounded bg-white border border-white flex items-center justify-center text-[9px] text-black">A</span>
                 </div>
-                <div className="bg-sky-950/15 border border-sky-900/20 p-4 rounded-2xl rounded-tr-none text-xs text-slate-200 leading-relaxed shadow-sm">
+                <div className="bg-neutral-900 border border-white/5 p-4 rounded text-xs text-slate-200 leading-relaxed shadow-sm">
                   {language === "zh" ? data.assistant_msg_zh : data.assistant_msg_en}
                 </div>
               </div>
@@ -186,7 +186,7 @@ export default function Simulator({ language, t }) {
           <div className="glass-card glow-border p-6">
             <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-sky-500 shadow-[0_0_8px_#38bdf8] animate-pulse"></span>
+                <span className="w-2 h-2 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] animate-pulse"></span>
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider">{t("记忆治理流水线", "Governance Pipeline")}</h3>
               </div>
               <span className="text-[9.5px] font-mono text-slate-500">STAGE: EV-0.4.2</span>
@@ -196,7 +196,7 @@ export default function Simulator({ language, t }) {
             <div className="space-y-6">
               {/* Step 1: Suggesting */}
               <div className="relative pl-6 border-l border-white/5">
-                <span className="absolute -left-[4.5px] top-1.5 w-2 h-2 rounded-full bg-sky-500 shadow-[0_0_8px_#38bdf8]"></span>
+                <span className="absolute -left-[4.5px] top-1.5 w-2 h-2 rounded bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]"></span>
                 <div className="mb-3">
                   <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{t("阶段一：Qwen-LLM 结构化提取", "Step 1: LLM Suggestion")}</div>
                   <div className="text-[11px] text-slate-400 mt-0.5">{t("从原始语境中提炼规则提案，附带原文出处与提取理由", "Extract structured proposal with source quotes and rationales.")}</div>
@@ -204,7 +204,7 @@ export default function Simulator({ language, t }) {
 
                 <div className="space-y-3">
                   {data.proposals.map((prop, index) => (
-                    <div key={index} className="p-3.5 rounded-xl bg-black/40 border border-white/5 shadow-inner">
+                    <div key={index} className="p-3.5 rounded bg-black/40 border border-white/5 shadow-inner">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span className={`m-badge m-badge-${prop.type} text-[8px] px-1.5 py-0.5`}>
                           {getBadgeLabel(prop.type)}
@@ -224,20 +224,20 @@ export default function Simulator({ language, t }) {
 
               {/* Step 2: Human Audit Gate */}
               <div className="relative pl-6 border-l border-white/5">
-                <span className="absolute -left-[4.5px] top-1.5 w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_#8b5cf6]"></span>
+                <span className="absolute -left-[4.5px] top-1.5 w-2 h-2 rounded bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]"></span>
                 <div className="mb-2">
                   <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{t("阶段二：人类在环校验", "Step 2: Human Audit Gate")}</div>
                   <div className="text-[11px] text-slate-400 mt-0.5">{t("提案隔离存放，必须通过管理员控制台或 CLI 执行显式授权", "Isolated drafts await review. No recall index before approval.")}</div>
                 </div>
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-950 bg-emerald-950/20 text-emerald-400 text-xs font-bold shadow-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_#34d399]"></span>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded border border-neutral-700 bg-neutral-900 text-white text-xs font-bold shadow-sm">
+                  <span className="w-1.5 h-1.5 rounded bg-white shadow-[0_0_4px_rgba(255,255,255,0.8)]"></span>
                   <span>{t("由 Mike-Dev 控制台批准 (已激活)", "Authorized by Mike-Dev (Active)")}</span>
                 </div>
               </div>
 
               {/* Step 3: SQLite FTS5 Indexed */}
               <div className="relative pl-6">
-                <span className="absolute -left-[4.5px] top-1.5 w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#34d399]"></span>
+                <span className="absolute -left-[4.5px] top-1.5 w-2 h-2 rounded bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]"></span>
                 <div>
                   <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{t("阶段三：装载进入 FTS5 索引", "Step 3: SQLite FTS5 Indexed")}</div>
                   <div className="text-[11px] text-slate-400 mt-0.5 mb-2">{t("转入活性检索库，提供亚毫秒级匹配，支持基于关联的显式覆盖", "Active facts stored. millisecond-level retrieval ready.")}</div>
@@ -245,12 +245,12 @@ export default function Simulator({ language, t }) {
 
                 <div className="space-y-2">
                   {data.proposals.map((prop, index) => (
-                    <div key={index} className="flex items-center justify-between p-2.5 rounded-lg border border-white/5 bg-[#04060a] text-xs">
+                    <div key={index} className="flex items-center justify-between p-2.5 rounded border border-white/5 bg-[#050505] text-xs">
                       <div className="flex items-center gap-2 truncate">
-                        <span className="font-mono text-[9.5px] text-sky-400 bg-sky-950/30 border border-sky-900/30 px-1 py-0.5 rounded">{prop.id}</span>
+                        <span className="font-mono text-[9.5px] text-white bg-neutral-900 border border-white/10 px-1 py-0.5 rounded">{prop.id}</span>
                         <span className="text-slate-300 font-medium truncate">{language === "zh" ? prop.content_zh : prop.content_en}</span>
                       </div>
-                      <span className="text-[8px] font-extrabold text-emerald-400 bg-emerald-950/30 border border-emerald-900/30 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ml-2">Active</span>
+                      <span className="text-[8px] font-extrabold text-black bg-white border border-white px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ml-2">Active</span>
                     </div>
                   ))}
                 </div>

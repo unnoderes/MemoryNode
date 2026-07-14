@@ -11,6 +11,12 @@ export default function Hero() {
             <span className="hero-tag">🌟 可信记忆治理框架</span>
             <span className="hero-tag">🛡️ 人机协同审核</span>
           </div>
+          <div className="hero-badge-container" style={{ marginTop: '0.5rem', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', marginRight: '0.25rem' }}>[实现形态]</span>
+            <span className="hero-tag" style={{ borderStyle: 'dashed' }}>🔌 MCP Server/Herness Agent Plugins</span>
+            <span className="hero-tag" style={{ borderStyle: 'dashed' }}>📦 SDK</span>
+            <span className="hero-tag" style={{ borderStyle: 'dashed' }}>🖥️ WebUI && FastAPI</span>
+          </div>
 
           {/* Slogan */}
           <h1 className="hero-title">

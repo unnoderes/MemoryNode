@@ -1,0 +1,59 @@
+import React from 'react';
+import './Hero.css';
+
+export default function Hero() {
+  return (
+    <section className="hero-section">
+      <div className="container">
+        <div className="hero-content animate-fade-in">
+          {/* Subtag */}
+          <div className="hero-badge-container">
+            <span className="hero-tag">🌟 可信记忆治理框架</span>
+            <span className="hero-tag">🛡️ 人机协同审核</span>
+          </div>
+
+          {/* Slogan */}
+          <h1 className="hero-title">
+            为 AI Agent 打造的<br />
+            <span className="gradient-text">可信、可追溯、可废除</span>记忆层
+          </h1>
+
+          {/* Slogan details */}
+          <p className="hero-subtitle">
+            将 Agent 与用户的无序会话转变为结构化的“记忆提案”，通过人类的决策审核与 SQLite FTS5 的合规检索，为您的 AI 智能体提供一个安全、透明、易被修改和销毁的外部知识节点。
+          </p>
+
+          {/* CTA Buttons */}
+          <div className="hero-ctas">
+            <a href="#workflow" className="btn btn-primary">
+              体验在线模拟器 →
+            </a>
+            <a href="#cli" className="btn btn-secondary">
+              5秒快速部署
+            </a>
+          </div>
+
+          {/* Technology Badges */}
+          <div className="tech-badges">
+            <div className="glass-card tech-badge">
+              <span className="tech-badge-dot" style={{ backgroundColor: '#00bfa5' }}></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Python FastAPI</span>
+            </div>
+            <div className="glass-card tech-badge">
+              <span className="tech-badge-dot" style={{ backgroundColor: '#8b5cf6' }}></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Qwen Compatible</span>
+            </div>
+            <div className="glass-card tech-badge">
+              <span className="tech-badge-dot" style={{ backgroundColor: '#3b82f6' }}></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>SQLite FTS5</span>
+            </div>
+            <div className="glass-card tech-badge">
+              <span className="tech-badge-dot" style={{ backgroundColor: '#f43f5e' }}></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>React & Next.js</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

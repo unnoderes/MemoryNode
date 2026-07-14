@@ -1,0 +1,107 @@
+/* Problem Contrast Section Styles */
+.contrast-section {
+  padding: 6rem 0;
+  background: rgba(0, 0, 0, 0.15);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.contrast-title {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.contrast-subtitle {
+  text-align: center;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto 4rem auto;
+  font-size: 1.1rem;
+}
+
+.contrast-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+}
+
+.contrast-card {
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: relative;
+}
+
+.contrast-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.contrast-card-danger {
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.contrast-card-danger:hover {
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 10px 40px rgba(239, 68, 68, 0.08);
+}
+
+.contrast-card-success {
+  border-color: rgba(0, 191, 165, 0.2);
+}
+
+.contrast-card-success:hover {
+  border-color: rgba(0, 191, 165, 0.4);
+  box-shadow: 0 10px 40px rgba(0, 191, 165, 0.08);
+}
+
+.card-icon {
+  font-size: 1.5rem;
+}
+
+.contrast-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.contrast-item {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.item-bullet {
+  font-weight: bold;
+}
+
+.danger-bullet {
+  color: var(--color-danger);
+}
+
+.success-bullet {
+  color: var(--color-primary);
+}
+
+.item-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+}
+
+.item-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+  .contrast-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}

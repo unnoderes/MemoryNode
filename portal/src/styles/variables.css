@@ -1,0 +1,49 @@
+/* Design Tokens for MemoryNode Showcase Portal */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Color Palette - Dark Mode First */
+  --bg-deep: #060913;      /* Deep Space Black */
+  --bg-card: rgba(13, 19, 35, 0.45);   /* Semi-transparent Glassmorphism Card background */
+  --bg-card-hover: rgba(20, 29, 54, 0.6);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-color-hover: rgba(124, 58, 237, 0.3); /* Purple border glow on hover */
+
+  /* Theme Accents */
+  --color-primary: #00bfa5;     /* Vibrant Teal (FastAPI / Life-cycle) */
+  --color-primary-glow: rgba(0, 191, 165, 0.25);
+  --color-secondary: #8b5cf6;   /* Rich Violet / Purple (Qwen LLM / AI) */
+  --color-secondary-glow: rgba(139, 92, 246, 0.25);
+  
+  /* Semantic Statuses */
+  --color-success: #10b981;     /* Active / Approved */
+  --color-success-bg: rgba(16, 185, 129, 0.1);
+  --color-danger: #ef4444;      /* Revoked / Rejected */
+  --color-danger-bg: rgba(239, 68, 68, 0.1);
+  --color-warning: #f59e0b;     /* Expired / Pending */
+  --color-warning-bg: rgba(245, 158, 11, 0.1);
+
+  /* Text Colors */
+  --text-primary: #f3f4f6;       /* Bright Silver */
+  --text-secondary: #9ca3af;     /* Subdued Slate Gray */
+  --text-muted: #6b7280;         /* Dark Muted Gray */
+
+  /* Typography */
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', source-code-pro, Menlo, Monaco, Consolas, monospace;
+
+  /* Shadows & Glows */
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --glow-primary: 0 0 20px var(--color-primary-glow);
+  --glow-secondary: 0 0 20px var(--color-secondary-glow);
+
+  /* Border Radii */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+
+  /* Transition Curves */
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-elastic: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}

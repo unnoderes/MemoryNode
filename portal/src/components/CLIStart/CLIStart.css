@@ -1,0 +1,126 @@
+/* CLI Start Section Styles */
+.cli-section {
+  padding: 6rem 0;
+}
+
+.cli-title {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+}
+
+.cli-subtitle {
+  text-align: center;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto 3rem auto;
+  font-size: 1.1rem;
+}
+
+/* Terminal Mockup */
+.terminal-card {
+  max-width: 800px;
+  margin: 0 auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: #030712;
+  box-shadow: var(--shadow-glass);
+  overflow: hidden;
+}
+
+.terminal-header {
+  height: 45px;
+  background: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.terminal-dots {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.terminal-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.terminal-tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.terminal-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-smooth);
+}
+
+.terminal-tab:hover {
+  color: var(--text-primary);
+}
+
+.terminal-tab.active {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.terminal-body {
+  padding: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #38bdf8; /* Soft blue console text */
+  min-height: 240px;
+  overflow-x: auto;
+}
+
+.terminal-line {
+  margin-bottom: 0.5rem;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.line-prompt {
+  color: var(--color-secondary);
+  user-select: none;
+}
+
+.line-cmd {
+  color: var(--text-primary);
+}
+
+.line-output {
+  color: var(--text-secondary);
+}
+
+.line-comment {
+  color: var(--text-muted);
+}
+
+.cursor {
+  display: inline-block;
+  width: 8px;
+  height: 15px;
+  background: var(--color-primary);
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+  vertical-align: middle;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}

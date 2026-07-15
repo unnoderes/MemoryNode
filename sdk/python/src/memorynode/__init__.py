@@ -9,8 +9,7 @@ from .models import (
     MemoryType, Proposal, ProposalExtraction, ProposalList, ProposalStatus, Source,
     FeedbackType, MemoryEventList,
 )
-
-__version__ = "0.7.0"
+from ._version import __version__
 
 __all__ = [name for name in globals() if name.startswith("MemoryNode") or name in {
     "Health", "Source", "Proposal", "Memory", "MemoryEvent", "ProposalExtraction",

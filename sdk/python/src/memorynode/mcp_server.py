@@ -12,12 +12,11 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from starlette.responses import JSONResponse
 
+from ._version import __version__ as VERSION
 from .client import MemoryNodeClient
 from .config import Paths, load_governance_policy, mcp_http_token_hash, mcp_http_token_matches
 from .errors import MemoryNodeError
 
-
-VERSION = "0.7.0"
 JSON_MIME = "application/json"
 INSTRUCTIONS = (
     "New information must be submitted with memory_propose; proposals are pending until reviewed. "

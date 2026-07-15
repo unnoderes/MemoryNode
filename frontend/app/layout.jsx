@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLanguage } from "../lib/language";
 
+const memoryNodeVersion = process.env.NEXT_PUBLIC_MEMORYNODE_VERSION || "development";
+
 export default function RootLayout({ children }) {
   const pathname = usePathname();
   const { language, setLanguage, t } = useLanguage();
@@ -76,7 +78,7 @@ export default function RootLayout({ children }) {
                 <span className="status-dot"></span>
                 <span>{t("服务运行正常", "Service online")}</span>
               </div>
-              <div className="version-info">MemoryNode 0.7.0 · SQLite + Qwen</div>
+              <div className="version-info">MemoryNode {memoryNodeVersion} · SQLite + Qwen</div>
             </div>
           </aside>
 

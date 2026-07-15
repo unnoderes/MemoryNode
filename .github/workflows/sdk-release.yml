@@ -1,0 +1,121 @@
+name: SDK Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Validate, test, and build release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Require release commit on main
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            backend/requirements.txt
+            sdk/python/pyproject.toml
+            sdk/python/uv.lock
+      - name: Validate tag and PyPI availability
+        run: python scripts/check_release_version.py --tag "$GITHUB_REF_NAME" --check-pypi
+      - name: Test backend
+        working-directory: backend
+        run: uv run --python "3.14" --project ../sdk/python --locked --extra test python -m pytest -q
+      - name: Test SDK
+        working-directory: sdk/python
+        run: uv run --python "3.14" --locked --extra test python -m pytest -q
+      - name: Build wheel and sdist
+        run: python scripts/build_release.py
+      - name: Validate package metadata
+        run: uvx twine check dist/*
+      - name: Smoke-test installed wheel
+        run: python scripts/smoke_release.py dist
+      - name: Create checksums
+        working-directory: dist
+        run: sha256sum memorynode-*.whl memorynode-*.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: memorynode-release-${{ github.ref_name }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
+
+  smoke-windows:
+    name: Smoke release wheel (Windows)
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@v4
+        with:
+          name: memorynode-release-${{ github.ref_name }}
+          path: dist
+      - run: python scripts/smoke_release.py dist
+
+  publish-pypi:
+    name: Publish distributions to PyPI
+    needs:
+      - build
+      - smoke-windows
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/memorynode/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: memorynode-release-${{ github.ref_name }}
+          path: dist
+      - name: Keep only Python distributions in upload directory
+        run: rm dist/SHA256SUMS
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+  github-release:
+    name: Create GitHub Release
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: memorynode-release-${{ github.ref_name }}
+          path: dist
+      - name: Create release and attach verified artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME" dist/*
+          --verify-tag
+          --generate-notes
+          --title "MemoryNode ${GITHUB_REF_NAME#v}"

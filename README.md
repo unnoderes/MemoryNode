@@ -184,6 +184,8 @@ Build release artifacts with:
 python scripts/build_release.py
 ```
 
+See [.github/RELEASING.md](.github/RELEASING.md) for the CI and trusted-publishing procedure. The current release is `memorynode==0.7.0`.
+
 ## Current scope
 
 MemoryNode focuses on a verifiable local governance loop. It does not currently provide cloud hosting, remote accounts, multitenancy, billing, Docker deployment, LAN exposure, automatic approval, automatic conflict arbitration, vector search, or background expiry scheduling.

@@ -26,7 +26,7 @@ def test_help_version_and_status_text_codes(tmp_path, capsys):
     assert cli.dispatch(args("version"), paths(tmp_path)) == 0
     assert cli.status(paths(tmp_path)) == 1
     output = capsys.readouterr().out
-    assert "0.7.0" in output and "overall: stopped" in output
+    assert memorynode.__version__ in output and "overall: stopped" in output
 
 
 def test_public_versions_and_mcp_status_match(monkeypatch):
@@ -39,8 +39,8 @@ def test_public_versions_and_mcp_status_match(monkeypatch):
     )
     monkeypatch.setattr(mcp_server, "_call", lambda _function: {"status": "ok"})
     monkeypatch.setattr(mcp_server, "_policy", lambda: policy)
-    assert memorynode.__version__ == cli.VERSION == mcp_server.VERSION == "0.7.0"
-    assert json.loads(mcp_server.status_resource())["mcp_version"] == "0.7.0"
+    assert memorynode.__version__ == cli.VERSION == mcp_server.VERSION
+    assert json.loads(mcp_server.status_resource())["mcp_version"] == memorynode.__version__
 
 
 def test_status_stale_foreign_partial_and_stop_never_kills(tmp_path, monkeypatch, capsys):

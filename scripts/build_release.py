@@ -82,6 +82,7 @@ def main():
             temp = Path(temporary)
             stage = temp / "stage"
             shutil.copytree(SDK, stage, ignore=IGNORED)
+            shutil.copy2(ROOT / "LICENSE", stage / "LICENSE")
             shutil.copytree(ROOT / "backend" / "app", stage / "src" / "memorynode" / "backend", ignore=IGNORED)
             shutil.copytree(output, stage / "src" / "memorynode" / "console_assets")
             (stage / "src" / "memorynode" / "console_assets" / SENTINEL).write_text("MemoryNode console 0.7.0\n", encoding="utf-8")

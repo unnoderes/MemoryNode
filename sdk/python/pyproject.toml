@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "memorynode"
-version = "0.7.0"
+dynamic = ["version"]
 description = "Governed local memory with Python SDK, MCP server, API, CLI, and console"
 readme = "README.md"
 license = "MIT"
@@ -41,6 +41,9 @@ Repository = "https://github.com/unnoderes/MemoryNode"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.hatch.version]
+path = "src/memorynode/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/memorynode"]

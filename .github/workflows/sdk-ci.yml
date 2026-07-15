@@ -1,0 +1,118 @@
+name: SDK CI
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "sdk/python/**"
+      - "scripts/build_release.py"
+      - "scripts/check_release_version.py"
+      - "scripts/smoke_release.py"
+      - ".github/workflows/sdk-*.yml"
+      - "LICENSE"
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "sdk/python/**"
+      - "scripts/build_release.py"
+      - "scripts/check_release_version.py"
+      - "scripts/smoke_release.py"
+      - ".github/workflows/sdk-*.yml"
+      - "LICENSE"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: "3.10"
+          - os: ubuntu-latest
+            python-version: "3.14"
+          - os: windows-latest
+            python-version: "3.14"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            backend/requirements.txt
+            sdk/python/pyproject.toml
+            sdk/python/uv.lock
+      - name: Validate release version wiring
+        run: python scripts/check_release_version.py
+      - name: Test backend
+        working-directory: backend
+        run: uv run --python "${{ matrix.python-version }}" --project ../sdk/python --locked --extra test python -m pytest -q
+      - name: Test SDK
+        working-directory: sdk/python
+        run: uv run --python "${{ matrix.python-version }}" --locked --extra test python -m pytest -q
+
+  build:
+    name: Build and audit distributions
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Validate release version wiring
+        run: python scripts/check_release_version.py
+      - name: Build wheel and sdist
+        run: python scripts/build_release.py
+      - name: Validate package metadata
+        run: uvx twine check dist/*
+      - name: Smoke-test installed wheel
+        run: python scripts/smoke_release.py dist
+      - name: Create checksums
+        working-directory: dist
+        run: sha256sum memorynode-*.whl memorynode-*.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: memorynode-dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
+
+  smoke-windows:
+    name: Smoke installed wheel (Windows)
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: actions/download-artifact@v4
+        with:
+          name: memorynode-dist
+          path: dist
+      - run: python scripts/smoke_release.py dist

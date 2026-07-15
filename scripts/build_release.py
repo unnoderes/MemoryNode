@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -14,13 +15,24 @@ ROOT = Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / "frontend"
 SDK = ROOT / "sdk" / "python"
 DIST = ROOT / "dist"
-SENTINEL = "memorynode-console-0.7.0.txt"
-IGNORED = shutil.ignore_patterns(".venv", "dist", "__pycache__", "*.pyc", ".pytest_cache", ".ruff_cache", "*.egg-info")
+IGNORED = shutil.ignore_patterns(".venv", "uv.lock", "dist", "__pycache__", "*.pyc", ".pytest_cache", ".ruff_cache", "*.egg-info")
 BANNED_PARTS = {".env", ".next", "node_modules", "__pycache__", "backups", "exports", "logs"}
 
 
-def run(*command, cwd=None):
-    subprocess.run(command, cwd=cwd, check=True)
+def release_version():
+    version_file = SDK / "src" / "memorynode" / "_version.py"
+    match = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', version_file.read_text(encoding="utf-8"), re.MULTILINE)
+    if not match:
+        raise RuntimeError(f"release version not found in {version_file}")
+    return match.group(1)
+
+
+VERSION = release_version()
+SENTINEL = f"memorynode-console-{VERSION}.txt"
+
+
+def run(*command, cwd=None, env=None):
+    subprocess.run(command, cwd=cwd, env=env, check=True)
 
 
 def members(path):
@@ -75,7 +87,8 @@ def main():
     output = FRONTEND / "out"
     try:
         run(npm, "ci", cwd=FRONTEND)
-        run(npm, "run", "build", cwd=FRONTEND)
+        frontend_env = dict(os.environ, NEXT_PUBLIC_MEMORYNODE_VERSION=VERSION)
+        run(npm, "run", "build", cwd=FRONTEND, env=frontend_env)
         if not (output / "proposals" / "index.html").is_file() or not (output / "memories" / "detail" / "index.html").is_file():
             raise RuntimeError("static console export is incomplete")
         with tempfile.TemporaryDirectory(prefix="memorynode-release-") as temporary:
@@ -85,7 +98,7 @@ def main():
             shutil.copy2(ROOT / "LICENSE", stage / "LICENSE")
             shutil.copytree(ROOT / "backend" / "app", stage / "src" / "memorynode" / "backend", ignore=IGNORED)
             shutil.copytree(output, stage / "src" / "memorynode" / "console_assets")
-            (stage / "src" / "memorynode" / "console_assets" / SENTINEL).write_text("MemoryNode console 0.7.0\n", encoding="utf-8")
+            (stage / "src" / "memorynode" / "console_assets" / SENTINEL).write_text(f"MemoryNode console {VERSION}\n", encoding="utf-8")
             sdist_dir = temp / "sdist"
             run(uv, "build", "--sdist", "--out-dir", str(sdist_dir), str(stage))
             sdist = next(sdist_dir.glob("*.tar.gz"))

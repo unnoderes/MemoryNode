@@ -50,6 +50,7 @@ def validate_configuration(version: str) -> None:
         "sdk/python/src/memorynode/__init__.py": "from ._version import __version__",
         "sdk/python/src/memorynode/cli.py": "from ._version import __version__ as VERSION",
         "sdk/python/src/memorynode/mcp_server.py": "from ._version import __version__ as VERSION",
+        "sdk/python/src/memorynode/console.py": 'SENTINEL = f"memorynode-console-{__version__}.txt"',
         "scripts/build_release.py": 'SENTINEL = f"memorynode-console-{VERSION}.txt"',
         "frontend/app/layout.jsx": "NEXT_PUBLIC_MEMORYNODE_VERSION",
     }

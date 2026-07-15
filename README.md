@@ -6,7 +6,7 @@
 
 MemoryNode is local-first memory infrastructure for AI agents. A model can propose a memory, but it cannot silently turn a conversation into a durable fact. **People decide what is saved.** Once approved, a memory remains searchable, explainable, replaceable, expirable, and revocable.
 
-![MemoryNode landing page](assets/readme/memorynode-hero.png)
+![MemoryNode logo](portal/public/memorynode-logo-transparent.png)
 
 ![Python](https://img.shields.io/badge/Python-package-3776AB?style=flat-square)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI%20%2Fv1-009688?style=flat-square)
@@ -42,11 +42,9 @@ Related memories are reviewer hints, not automatic conflict decisions. Expiry is
 
 Review the content, source quote, rationale, and confidence before approving or rejecting a proposal. Model confidence is evidence for a reviewer—not permission to save.
 
-![Memory review console](assets/readme/proposal-review.png)
 
 Approved memories are searchable by keyword. Revoked, expired, and superseded memories stay out of default results.
 
-![Memory search console](assets/readme/memory-search.png)
 
 ## Quick start
 

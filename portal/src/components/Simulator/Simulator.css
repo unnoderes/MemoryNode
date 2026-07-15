@@ -226,6 +226,19 @@
 .search-item {
   padding: 1.25rem;
   cursor: pointer;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.search-item p {
+  color: var(--text-primary);
+  margin-top: 0.35rem;
+}
+
+.search-item small {
+  color: var(--text-secondary);
+  display: block;
+  margin-top: 0.5rem;
 }
 
 .search-item:hover {

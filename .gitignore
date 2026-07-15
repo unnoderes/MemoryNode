@@ -31,3 +31,4 @@ docs/
 # Keep the public README tracked; root operational Markdown remains local-only.
 /*.md
 !/README.md
+!/README.zh-CN.md

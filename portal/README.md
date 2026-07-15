@@ -1,6 +1,6 @@
 # MemoryNode portal
 
-This Vite application is the public landing page for MemoryNode. It presents the `0.7.0` local Python release and includes a browser-only simulator of the governed-memory lifecycle.
+This Vite application is the public landing page for MemoryNode. It presents the `0.7.1` local Python release and includes a browser-only simulator of the governed-memory lifecycle.
 
 ## Local development
 

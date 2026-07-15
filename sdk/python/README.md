@@ -39,7 +39,7 @@ discovery exposes `memory_propose`, `memory_search`, `memory_get`,
 hidden unless true TOML booleans in local `config.toml` enable them.
 
 The `memorynode` CLI provides `init`, `start`, `stop`, `restart`, `status`,
-`doctor`, `mcp`, data commands, and `version`. The 0.6.0 wheel includes the
+`doctor`, `mcp`, data commands, and `version`. The 0.7.0 wheel includes the
 FastAPI backend and static governance console:
 
 ```powershell
@@ -80,3 +80,7 @@ a replacement token with `--print-token-once`. Only a token hash is persisted,
 and `mcp.log` records sanitized connection/call metadata, never tokens,
 headers, content, queries, parameters, or responses. The static console does
 not yet include an MCP overview because it cannot safely read local log files.
+
+For install/uninstall, data handling, backup/restore/import/export, governance,
+and troubleshooting guidance, see the repository [README](../../README.md),
+[SECURITY.md](../../SECURITY.md), and [TROUBLESHOOTING.md](../../TROUBLESHOOTING.md).

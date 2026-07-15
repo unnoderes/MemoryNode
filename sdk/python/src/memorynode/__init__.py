@@ -10,7 +10,7 @@ from .models import (
     FeedbackType, MemoryEventList,
 )
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 __all__ = [name for name in globals() if name.startswith("MemoryNode") or name in {
     "Health", "Source", "Proposal", "Memory", "MemoryEvent", "ProposalExtraction",

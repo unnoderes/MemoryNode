@@ -9,7 +9,7 @@ from pathlib import PurePosixPath
 from urllib.parse import unquote, urlsplit
 
 
-SENTINEL = "memorynode-console-0.6.0.txt"
+SENTINEL = "memorynode-console-0.7.0.txt"
 
 
 def assets_root():

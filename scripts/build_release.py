@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FRONTEND = ROOT / "frontend"
 SDK = ROOT / "sdk" / "python"
 DIST = ROOT / "dist"
-SENTINEL = "memorynode-console-0.6.0.txt"
+SENTINEL = "memorynode-console-0.7.0.txt"
 IGNORED = shutil.ignore_patterns(".venv", "dist", "__pycache__", "*.pyc", ".pytest_cache", ".ruff_cache", "*.egg-info")
 BANNED_PARTS = {".env", ".next", "node_modules", "__pycache__", "backups", "exports", "logs"}
 
@@ -84,7 +84,7 @@ def main():
             shutil.copytree(SDK, stage, ignore=IGNORED)
             shutil.copytree(ROOT / "backend" / "app", stage / "src" / "memorynode" / "backend", ignore=IGNORED)
             shutil.copytree(output, stage / "src" / "memorynode" / "console_assets")
-            (stage / "src" / "memorynode" / "console_assets" / SENTINEL).write_text("MemoryNode console 0.6.0\n", encoding="utf-8")
+            (stage / "src" / "memorynode" / "console_assets" / SENTINEL).write_text("MemoryNode console 0.7.0\n", encoding="utf-8")
             sdist_dir = temp / "sdist"
             run(uv, "build", "--sdist", "--out-dir", str(sdist_dir), str(stage))
             sdist = next(sdist_dir.glob("*.tar.gz"))

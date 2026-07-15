@@ -17,7 +17,7 @@ from .config import Paths, load_governance_policy, mcp_http_token_hash, mcp_http
 from .errors import MemoryNodeError
 
 
-VERSION = "0.6.0"
+VERSION = "0.7.0"
 JSON_MIME = "application/json"
 INSTRUCTIONS = (
     "New information must be submitted with memory_propose; proposals are pending until reviewed. "

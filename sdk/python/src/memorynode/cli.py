@@ -9,7 +9,7 @@ from .config import Paths, initialize, load_config, load_mcp_http_config, rotate
 from .data import backup_database, check_database, default_backup_path, default_export_path, export_jsonl, import_jsonl, restore_database
 from .processes import atomic_write, identity, port_free, read_records, record, stop_tree, wait_http
 
-VERSION = "0.6.0"
+VERSION = "0.7.0"
 
 
 def _backend_available():

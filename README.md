@@ -87,7 +87,7 @@ The backend owns all lifecycle transitions. SQLite stores sources, proposals, me
 
 ## Run locally
 
-MemoryNode 0.6.0 ships the SDK, stdio and local shared Streamable HTTP MCP
+MemoryNode 0.7.0 ships the SDK, stdio and local shared Streamable HTTP MCP
 servers, FastAPI backend, and static
 governance console in one Python distribution:
 
@@ -137,17 +137,16 @@ memory content, query, request parameters, or response. The static governance
 console intentionally has no MCP panel yet: it cannot safely read local log
 files without a UI/API expansion, so that overview is deferred.
 
-### 1. Configure
+### Source development only
 
 ```bash
 git clone https://github.com/unnoderes/MemoryNode.git
 cd MemoryNode
-cp .env.example .env
 ```
 
 Set the Qwen-compatible endpoint, model, and API key as environment variables.
-The installed runtime does not load repository `.env` files. Keep real
-credentials out of version control.
+The installed runtime does not load repository `.env` files; keep real
+credentials out of version control and out of CLI diagnostics.
 
 ### 2. Start the backend
 
@@ -179,6 +178,51 @@ Open `http://localhost:3000/proposals`.
 6. Revoke it, then confirm it no longer appears in default search.
 
 For an optional governance extension, load related memories and explicitly select one to supersede, or assign a future expiry during approval.
+
+## Operating the local product
+
+`memorynode init` creates platform-appropriate config, data, log, runtime,
+backup, and export directories. Set `MEMORYNODE_HOME` to place all of those
+under one isolated directory (useful for testing or a portable local setup).
+The local database is SQLite with FTS5; it is never accessed directly by the
+SDK or MCP server.
+
+| Command | Use |
+| --- | --- |
+| `memorynode start`, `stop`, `restart`, `status` | Manage only the API and console processes it recorded and verified. |
+| `memorynode doctor` | Read-only installation, process, package, database, and configuration checks; secret values are never printed. |
+| `memorynode backup [--output PATH]` | Create a SQLite snapshot; treat it as sensitive memory data. |
+| `memorynode restore PATH --confirm` | Replace the stopped local database from a backup. |
+| `memorynode export [--output PATH]` | Create a JSONL transfer file; it may contain sensitive memory data. |
+| `memorynode import PATH --confirm` | Import only while stopped; conflicts fail without partial writes. |
+| `memorynode version` | Print the installed distribution version. |
+
+Use `memorynode --help` and `memorynode <command> --help` for flags. Restore
+and import require a stopped, verified local installation and explicit
+confirmation. Backup/export paths should be access-controlled and excluded from
+sync or source-control tools. To remove an installation, stop it, retain or
+securely remove its `MEMORYNODE_HOME` data according to your policy, then use
+the installer that created it: `uv tool uninstall memorynode`, `pipx uninstall
+memorynode`, or `python -m pip uninstall memorynode`.
+
+### Governance contract
+
+Agent proposals are always pending by default. A reviewer approves or rejects
+them in the console or through the lifecycle API. Search returns active,
+effective memories by default; revoke, expiry, and supersession retain audit
+history but remove a memory from default retrieval. Related memories are only
+reviewer candidates, never automatic conflict decisions. Expiry is evaluated by
+relevant requests—there is no background scheduler. MCP governance tools are
+hidden unless their local TOML boolean is explicitly enabled.
+
+### Privacy, security, and support
+
+Services accept only `127.0.0.1`. The console origin is exact and loopback-only;
+the static console rejects path traversal. HTTP MCP requires a bearer token and
+persists only its SHA-256 hash. It is intentionally not a LAN service, cloud
+SaaS, system service, or high-throughput multi-user server. See
+[SECURITY.md](SECURITY.md) for data and log handling, and
+[TROUBLESHOOTING.md](TROUBLESHOOTING.md) for recovery and diagnostics.
 
 ## API surface
 

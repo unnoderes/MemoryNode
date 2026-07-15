@@ -42,11 +42,11 @@ Related memories are reviewer hints, not automatic conflict decisions. Expiry is
 
 Review the content, source quote, rationale, and confidence before approving or rejecting a proposal. Model confidence is evidence for a reviewer—not permission to save.
 
-![Proposal review dashboard](assets/readme/proposal-review.jpg)
+![Proposal review dashboard](assets/readme/proposal-review.png)
 
 Approved memories are searchable by keyword. Revoked, expired, and superseded memories stay out of default results.
 
-![Memory explanation and audit timeline](assets/readme/memory-explain.jpg)
+![Memory search console](assets/readme/memory-search.png)
 
 ## Quick start
 

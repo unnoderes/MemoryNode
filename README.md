@@ -1,10 +1,12 @@
 # MemoryNode
 
-> Governed Memory Infrastructure for AI Agents.
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-MemoryNode turns agent interactions into reviewable memory proposals—not silent, durable facts. A reviewer decides what becomes trusted; agents can then search, explain, and work with that governed memory through a local Python package, CLI, SDK, and MCP.
+> Give AI a memory it can use—and people a memory they can govern.
 
-![MemoryNode governance flow](assets/readme/memorynode-hero.png)
+MemoryNode is local-first memory infrastructure for AI agents. A model can propose a memory, but it cannot silently turn a conversation into a durable fact. **People decide what is saved.** Once approved, a memory remains searchable, explainable, replaceable, expirable, and revocable.
+
+![MemoryNode landing page](assets/readme/memorynode-hero.png)
 
 ![Python](https://img.shields.io/badge/Python-package-3776AB?style=flat-square)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI%20%2Fv1-009688?style=flat-square)
@@ -12,74 +14,76 @@ MemoryNode turns agent interactions into reviewable memory proposals—not silen
 ![Version](https://img.shields.io/badge/version-0.7.0-111827?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-16A34A?style=flat-square)
 
-## Why governed memory?
+## In one line
 
-An agent can extract a useful preference or project decision from a conversation, but that does not make it safe to retain as a trusted fact. Without a lifecycle, temporary context can become opaque, stale, or impossible to remove.
-
-MemoryNode makes each durable memory an explicit, evidence-backed decision:
+**Propose first. Review before saving. Search with context. Revoke when needed.**
 
 ```text
-extract -> approve/reject -> search -> explain -> revoke/expire/supersede -> audit
+Conversation / content → proposal → human review → active memory → search, explain, audit
+                                      ↓
+                        reject / revoke / expire / supersede
 ```
 
-- Agents submit pending proposals by default; they do not directly create trusted durable memories.
-- Every approved memory retains source evidence, a rationale, lifecycle state, and audit events.
-- Revocation, expiry, and reviewer-selected supersession remove memories from default retrieval while preserving their history.
-
-MemoryNode is a local governed-memory layer. It is not a chatbot, an agent framework, a vector database, or a hosted platform.
+MemoryNode is for local applications that need durable agent memory without handing control to the model. It is not a chatbot, agent framework, vector database, or hosted SaaS.
 
 ## What it does
 
-| Capability | What it guarantees |
+| Need | How MemoryNode handles it |
 | --- | --- |
-| Proposal extraction | Qwen-compatible extraction produces structured, pending proposals with source evidence. |
-| Human review | A reviewer explicitly approves or rejects each proposal. |
-| Trusted retrieval | SQLite FTS5 searches active, effective memories by default. |
-| Explanation | A memory can be traced to its source, proposal, decision, relationships, and events. |
-| Lifecycle control | Active memories can be revoked, expired on a relevant request, or superseded by reviewer choice. |
-| Local integration | Python SDK, CLI, stdio MCP, and token-protected local HTTP MCP use the same FastAPI boundary. |
+| Stop AI from saving facts on its own | Extracted memories enter a pending review queue by default. |
+| Find where a memory came from | Every approved memory keeps its source, proposal, decision, and event history. |
+| Keep stale facts out of answers | Revoke, expire, or explicitly supersede a memory. Default search returns effective memories only. |
+| Connect several local agents | The Python SDK, CLI, and MCP use the same FastAPI boundary. |
+| Keep data local | Services listen on `127.0.0.1`; SQLite is the local source of truth. |
 
-Related memories are reviewer candidates, not automatic semantic conflict arbitration. Expiry is request-driven; there is no background scheduler.
+Related memories are reviewer hints, not automatic conflict decisions. Expiry is applied by request; there is no background scheduler.
+
+## See it in action
+
+Review the content, source quote, rationale, and confidence before approving or rejecting a proposal. Model confidence is evidence for a reviewer—not permission to save.
+
+![Memory review console](assets/readme/proposal-review.png)
+
+Approved memories are searchable by keyword. Revoked, expired, and superseded memories stay out of default results.
+
+![Memory search console](assets/readme/memory-search.png)
 
 ## Quick start
 
-MemoryNode `0.7.0` is published as the `memorynode` Python package.
+MemoryNode runs as the `memorynode` Python package and requires Python 3.10 or later.
 
 ```bash
 uv tool install memorynode
 memorynode init
 memorynode start
 memorynode status
-memorynode doctor
 ```
 
-Open the local governance console at `http://127.0.0.1:3000/`. The FastAPI API defaults to `http://127.0.0.1:8000`.
+Open the governance console at <http://127.0.0.1:3000/>. The API defaults to <http://127.0.0.1:8000>.
 
-The installed runtime includes the FastAPI backend, static governance console, SDK, CLI, stdio MCP, and local HTTP MCP. It does not require a Git checkout, Node.js, npm, `node_modules`, or `.next`.
-
-When you are finished:
+`memorynode init` creates local configuration and directories and prints the HTTP MCP token once. Store it securely.
 
 ```bash
 memorynode stop
 ```
 
-## Try the lifecycle
+The installed package includes the FastAPI API, governance console, SDK, CLI, stdio MCP, and local HTTP MCP. Everyday use does not require Git, Node.js, or a frontend build.
 
-1. Create a manual proposal or extract proposals from a transcript.
-2. Review its content, type, confidence, source quote, and rationale.
-3. Approve one proposal; it becomes an active memory. Reject another; no memory is created.
-4. Search the active memory, then use explain to view its source and audit trail.
-5. Revoke it and confirm it is excluded from default search while remaining auditable.
+## Workflow
 
-![Proposal review dashboard](assets/readme/proposal-review.jpg)
+1. Extract proposals from a conversation, or create a manual proposal through the API.
+2. Review its content, type, source quote, rationale, and confidence.
+3. Approve it to create an active memory, or reject it without creating one.
+4. Search memory and use the explanation endpoint to inspect its source and history.
+5. Revoke it, give it an expiry, or approve a newer proposal to replace it when necessary.
 
-![Memory explanation and audit timeline](assets/readme/memory-explain.jpg)
+Extraction uses a Qwen-compatible endpoint. Set `QWEN_API_KEY`, `QWEN_BASE_URL`, `QWEN_MODEL`, and related variables as needed; see [.env.example](.env.example). Never commit real credentials.
 
 ## MCP
 
 ### Stdio MCP
 
-Use the default stdio transport in an MCP client. Standard output is reserved for MCP protocol frames.
+Add MemoryNode to your MCP client. Standard output is reserved for MCP protocol frames.
 
 ```json
 {
@@ -92,83 +96,74 @@ Use the default stdio transport in an MCP client. Standard output is reserved fo
 }
 ```
 
-The default tools let an agent propose, search, retrieve, explain, list, and submit feedback. Governance-changing tools are hidden unless explicitly enabled through local configuration.
+The default tools can propose, search, retrieve, explain, list, and provide feedback. Governance-changing tools—approval, rejection, revocation, supersession, and expiry—are hidden unless a local administrator explicitly enables them.
 
 ### Local HTTP MCP
 
-For multiple local MCP clients, start MemoryNode and then run the shared endpoint in a separate foreground terminal:
+For several local MCP clients, run the shared endpoint in another foreground terminal:
 
 ```powershell
 memorynode start
 memorynode mcp --transport http --host 127.0.0.1 --port 8765
 ```
 
-Connect to `http://127.0.0.1:8765/mcp` with `Authorization: Bearer <token>`. `memorynode init` prints the high-entropy token once and only its SHA-256 hash is persisted in local `config.toml`; store the printed token securely. A lost token can be rotated with:
+Connect to `http://127.0.0.1:8765/mcp` with `Authorization: Bearer <token>`. Only the token hash is persisted. To rotate a lost token and print it once:
 
 ```powershell
 memorynode mcp --transport http --print-token-once
 ```
 
-HTTP MCP is loopback-only and rejects missing or invalid bearer tokens before MCP tools or resources run.
+HTTP MCP is loopback-only and checks the token before MCP tools or resources run.
 
-## CLI operations
+## CLI
 
 | Command | Purpose |
 | --- | --- |
-| `memorynode init` | Create local configuration and directories; print the HTTP MCP token once. |
-| `memorynode start`, `stop`, `restart`, `status` | Manage only verified API and console processes recorded by MemoryNode. |
-| `memorynode doctor` | Perform read-only installation, process, database, configuration, and MCP checks without printing secret values. |
-| `memorynode backup`, `restore`, `export`, `import` | Safeguard or transfer local data; backups and exports can contain sensitive memory content. |
-| `memorynode mcp` | Run stdio MCP or the local token-protected HTTP transport. |
-| `memorynode version` | Print the installed distribution version. |
+| `memorynode init` | Initialize local configuration, data directories, and the HTTP MCP token. |
+| `memorynode start` / `stop` / `restart` / `status` | Manage the API and console processes recorded by MemoryNode. |
+| `memorynode doctor` | Run read-only checks for installation, configuration, processes, database, and MCP without exposing secrets. |
+| `memorynode backup` / `restore` | Back up or restore the local SQLite database. Restore requires a stopped service and `--confirm`. |
+| `memorynode export` / `import` | Transfer data as JSONL. Import requires a stopped service and `--confirm`. |
+| `memorynode mcp` | Run stdio MCP or token-protected local HTTP MCP. |
+| `memorynode version` | Print the installed version. |
 
-Use `memorynode --help` or `memorynode <command> --help` for flags. Import and restore require a stopped, verified installation and explicit confirmation.
+Use `memorynode --help` or `memorynode <command> --help` for flags. Backups and exports may contain sensitive source and memory content.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    A["Agent / MCP clients"] --> B["MCP server / Python SDK / CLI"]
-    B --> C["FastAPI /v1"]
-    U["Governance console"] --> C
+    A["Agent / MCP clients"] --> B["Python SDK / CLI / MCP"]
+    U["Governance console"] --> C["FastAPI /v1"]
+    B --> C
     C --> D["Memory lifecycle rules"]
     D --> E["SQLite + FTS5"]
 ```
 
-FastAPI `/v1` owns business rules and lifecycle state. SQLite is the local source of truth and FTS5 is the default keyword search layer. The SDK and MCP server are clients/adapters: neither directly accesses SQLite.
+FastAPI `/v1` is the lifecycle boundary. SQLite is the local source of truth and FTS5 provides default keyword search. The SDK and MCP server are API clients; they never access SQLite directly.
 
-## Security and privacy defaults
+The API covers proposals, memories, sources, and audit events: create/extract/review proposals; list/search/explain/revoke/expire memories; and inspect sources and events.
 
-- The API, console, and local HTTP MCP bind only to `127.0.0.1`.
-- HTTP MCP is bearer-token protected; only the token hash is stored.
-- Local databases, backups, and JSONL exports can contain sensitive source text, proposals, memories, and events. Keep them in a private location and out of source control.
-- Sanitized `mcp.log` records operation names, outcomes, timing, request IDs, and token fingerprints only. It must not contain bearer tokens, Authorization headers, memory content, queries, request parameters, or response content.
-- Repository `.env` files are not loaded by the installed runtime. Provide model credentials through your environment or an approved local secret mechanism.
+## Security and privacy
 
-See [SECURITY.md](SECURITY.md) and [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for operating guidance.
+- The API, console, and HTTP MCP bind to `127.0.0.1` by default.
+- HTTP MCP uses a Bearer Token and persists only its hash.
+- Local databases, backups, and JSONL exports may contain source text, proposals, memories, and audit events. Keep them private and out of source control.
+- MCP logs contain operation metadata only; they must not contain tokens, Authorization headers, queries, request parameters, or memory content.
+- The installed runtime does not automatically load repository `.env` files. Provide credentials through environment variables or an approved local secret mechanism.
 
-## API surface
+## Develop from source
 
-| Area | `/v1` endpoints |
-| --- | --- |
-| Proposals | `POST /proposals/extract`, `POST /proposals`, `GET /proposals`, `GET /proposals/{id}`, approve, reject, and related-memory candidates |
-| Memories | list, FTS5 search, get, explain, revoke, feedback, and expiry |
-| Evidence and audit | sources plus recent or individual events |
-
-The API is the lifecycle boundary: writes create auditable transitions, and default search returns active, effective memories.
-
-## Source development
-
-Use the package above to run MemoryNode locally. The following setup is for contributors working from source only:
+These instructions are for contributors. For regular use, install the package above.
 
 ```bash
 git clone https://github.com/unnoderes/MemoryNode.git
-cd MemoryNode
-cd backend && python -m pip install -r requirements.txt
+cd MemoryNode/backend
+python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload
 ```
 
-In another terminal, build the local governance console:
+In another terminal, run the governance console:
 
 ```bash
 cd frontend
@@ -176,22 +171,22 @@ npm install
 npm run dev
 ```
 
-Keep model credentials outside the repository. Do not place real secrets in examples, diagnostics, or committed files.
-
-## Verification and release notes
-
-For source verification:
+Verify changes:
 
 ```bash
 cd backend && python -m pytest -q
 cd ../frontend && npm run build
 ```
 
-Release artifacts are produced by `python scripts/build_release.py`; see [RELEASING.md](RELEASING.md) for the gated procedure. The current release is `memorynode==0.7.0`.
+Build release artifacts with:
 
-## Scope and non-goals
+```bash
+python scripts/build_release.py
+```
 
-MemoryNode intentionally proves governed local memory before adding infrastructure. It does not provide cloud hosting, remote accounts, billing, multi-tenant operation, Docker deployment, LAN exposure, a general agent framework, vector search, automatic approval, automatic conflict arbitration, or a background expiry scheduler.
+## Current scope
+
+MemoryNode focuses on a verifiable local governance loop. It does not currently provide cloud hosting, remote accounts, multitenancy, billing, Docker deployment, LAN exposure, automatic approval, automatic conflict arbitration, vector search, or background expiry scheduling.
 
 ## License
 

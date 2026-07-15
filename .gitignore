@@ -27,4 +27,7 @@ Thumbs.db
 
 .idea/
 docs/
-AGENTS.md
+
+# Keep the public README tracked; root operational Markdown remains local-only.
+/*.md
+!/README.md

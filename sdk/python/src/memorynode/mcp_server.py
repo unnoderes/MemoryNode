@@ -18,6 +18,7 @@ from .config import Paths, load_governance_policy, mcp_http_token_hash, mcp_http
 from .errors import MemoryNodeError
 
 JSON_MIME = "application/json"
+MODEL_EXTRACTION_API_TIMEOUT_SECONDS = 45.0
 INSTRUCTIONS = (
     "New information must be submitted with memory_propose; proposals are pending until reviewed. "
     "Search or list memories before answering when durable facts matter, and use memory_explain when "
@@ -229,6 +230,7 @@ def memory_propose(content: str, actor_id: str, project_id: str) -> dict:
         actor_id=_required(actor_id, "actor_id"),
         project_id=_required(project_id, "project_id"),
         content=_required(content, "content"),
+        timeout=MODEL_EXTRACTION_API_TIMEOUT_SECONDS,
     ))
 
 

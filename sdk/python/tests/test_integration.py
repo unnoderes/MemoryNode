@@ -122,6 +122,8 @@ def test_full_mcp_governance_loop_unicode_resources_and_feedback(api_url):
     memory = approve(api_url, proposal["id"])
     found = call(api_url, "memory_search", {"query": "MCP闭环标记"})
     assert [item["id"] for item in found["memories"]] == [memory["id"]]
+    partial = call(api_url, "memory_search", {"query": "\u95ed\u73af"})
+    assert [item["id"] for item in partial["memories"]] == [memory["id"]]
     assert call(api_url, "memory_get", {"memory_id": memory["id"]})["id"] == memory["id"]
     assert call(api_url, "memory_list", {"actor_id": "中文用户"})["memories"][0]["id"] == memory["id"]
     feedback = call(api_url, "memory_feedback", {"memory_id": memory["id"], "feedback": "possibly_stale", "actor_id": "agent", "note": "check later", "idempotency_key": "mcp-feedback"})

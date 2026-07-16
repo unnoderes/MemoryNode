@@ -15,6 +15,9 @@ from .qwen import extract_memory_proposals
 from . import models, schemas
 
 
+CJK_FRAGMENT_RE = re.compile(r"[\u3400-\u4DBF\u4E00-\u9FFF]+")
+
+
 def not_found(name: str):
     raise HTTPException(status_code=404, detail=f"{name} not found")
 
@@ -486,11 +489,25 @@ def sync_memory_fts(db: Session, memory_id: str, content: str):
     )
 
 
+def fts_terms(q: str):
+    return " ".join(re.findall(r"\w+", q))
+
+
 def fts_query(q: str):
-    tokens = re.findall(r"\w+", q)
-    if not tokens:
+    query = fts_terms(q)
+    if not query:
         bad_request("q must not be empty")
-    return " ".join(tokens)
+    return query
+
+
+def fts_rows(db: Session, q: str):
+    return db.execute(
+        text(
+            "SELECT memory_id, bm25(memory_fts) AS score "
+            "FROM memory_fts WHERE memory_fts MATCH :q ORDER BY score"
+        ),
+        {"q": q},
+    ).fetchall()
 
 
 def utc_datetime(value: datetime) -> datetime:
@@ -549,13 +566,35 @@ def memory_is_visible(memory, now):
 
 def search_memories(db: Session, q: str, include_inactive: bool = False):
     expire_due_memories(db)
-    rows = db.execute(
-        text(
-            "SELECT memory_id, bm25(memory_fts) AS score "
-            "FROM memory_fts WHERE memory_fts MATCH :q ORDER BY score"
-        ),
-        {"q": fts_query(q)},
-    ).fetchall()
+    cjk_fragments = CJK_FRAGMENT_RE.findall(q)
+    non_cjk_terms = fts_terms(CJK_FRAGMENT_RE.sub(" ", q))
+
+    if not cjk_fragments:
+        rows = fts_rows(db, fts_query(q))
+    else:
+        cjk_candidates = db.query(models.Memory)
+        for fragment in cjk_fragments:
+            cjk_candidates = cjk_candidates.filter(models.Memory.content.contains(fragment, autoescape=True))
+
+        if non_cjk_terms:
+            cjk_ids = {memory_id for memory_id, in cjk_candidates.with_entities(models.Memory.id).all()}
+            fts_candidates = fts_rows(db, non_cjk_terms)
+            if not fts_candidates:
+                # Preserve matching of existing tokens that join ASCII and CJK without whitespace.
+                fts_candidates = fts_rows(db, fts_query(q))
+            rows = [
+                row
+                for row in fts_candidates
+                if row.memory_id in cjk_ids
+            ]
+        else:
+            rows = [
+                (memory.id, None)
+                for memory in cjk_candidates.order_by(
+                    models.Memory.created_at.desc(), models.Memory.id.desc()
+                ).all()
+            ]
+
     results = []
     now = models.now()
     for memory_id, score in rows:

@@ -4,10 +4,14 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   approveProposal,
+  deleteModelSettings,
   extractProposals,
+  getModelSettings,
   listProposals,
   relatedMemories,
   rejectProposal,
+  saveModelSettings,
+  testModelSettings,
 } from "../../lib/api";
 import { useLanguage } from "../../lib/language";
 
@@ -60,9 +64,38 @@ export default function ProposalsPage() {
   const [expiresByProposal, setExpiresByProposal] = useState({});
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [modelSettings, setModelSettings] = useState(null);
+  const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
+  const [modelBusy, setModelBusy] = useState(false);
+  const [modelMessage, setModelMessage] = useState("");
+  const [modelError, setModelError] = useState("");
+  const [extractNeedsSettings, setExtractNeedsSettings] = useState(false);
+  const [modelForm, setModelForm] = useState({
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode",
+    model: "qwen-plus",
+    wire_api: "chat",
+    reasoning_effort: "medium",
+    api_key: "",
+  });
 
   const [selectedId, setSelectedId] = useState(null);
   const [extractExpanded, setExtractExpanded] = useState(false);
+
+  async function refreshModelSettings() {
+    const settings = await getModelSettings();
+    setModelSettings(settings);
+    if (settings.configured) {
+      setModelForm((current) => ({
+        ...current,
+        base_url: settings.base_url || current.base_url,
+        model: settings.model || current.model,
+        wire_api: settings.wire_api || current.wire_api,
+        reasoning_effort: settings.reasoning_effort ?? current.reasoning_effort,
+        api_key: "",
+      }));
+    }
+    return settings;
+  }
 
   useEffect(() => {
     setTranscript((current) => current === DEMO_TRANSCRIPT || current === DEMO_TRANSCRIPT_EN
@@ -98,7 +131,7 @@ export default function ProposalsPage() {
   }
 
   useEffect(() => {
-    refresh().catch((err) => setError(err.message));
+    Promise.all([refresh(), refreshModelSettings()]).catch((err) => setError(err.message));
   }, []);
 
   async function run(action) {
@@ -128,6 +161,7 @@ export default function ProposalsPage() {
     setElapsedSeconds(0);
     setError("");
     setMessage("");
+    setExtractNeedsSettings(false);
     try {
       const body = await extractProposals({ actorId, projectId, transcript: text });
       const extracted = body.proposals || [];
@@ -149,13 +183,72 @@ export default function ProposalsPage() {
         `已找到 ${extracted.length} 条建议，请确认是否保存。`,
         `Found ${extracted.length} suggestions. Review them before saving.`,
       ));
-    } catch {
-      setError(currentT(
-        "这次没有提取成功，请稍后重试。你的原始对话仍然保留。",
-        "Extraction did not complete. Please try again. Your original conversation is still here.",
-      ));
+    } catch (err) {
+      const missingConfig = err.message.includes("Model extraction is not configured");
+      setExtractNeedsSettings(missingConfig);
+      setError(missingConfig
+        ? currentT("自动提取需要先配置模型 API Key。原始对话会保留，手动 proposal 仍然可用。", "Configure a model API key before extracting. Your conversation is still here; manual proposals remain available.")
+        : currentT("这次没有提取成功，请稍后重试。你的原始对话仍然保留。", "Extraction did not complete. Please try again. Your original conversation is still here."));
     } finally {
       setExtracting(false);
+    }
+  }
+
+  function updateModelField(field, value) {
+    setModelForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function modelPayload() {
+    const keepExisting = !modelForm.api_key && modelSettings?.source === "local" && modelSettings.api_key_set;
+    return {
+      provider: "qwen_compatible",
+      base_url: modelForm.base_url,
+      model: modelForm.model,
+      wire_api: modelForm.wire_api,
+      reasoning_effort: modelForm.reasoning_effort,
+      ...(modelForm.api_key ? { api_key: modelForm.api_key } : {}),
+      ...(keepExisting ? { keep_existing_api_key: true } : {}),
+    };
+  }
+
+  async function saveModel() {
+    setModelBusy(true); setModelError(""); setModelMessage("");
+    try {
+      const settings = await saveModelSettings(modelPayload());
+      setModelSettings(settings);
+      setModelForm((current) => ({ ...current, api_key: "" }));
+      setModelMessage(t("模型配置已保存。完整 API Key 不会再次显示。", "Model settings saved. The full API key will not be shown again."));
+    } catch (err) {
+      setModelError(err.message);
+    } finally {
+      setModelBusy(false);
+    }
+  }
+
+  async function testModel() {
+    setModelBusy(true); setModelError(""); setModelMessage("");
+    try {
+      const result = await testModelSettings(modelForm.api_key ? modelPayload() : { use_saved: true });
+      if (!result.ok) throw new Error(result.error);
+      setModelMessage(t("模型连接成功。提取结果仍会进入待审核队列。", "Connection succeeded. Extraction results still enter the pending-review queue."));
+    } catch (err) {
+      setModelError(err.message);
+    } finally {
+      setModelBusy(false);
+    }
+  }
+
+  async function deleteModel() {
+    setModelBusy(true); setModelError(""); setModelMessage("");
+    try {
+      const settings = await deleteModelSettings();
+      setModelSettings(settings);
+      setModelForm((current) => ({ ...current, api_key: "" }));
+      setModelMessage(t("已删除本机保存的模型配置。", "Saved local model settings deleted."));
+    } catch (err) {
+      setModelError(err.message);
+    } finally {
+      setModelBusy(false);
     }
   }
 
@@ -204,12 +297,45 @@ export default function ProposalsPage() {
         </div>
       </div>
 
-      {error ? <div className="error">{error}</div> : null}
+      {error ? <div className="error">{error}{extractNeedsSettings ? <button type="button" className="inline-settings-button" onClick={() => setModelSettingsOpen(true)}>{t("配置模型", "Configure model")}</button> : null}</div> : null}
       {message ? <div className="notice">{message}</div> : null}
 
       <div className="soc-layout">
         {/* Left Column: Extraction & Proposals List */}
         <div className="soc-left-panel">
+
+          <div className="model-settings-card">
+            <button type="button" className="model-settings-toggle" onClick={() => setModelSettingsOpen((current) => !current)}>
+              <span>
+                <strong>{t("模型提取", "Model extraction")}</strong>
+                <small>{modelSettings?.configured
+                  ? (modelSettings.source === "environment" ? t("使用环境变量配置", "Using environment configuration") : t("已配置", "Configured"))
+                  : t("未配置", "Not configured")}</small>
+              </span>
+              <span className={`model-status-dot ${modelSettings?.configured ? "ready" : ""}`} aria-hidden="true" />
+            </button>
+            {modelSettingsOpen ? (
+              <div className="model-settings-content">
+                {modelSettings?.env_override ? <p className="model-settings-warning">{t("当前环境变量配置优先生效；界面保存的配置不会覆盖它。", "Environment variables currently take precedence; saved settings will not override them.")}</p> : null}
+                <p className="model-settings-note">{t("API Key 仅保存在本机 MemoryNode 配置中，界面不会再次显示完整 Key。", "The API key is stored only in local MemoryNode configuration and is never shown in full again.")}</p>
+                <label>Base URL<input value={modelForm.base_url} onChange={(event) => updateModelField("base_url", event.target.value)} placeholder="https://..." /></label>
+                <label>{t("模型", "Model")}<input value={modelForm.model} onChange={(event) => updateModelField("model", event.target.value)} placeholder="qwen-plus" /></label>
+                <div className="two-col">
+                  <label>Wire API<select value={modelForm.wire_api} onChange={(event) => updateModelField("wire_api", event.target.value)}><option value="chat">chat</option><option value="responses">responses</option></select></label>
+                  <label>{t("推理强度", "Reasoning effort")}<input value={modelForm.reasoning_effort} onChange={(event) => updateModelField("reasoning_effort", event.target.value)} disabled={modelForm.wire_api !== "responses"} placeholder="medium" /></label>
+                </div>
+                <label>API Key<input type="password" autoComplete="off" value={modelForm.api_key} onChange={(event) => updateModelField("api_key", event.target.value)} placeholder={modelSettings?.source === "local" && modelSettings.api_key_set ? t("已保存，留空不会更改", "Saved; leave blank to keep it") : "sk-..."} /></label>
+                {modelSettings?.api_key_hint ? <p className="model-key-hint">{t("已保存", "Saved")}: {modelSettings.api_key_hint}</p> : null}
+                {modelError ? <div className="error">{modelError}</div> : null}
+                {modelMessage ? <div className="notice">{modelMessage}</div> : null}
+                <div className="model-settings-actions">
+                  <button type="button" className="secondary" disabled={modelBusy} onClick={testModel}>{t("测试连接", "Test connection")}</button>
+                  <button type="button" disabled={modelBusy} onClick={saveModel}>{t("保存", "Save")}</button>
+                  {modelSettings?.source === "local" ? <button type="button" className="danger" disabled={modelBusy} onClick={deleteModel}>{t("删除保存的配置", "Delete saved config")}</button> : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
 
           {/* Collapsible Extractor */}
           <div className={`collapsible-extractor ${extractExpanded ? 'expanded' : ''}`}>
@@ -513,6 +639,37 @@ export default function ProposalsPage() {
           flex-direction: column;
           gap: 20px;
         }
+
+        .model-settings-card {
+          background: var(--bg-card);
+          border: 1px solid var(--border-color);
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: var(--card-shadow);
+        }
+
+        .model-settings-toggle {
+          width: 100%;
+          padding: 14px 20px;
+          background: transparent;
+          color: var(--text-primary);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-radius: 0;
+        }
+
+        .model-settings-toggle:hover { background: rgba(255, 255, 255, 0.03); box-shadow: none; transform: none; }
+        .model-settings-toggle span:first-child { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+        .model-settings-toggle small, .model-settings-note, .model-settings-warning, .model-key-hint { color: var(--text-muted); font-size: 12px; font-weight: 400; line-height: 1.45; }
+        .model-status-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); }
+        .model-status-dot.ready { background: var(--color-primary); box-shadow: 0 0 8px var(--color-primary); }
+        .model-settings-content { border-top: 1px solid var(--border-color); padding: 18px 20px; display: flex; flex-direction: column; gap: 13px; }
+        .model-settings-warning { color: var(--text-secondary); background: rgba(255, 255, 255, 0.06); padding: 9px 11px; border-radius: 6px; }
+        .model-key-hint { margin-top: -7px; }
+        .model-settings-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+        .model-settings-actions button { padding: 8px 12px; font-size: 12px; }
+        .inline-settings-button { margin-left: 10px; padding: 5px 9px; font-size: 12px; }
 
         .collapsible-extractor {
           background: var(--bg-card);

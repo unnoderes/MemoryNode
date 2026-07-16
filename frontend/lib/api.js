@@ -36,6 +36,28 @@ export function extractProposals({ actorId, projectId, transcript }) {
   });
 }
 
+export function getModelSettings() {
+  return request("/v1/settings/model");
+}
+
+export function saveModelSettings(settings) {
+  return request("/v1/settings/model", {
+    method: "PUT",
+    body: JSON.stringify(settings),
+  });
+}
+
+export function testModelSettings(settings) {
+  return request("/v1/settings/model/test", {
+    method: "POST",
+    body: JSON.stringify(settings),
+  });
+}
+
+export function deleteModelSettings() {
+  return request("/v1/settings/model", { method: "DELETE" });
+}
+
 export function listProposals(status = "pending") {
   return request(`/v1/proposals?status=${encodeURIComponent(status)}`);
 }

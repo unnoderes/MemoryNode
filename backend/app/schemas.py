@@ -36,6 +36,26 @@ class ProposalExtractRequest(BaseModel):
     messages: List[ExtractMessage]
 
 
+class ModelSettingsRequest(BaseModel):
+    provider: str = "qwen_compatible"
+    base_url: str
+    model: str
+    wire_api: str = "chat"
+    reasoning_effort: Optional[str] = "medium"
+    api_key: Optional[str] = None
+    keep_existing_api_key: bool = False
+
+
+class ModelSettingsTestRequest(BaseModel):
+    use_saved: bool = False
+    provider: Optional[str] = None
+    base_url: Optional[str] = None
+    model: Optional[str] = None
+    wire_api: Optional[str] = None
+    reasoning_effort: Optional[str] = None
+    api_key: Optional[str] = None
+
+
 class ExtractedProposal(BaseModel):
     content: str
     type: MemoryType

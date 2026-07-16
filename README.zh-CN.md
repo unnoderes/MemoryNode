@@ -81,7 +81,7 @@ memorynode stop
 4. 需要时搜索记忆，并使用解释接口查看来源和完整变更记录。
 5. 信息不再适用时，撤销、设置到期，或批准新提案来替换旧记忆。
 
-提取功能使用 Qwen 兼容接口。运行前按需提供 `QWEN_API_KEY`、`QWEN_BASE_URL` 和 `QWEN_MODEL` 等环境变量；详情可参考 [.env.example](.env.example)。不要把真实密钥提交到仓库。
+提取功能使用 Qwen / OpenAI-compatible 接口。你可以在提案页的治理控制台中配置模型，也可以设置 `QWEN_API_KEY`、`QWEN_BASE_URL`、`QWEN_MODEL`、`QWEN_WIRE_API` 和 `QWEN_REASONING_EFFORT`；环境变量优先于界面保存的配置。界面输入的 Key 仅保存在本机敏感 MemoryNode 配置中，不会写入浏览器存储，设置接口也不会返回完整 Key。没有模型配置时仍可手动创建 proposal。不要把真实密钥提交到仓库。
 
 ## MCP：让 Agent 在边界内使用记忆
 

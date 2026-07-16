@@ -139,6 +139,7 @@ def start(args, paths=None):
     if running: print("MemoryNode is already running"); return 0
     environment = os.environ.copy()
     environment["MEMORYNODE_DB_PATH"] = str(paths.database)
+    environment["MEMORYNODE_MODEL_CONFIG_PATH"] = str(paths.config / "model.toml")
     environment["MEMORYNODE_BACKUP_DIR"] = str(paths.backups)
     environment["MEMORYNODE_CONSOLE_ORIGIN"] = f"http://{config.console_host}:{config.console_port}"
     creationflags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0

@@ -4,12 +4,29 @@ import os
 from typing import Optional
 from urllib.parse import urlsplit
 
-from fastapi import Depends, FastAPI, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from .db import get_db, init_db
-from .schemas import DecisionRequest, ExpiryRequest, FeedbackRequest, ProposalCreate, ProposalExtractRequest
+from .model_settings import (
+    ModelConfigError,
+    delete_local_model_config,
+    redact_model_config,
+    resolve_model_config,
+    save_local_model_config,
+    validate_model_config,
+)
+from .qwen import test_model_config
+from .schemas import (
+    DecisionRequest,
+    ExpiryRequest,
+    FeedbackRequest,
+    ModelSettingsRequest,
+    ModelSettingsTestRequest,
+    ProposalCreate,
+    ProposalExtractRequest,
+)
 from .services import (
     approve_proposal,
     create_proposal,
@@ -61,6 +78,63 @@ app.add_middleware(
 @app.get("/health")
 def health():
     return {"ok": True, "service": "memorynode"}
+
+
+def _model_settings_error(error: ModelConfigError):
+    raise HTTPException(status_code=error.status_code, detail=str(error)) from error
+
+
+@app.get("/v1/settings/model")
+def get_model_settings():
+    return redact_model_config()
+
+
+@app.put("/v1/settings/model")
+def put_model_settings(payload: ModelSettingsRequest):
+    if payload.provider != "qwen_compatible":
+        raise HTTPException(status_code=422, detail="Only the qwen_compatible provider is supported.")
+    try:
+        config = save_local_model_config(
+            payload.model_dump() if hasattr(payload, "model_dump") else payload.dict(),
+            keep_existing_api_key=payload.keep_existing_api_key,
+        )
+    except ModelConfigError as error:
+        _model_settings_error(error)
+    return redact_model_config(config)
+
+
+@app.delete("/v1/settings/model")
+def delete_model_settings():
+    try:
+        delete_local_model_config()
+    except ModelConfigError as error:
+        _model_settings_error(error)
+    return redact_model_config()
+
+
+@app.post("/v1/settings/model/test")
+def post_model_settings_test(payload: Optional[ModelSettingsTestRequest] = None):
+    payload = payload or ModelSettingsTestRequest(use_saved=True)
+    try:
+        values = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+        if payload.use_saved:
+            config = resolve_model_config()
+        else:
+            if values.get("provider") not in {None, "qwen_compatible"}:
+                raise ModelConfigError(422, "Only the qwen_compatible provider is supported.")
+            config = validate_model_config(values)
+        test_model_config(config)
+        return {
+            "ok": True,
+            "provider": "qwen_compatible",
+            "wire_api": config.wire_api,
+            "model": config.model,
+            "message": "Connection test succeeded.",
+        }
+    except ModelConfigError as error:
+        if error.status_code == 422:
+            _model_settings_error(error)
+        return {"ok": False, "error": "Model request failed. Check Base URL, model, key, and wire API."}
 
 
 @app.post("/v1/proposals")

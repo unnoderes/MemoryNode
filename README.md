@@ -105,6 +105,11 @@ HTTP token, changes ports, kills unknown processes, or creates a competing
 runtime. It requires a published PyPI release containing this feature; until
 then, use an installed package from this source checkout.
 
+To open the governance console in the default browser only when this bootstrap
+starts a managed API and console pair, add `--open-console` after `--ensure-api`.
+It never opens a browser when reusing an existing API or an explicit
+`MEMORYNODE_API_URL` override.
+
 If an MCP client explicitly sets `MEMORYNODE_API_URL`, bootstrap accepts only an
 exact `http://127.0.0.1:<port>` origin. It reuses that exact endpoint only after
 its `/health` response identifies MemoryNode; otherwise it refuses without

@@ -24,6 +24,11 @@ process records. It never starts HTTP MCP or creates an HTTP token. Do not put
 model-provider keys, HTTP MCP tokens, or other credentials in MCP client JSON,
 command arguments, diagnostics, or logs.
 
+`--open-console` is an opt-in extension to `--ensure-api`. It opens the default
+browser only after this bootstrap starts and verifies the managed API and
+console; it does not open a browser while reusing an existing API or explicit
+override.
+
 Local databases, backups, and JSONL exports can contain raw source text,
 proposals, memories, reviewer notes, and audit events. Treat each as sensitive:
 use a private filesystem location, do not commit or sync them unintentionally,

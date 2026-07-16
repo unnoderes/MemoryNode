@@ -3,6 +3,7 @@ import importlib.util
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from ._version import __version__ as VERSION
@@ -42,6 +43,7 @@ def parser():
     mcp.add_argument("--host")
     mcp.add_argument("--port", type=int)
     mcp.add_argument("--print-token-once", action="store_true", help="rotate and print the HTTP bearer token once")
+    mcp.add_argument("--ensure-api", action="store_true", help="for stdio only, safely ensure the local API and console are available")
     commands.add_parser("version", help="show package version")
     return result
 
@@ -67,9 +69,16 @@ def dispatch(args, paths=None):
         return 0
     if args.command == "version": print(VERSION); return 0
     if args.command == "mcp":
+        if getattr(args, "ensure_api", False) and getattr(args, "transport", "stdio") != "stdio":
+            raise ValueError("--ensure-api is available only with the stdio MCP transport")
         config = load_config(args, paths)
-        os.environ.setdefault("MEMORYNODE_API_URL", f"http://{config.api_host}:{config.api_port}")
         if getattr(args, "transport", "stdio") == "stdio":
+            endpoint = f"http://{config.api_host}:{config.api_port}"
+            if getattr(args, "ensure_api", False):
+                endpoint = ensure_api(args, paths, config)
+                os.environ["MEMORYNODE_API_URL"] = endpoint
+            else:
+                os.environ.setdefault("MEMORYNODE_API_URL", endpoint)
             from .mcp_server import main as mcp_main
             mcp_main(); return 0
         http_config = load_mcp_http_config(args, paths)
@@ -102,6 +111,45 @@ def _states(paths):
     return records, {name: identity(records[name])[0] if name in records else "stopped" for name in ("api", "console")}
 
 
+def _memorynode_api_healthy(url):
+    """Return true only for the expected loopback MemoryNode health response."""
+    try:
+        import httpx
+        response = httpx.get(url + "/health", timeout=.5, trust_env=False)
+        payload = response.json()
+    except (ImportError, ValueError, OSError):
+        return False
+    except Exception as exc:
+        if exc.__class__.__module__.startswith("httpx"):
+            return False
+        raise
+    return response.status_code == 200 and isinstance(payload, dict) and payload.get("ok") is True and payload.get("service") == "memorynode"
+
+
+def _wait_memorynode_api(url, timeout=20):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if _memorynode_api_healthy(url):
+            return True
+        time.sleep(.2)
+    return False
+
+
+def ensure_api(args, paths=None, config=None):
+    """Safely resolve the configured API before stdio MCP writes protocol frames."""
+    paths = paths or Paths.current()
+    config = config or load_config(args, paths)
+    endpoint = f"http://{config.api_host}:{config.api_port}"
+    if _memorynode_api_healthy(endpoint):
+        print("MemoryNode API verified; starting stdio MCP.", file=sys.stderr)
+        return endpoint
+    start(args, paths, output=sys.stderr)
+    if not _memorynode_api_healthy(endpoint):
+        raise ValueError("managed MemoryNode API did not pass its identity check")
+    print("MemoryNode API and governance console are ready; starting stdio MCP.", file=sys.stderr)
+    return endpoint
+
+
 def status(paths=None):
     paths = paths or Paths.current(); records, states = _states(paths)
     health = {}
@@ -123,7 +171,7 @@ def _preflight(config, paths):
     paths.create()
     records, states = _states(paths)
     if set(states.values()) == {"running"}:
-        if not wait_http(f"http://{config.api_host}:{config.api_port}/health", .5) or not wait_http(f"http://{config.console_host}:{config.console_port}", .5):
+        if not _memorynode_api_healthy(f"http://{config.api_host}:{config.api_port}") or not wait_http(f"http://{config.console_host}:{config.console_port}", .5):
             raise ValueError("managed processes exist but failed health checks; run restart")
         return True
     if set(states.values()) != {"stopped"}:
@@ -133,10 +181,11 @@ def _preflight(config, paths):
     return False
 
 
-def start(args, paths=None):
+def start(args, paths=None, output=None):
     paths = paths or Paths.current(); config = load_config(args, paths)
+    output = output or sys.stdout
     running = _preflight(config, paths)
-    if running: print("MemoryNode is already running"); return 0
+    if running: print("MemoryNode is already running", file=output); return 0
     environment = os.environ.copy()
     environment["MEMORYNODE_DB_PATH"] = str(paths.database)
     environment["MEMORYNODE_MODEL_CONFIG_PATH"] = str(paths.config / "model.toml")
@@ -148,7 +197,7 @@ def start(args, paths=None):
         api_log = (paths.logs / "api.log").open("ab"); logs.append(api_log)
         api = subprocess.Popen([sys.executable, "-m", "uvicorn", "memorynode.backend.main:app", "--host", config.api_host, "--port", str(config.api_port)], cwd=paths.run, env=environment, stdout=api_log, stderr=subprocess.STDOUT, creationflags=creationflags)
         processes.append(api)
-        if not wait_http(f"http://{config.api_host}:{config.api_port}/health") or api.poll() is not None: raise RuntimeError("API failed its /health startup check")
+        if not _wait_memorynode_api(f"http://{config.api_host}:{config.api_port}") or api.poll() is not None: raise RuntimeError("API failed its /health startup check")
         console_log = (paths.logs / "console.log").open("ab"); logs.append(console_log)
         console = subprocess.Popen([sys.executable, "-m", "memorynode.console", "--host", config.console_host, "--port", str(config.console_port), "--api-port", str(config.api_port)], cwd=paths.run, env=environment, stdout=console_log, stderr=subprocess.STDOUT, creationflags=creationflags)
         processes.append(console)
@@ -157,7 +206,7 @@ def start(args, paths=None):
             "api": record(api, "uvicorn memorynode.backend.main:app", paths.run, config.api_port),
             "console": record(console, "-m memorynode.console", paths.run, config.console_port),
         })
-        print(f"MemoryNode running: API {config.api_port}, console {config.console_port}"); return 0
+        print(f"MemoryNode running: API {config.api_port}, console {config.console_port}", file=output); return 0
     except Exception as exc:
         for process in reversed(processes):
             try: stop_tree(__import__("psutil").Process(process.pid))

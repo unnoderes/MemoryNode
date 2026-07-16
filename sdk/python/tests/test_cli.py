@@ -1,5 +1,6 @@
 from argparse import Namespace
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -15,7 +16,7 @@ def paths(tmp_path): return Paths(*(tmp_path / name for name in ("config", "data
 
 
 def args(command, **kwargs):
-    defaults = dict(source_root=None, api_host=None, api_port=None, console_host=None, console_port=None)
+    defaults = dict(source_root=None, api_host=None, api_port=None, console_host=None, console_port=None, transport="stdio", ensure_api=False, host=None, port=None, print_token_once=False)
     defaults.update(kwargs)
     return Namespace(command=command, **defaults)
 
@@ -61,6 +62,7 @@ def test_repeated_start_port_conflict_partial_and_failed_console_rolls_back(tmp_
     monkeypatch.setattr(cli, "_backend_available", lambda: True)
     monkeypatch.setattr("memorynode.console.assets_available", lambda: True)
     monkeypatch.setattr(cli, "wait_http", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(cli, "_states", lambda _paths: ({}, {"api": "running", "console": "running"}))
     assert cli.start(args("start"), home) == 0
     monkeypatch.setattr(cli, "_states", lambda _paths: ({}, {"api": "running", "console": "stopped"}))
@@ -71,7 +73,7 @@ def test_repeated_start_port_conflict_partial_and_failed_console_rolls_back(tmp_
     monkeypatch.setattr(cli, "port_free", lambda *_: True)
     created = [Mock(pid=100, poll=lambda: None), Mock(pid=101, poll=lambda: 1)]
     monkeypatch.setattr(cli.subprocess, "Popen", lambda *_a, **_k: created.pop(0))
-    healthy = iter([True, False]); monkeypatch.setattr(cli, "wait_http", lambda *_a, **_k: next(healthy))
+    healthy = iter([True, False]); monkeypatch.setattr(cli, "_wait_memorynode_api", lambda *_a, **_k: next(healthy))
     stopped = []; monkeypatch.setattr(cli, "stop_tree", lambda process: stopped.append(process.pid))
     class Process:
         def __init__(self, pid): self.pid = pid
@@ -89,7 +91,7 @@ def test_failed_api_start_rolls_back_only_api(tmp_path, monkeypatch):
     monkeypatch.setattr(cli, "port_free", lambda *_args: True)
     process = Mock(pid=100, poll=lambda: 1)
     monkeypatch.setattr(cli.subprocess, "Popen", lambda *_args, **_kwargs: process)
-    monkeypatch.setattr(cli, "wait_http", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(cli, "_wait_memorynode_api", lambda *_args, **_kwargs: False)
     stopped = []
     monkeypatch.setattr(cli, "stop_tree", lambda item: stopped.append(item.pid))
     monkeypatch.setattr("psutil.Process", lambda pid: Mock(pid=pid))
@@ -122,6 +124,100 @@ def test_mcp_reuses_server_and_configured_url(tmp_path, monkeypatch):
     monkeypatch.delenv("MEMORYNODE_API_URL", raising=False)
     assert cli.dispatch(args("mcp"), home) == 0
     assert called and cli.os.environ["MEMORYNODE_API_URL"] == "http://127.0.0.1:8000"
+
+
+def test_mcp_ensure_api_parser_and_http_rejection(tmp_path, monkeypatch):
+    parsed = cli.parser().parse_args(["mcp", "--ensure-api"])
+    assert parsed.ensure_api and parsed.transport == "stdio"
+    called = []
+    monkeypatch.setattr(cli, "start", lambda *_args, **_kwargs: called.append(True))
+    with pytest.raises(ValueError, match="stdio"):
+        cli.dispatch(cli.parser().parse_args(["mcp", "--transport", "http", "--ensure-api"]), paths(tmp_path))
+    assert called == []
+
+
+def test_mcp_ensure_api_health_requires_memorynode_identity(monkeypatch):
+    class Response:
+        status_code = 200
+        def __init__(self, payload): self.payload = payload
+        def json(self): return self.payload
+
+    monkeypatch.setitem(sys.modules, "httpx", SimpleNamespace(get=lambda *_a, **_k: Response({"ok": True, "service": "other"})))
+    assert not cli._memorynode_api_healthy("http://127.0.0.1:18000")
+    monkeypatch.setitem(sys.modules, "httpx", SimpleNamespace(get=lambda *_a, **_k: Response({"ok": True, "service": "memorynode", "version": "test"})))
+    assert cli._memorynode_api_healthy("http://127.0.0.1:18000")
+
+
+def test_mcp_ensure_api_reuses_verified_api_without_stdout(tmp_path, monkeypatch, capsys):
+    home, called = paths(tmp_path), []
+    monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18000, console_port=13000))
+    monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda _url: True)
+    monkeypatch.setattr(cli, "start", lambda *_a, **_k: pytest.fail("must not start"))
+    monkeypatch.setattr("memorynode.mcp_server.main", lambda: called.append(True))
+    assert cli.dispatch(args("mcp", ensure_api=True), home) == 0
+    captured = capsys.readouterr()
+    assert called and captured.out == "" and "API verified" in captured.err
+    assert cli.os.environ["MEMORYNODE_API_URL"] == "http://127.0.0.1:18000"
+
+
+def test_mcp_ensure_api_starts_once_with_stderr_only_reporting(tmp_path, monkeypatch, capsys):
+    home, called = paths(tmp_path), []
+    monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18001, console_port=13001))
+    healthy = iter([False, True])
+    monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda _url: next(healthy))
+
+    def fake_start(_args, _paths, output):
+        assert output is cli.sys.stderr
+        print("MemoryNode running: API 18001, console 13001", file=output)
+        called.append("start")
+        return 0
+
+    monkeypatch.setattr(cli, "start", fake_start)
+    monkeypatch.setattr("memorynode.mcp_server.main", lambda: called.append("mcp"))
+    assert cli.dispatch(args("mcp", ensure_api=True), home) == 0
+    captured = capsys.readouterr()
+    assert called == ["start", "mcp"] and captured.out == "" and "governance console" in captured.err
+
+
+@pytest.mark.parametrize("states", [
+    {"api": "stale", "console": "stale"},
+    {"api": "foreign", "console": "foreign"},
+    {"api": "running", "console": "stale"},
+])
+def test_mcp_ensure_api_refuses_unsafe_records_without_starting(tmp_path, monkeypatch, states):
+    home = paths(tmp_path); home.create()
+    monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18002, console_port=13002))
+    monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda _url: False)
+    monkeypatch.setattr(cli, "_backend_available", lambda: True)
+    monkeypatch.setattr("memorynode.console.assets_available", lambda: True)
+    monkeypatch.setattr(cli, "_states", lambda _paths: ({"api": {}, "console": {}}, states))
+    monkeypatch.setattr(cli.subprocess, "Popen", lambda *_a, **_k: pytest.fail("must not start"))
+    with pytest.raises(ValueError, match="partial/stale/foreign"):
+        cli.dispatch(args("mcp", ensure_api=True), home)
+
+
+def test_mcp_ensure_api_refuses_occupied_ports_without_starting(tmp_path, monkeypatch):
+    home = paths(tmp_path); home.create()
+    monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18003, console_port=13003))
+    monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda _url: False)
+    monkeypatch.setattr(cli, "_backend_available", lambda: True)
+    monkeypatch.setattr("memorynode.console.assets_available", lambda: True)
+    monkeypatch.setattr(cli, "_states", lambda _paths: ({}, {"api": "stopped", "console": "stopped"}))
+    monkeypatch.setattr(cli, "port_free", lambda *_args: False)
+    monkeypatch.setattr(cli.subprocess, "Popen", lambda *_a, **_k: pytest.fail("must not start"))
+    with pytest.raises(ValueError, match="already in use"):
+        cli.dispatch(args("mcp", ensure_api=True), home)
+
+
+def test_mcp_ensure_api_rejects_corrupt_record_without_starting(tmp_path, monkeypatch):
+    home = paths(tmp_path); home.create(); home.process_file.write_text("not-json")
+    monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18004, console_port=13004))
+    monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda _url: False)
+    monkeypatch.setattr(cli, "_backend_available", lambda: True)
+    monkeypatch.setattr("memorynode.console.assets_available", lambda: True)
+    monkeypatch.setattr(cli.subprocess, "Popen", lambda *_a, **_k: pytest.fail("must not start"))
+    with pytest.raises(ValueError, match="partial/stale/foreign"):
+        cli.dispatch(args("mcp", ensure_api=True), home)
 
 
 @pytest.mark.parametrize("states", [

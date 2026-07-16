@@ -16,7 +16,7 @@ def paths(tmp_path): return Paths(*(tmp_path / name for name in ("config", "data
 
 
 def args(command, **kwargs):
-    defaults = dict(source_root=None, api_host=None, api_port=None, console_host=None, console_port=None, transport="stdio", ensure_api=False, host=None, port=None, print_token_once=False)
+    defaults = dict(source_root=None, api_host=None, api_port=None, console_host=None, console_port=None, transport="stdio", ensure_api=False, open_console=False, host=None, port=None, print_token_once=False)
     defaults.update(kwargs)
     return Namespace(command=command, **defaults)
 
@@ -127,12 +127,16 @@ def test_mcp_reuses_server_and_configured_url(tmp_path, monkeypatch):
 
 
 def test_mcp_ensure_api_parser_and_http_rejection(tmp_path, monkeypatch):
-    parsed = cli.parser().parse_args(["mcp", "--ensure-api"])
-    assert parsed.ensure_api and parsed.transport == "stdio"
+    parsed = cli.parser().parse_args(["mcp", "--ensure-api", "--open-console"])
+    assert parsed.ensure_api and parsed.open_console and parsed.transport == "stdio"
     called = []
     monkeypatch.setattr(cli, "start", lambda *_args, **_kwargs: called.append(True))
     with pytest.raises(ValueError, match="stdio"):
         cli.dispatch(cli.parser().parse_args(["mcp", "--transport", "http", "--ensure-api"]), paths(tmp_path))
+    with pytest.raises(ValueError, match="stdio"):
+        cli.dispatch(cli.parser().parse_args(["mcp", "--transport", "http", "--open-console"]), paths(tmp_path))
+    with pytest.raises(ValueError, match="requires --ensure-api"):
+        cli.dispatch(cli.parser().parse_args(["mcp", "--open-console"]), paths(tmp_path))
     assert called == []
 
 
@@ -176,9 +180,23 @@ def test_mcp_ensure_api_starts_once_with_stderr_only_reporting(tmp_path, monkeyp
 
     monkeypatch.setattr(cli, "start", fake_start)
     monkeypatch.setattr("memorynode.mcp_server.main", lambda: called.append("mcp"))
-    assert cli.dispatch(args("mcp", ensure_api=True), home) == 0
+    monkeypatch.setattr(cli, "_open_console", lambda url: called.append(("console", url)))
+    assert cli.dispatch(args("mcp", ensure_api=True, open_console=True), home) == 0
     captured = capsys.readouterr()
-    assert called == ["start", "mcp"] and captured.out == "" and "governance console" in captured.err
+    assert called == ["start", ("console", "http://127.0.0.1:13001/"), "mcp"] and captured.out == "" and "governance console" in captured.err
+
+
+def test_mcp_open_console_does_not_open_when_reusing_api_or_explicit_override(tmp_path, monkeypatch):
+    home = paths(tmp_path)
+    monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18008, console_port=13008))
+    monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda _url: True)
+    monkeypatch.setattr(cli, "start", lambda *_a, **_k: pytest.fail("must not start"))
+    monkeypatch.setattr(cli, "_open_console", lambda _url: pytest.fail("must not open"))
+    monkeypatch.setattr("memorynode.mcp_server.main", lambda: None)
+    monkeypatch.delenv("MEMORYNODE_API_URL", raising=False)
+    assert cli.dispatch(args("mcp", ensure_api=True, open_console=True), home) == 0
+    monkeypatch.setenv("MEMORYNODE_API_URL", "http://127.0.0.1:18008")
+    assert cli.dispatch(args("mcp", ensure_api=True, open_console=True), home) == 0
 
 
 def test_mcp_ensure_api_reuses_verified_explicit_override_without_overwriting(tmp_path, monkeypatch, capsys):

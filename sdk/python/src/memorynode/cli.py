@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import time
+import webbrowser
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -45,6 +46,7 @@ def parser():
     mcp.add_argument("--port", type=int)
     mcp.add_argument("--print-token-once", action="store_true", help="rotate and print the HTTP bearer token once")
     mcp.add_argument("--ensure-api", action="store_true", help="for stdio only, safely ensure the local API and console are available")
+    mcp.add_argument("--open-console", action="store_true", help="for stdio bootstrap only, open the managed governance console after it starts")
     commands.add_parser("version", help="show package version")
     return result
 
@@ -72,11 +74,15 @@ def dispatch(args, paths=None):
     if args.command == "mcp":
         if getattr(args, "ensure_api", False) and getattr(args, "transport", "stdio") != "stdio":
             raise ValueError("--ensure-api is available only with the stdio MCP transport")
+        if getattr(args, "open_console", False) and getattr(args, "transport", "stdio") != "stdio":
+            raise ValueError("--open-console is available only with the stdio MCP transport")
+        if getattr(args, "open_console", False) and not getattr(args, "ensure_api", False):
+            raise ValueError("--open-console requires --ensure-api")
         config = load_config(args, paths)
         if getattr(args, "transport", "stdio") == "stdio":
             endpoint = f"http://{config.api_host}:{config.api_port}"
             if getattr(args, "ensure_api", False):
-                endpoint, explicit_override = ensure_api(args, paths, config)
+                endpoint, explicit_override = ensure_api(args, paths, config, open_console=getattr(args, "open_console", False))
                 if not explicit_override:
                     os.environ["MEMORYNODE_API_URL"] = endpoint
             else:
@@ -167,7 +173,18 @@ def _resolve_ensure_api_endpoint(config, environ=None):
     return endpoint, True
 
 
-def ensure_api(args, paths=None, config=None):
+def _open_console(url):
+    try:
+        opened = webbrowser.open(url, new=2)
+    except Exception:
+        opened = False
+    if opened:
+        print(f"Opened MemoryNode governance console: {url}", file=sys.stderr)
+    else:
+        print(f"MemoryNode governance console is ready at {url}; open it in a browser if needed.", file=sys.stderr)
+
+
+def ensure_api(args, paths=None, config=None, open_console=False):
     """Safely resolve the configured API before stdio MCP writes protocol frames."""
     paths = paths or Paths.current()
     config = config or load_config(args, paths)
@@ -183,6 +200,8 @@ def ensure_api(args, paths=None, config=None):
     start(args, paths, output=sys.stderr)
     if not _memorynode_api_healthy(endpoint):
         raise ValueError("managed MemoryNode API did not pass its identity check")
+    if open_console:
+        _open_console(f"http://{config.console_host}:{config.console_port}/")
     print("MemoryNode API and governance console are ready; starting stdio MCP.", file=sys.stderr)
     return endpoint, False
 

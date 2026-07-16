@@ -25,6 +25,11 @@ resolve it deliberately—MemoryNode will not kill the process, overwrite the
 record, or select a different port. Bootstrap messages belong on stderr; stdout
 must remain MCP protocol-only.
 
+To open the governance console automatically after a managed stdio bootstrap,
+add `--open-console` after `--ensure-api`. It opens a browser only when it
+started the managed API and console itself; reused or explicit API endpoints do
+not cause browser launches.
+
 If an MCP client explicitly sets `MEMORYNODE_API_URL`, it must be exactly
 `http://127.0.0.1:<port>` and pass MemoryNode's `/health` identity check.
 Bootstrap reuses a verified override unchanged; an invalid, unavailable, or

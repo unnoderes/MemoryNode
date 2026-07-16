@@ -107,7 +107,7 @@ export default function Simulator() {
               <AuditTimeline events={events} />
               <div className="action-row"><button className="btn btn-primary" onClick={reset}>重新开始模拟</button></div>
             </div>}
-            <div className="simulator-footer"><span>MemoryNode Governance Engine 0.7.1</span><span>SQLite FTS5 · local-first</span></div>
+            <div className="simulator-footer"><span>MemoryNode Governance Engine 0.8.0</span><span>SQLite FTS5 · local-first</span></div>
           </div>
         </div>
       </div>

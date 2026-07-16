@@ -11,7 +11,7 @@ MemoryNode is local-first memory infrastructure for AI agents. A model can propo
 ![Python](https://img.shields.io/badge/Python-package-3776AB?style=flat-square)
 ![FastAPI](https://img.shields.io/badge/API-FastAPI%20%2Fv1-009688?style=flat-square)
 ![SQLite](https://img.shields.io/badge/storage-SQLite%20%2B%20FTS5-2563EB?style=flat-square)
-![Version](https://img.shields.io/badge/version-0.7.1-111827?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.8.0-111827?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-16A34A?style=flat-square)
 
 ## In one line
@@ -217,7 +217,7 @@ Build release artifacts with:
 python scripts/build_release.py
 ```
 
-See [.github/RELEASING.md](.github/RELEASING.md) for the CI and trusted-publishing procedure. The current release is `memorynode==0.7.1`.
+See [.github/RELEASING.md](.github/RELEASING.md) for the CI and trusted-publishing procedure. The current release is `memorynode==0.8.0`.
 
 ## Current scope
 

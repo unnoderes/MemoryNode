@@ -22,10 +22,10 @@ export default function Hero() {
             <a href="#cli" className="btn btn-secondary">5秒快速部署</a>
           </div>
           <div className="tech-badges" aria-label="实现技术">
-            <div className="glass-card tech-badge"><span className="tech-badge-dot" style={{ backgroundColor: '#00bfa5' }}></span><span>Python FastAPI</span></div>
-            <div className="glass-card tech-badge"><span className="tech-badge-dot" style={{ backgroundColor: '#8b5cf6' }}></span><span>Qwen Compatible</span></div>
-            <div className="glass-card tech-badge"><span className="tech-badge-dot" style={{ backgroundColor: '#3b82f6' }}></span><span>SQLite FTS5</span></div>
-            <div className="glass-card tech-badge"><span className="tech-badge-dot" style={{ backgroundColor: '#f43f5e' }}></span><span>React & Next.js</span></div>
+            <div className="glass-card tech-badge tech-badge-fastapi"><span className="tech-badge-dot"></span><span>Python FastAPI</span></div>
+            <div className="glass-card tech-badge tech-badge-qwen"><span className="tech-badge-dot"></span><span>Qwen Compatible</span></div>
+            <div className="glass-card tech-badge tech-badge-sqlite"><span className="tech-badge-dot"></span><span>SQLite FTS5</span></div>
+            <div className="glass-card tech-badge tech-badge-next"><span className="tech-badge-dot"></span><span>React & Next.js</span></div>
           </div>
         </div>
       </div>

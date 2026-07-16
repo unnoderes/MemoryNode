@@ -47,11 +47,16 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
+  opacity: 0.8;
 }
+
+.terminal-dot.red { background-color: #f87171; }
+.terminal-dot.yellow { background-color: #fbbf24; }
+.terminal-dot.green { background-color: #34d399; }
 
 .terminal-tabs {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
 }
 
 .terminal-tab {
@@ -60,7 +65,7 @@
   color: var(--text-secondary);
   font-size: 0.8rem;
   font-family: var(--font-mono);
-  padding: 0.25rem 0.75rem;
+  padding: 0.35rem 0.85rem;
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: var(--transition-smooth);
@@ -68,32 +73,58 @@
 
 .terminal-tab:hover {
   color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .terminal-tab.active {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--color-primary);
   font-weight: 600;
+}
+
+.terminal-copy-btn {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.terminal-copy-btn:hover {
+  color: var(--color-primary);
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.05);
 }
 
 .terminal-body {
   padding: 1.5rem;
   font-family: var(--font-mono);
-  font-size: 0.9rem;
-  line-height: 1.6;
+  font-size: 0.85rem;
+  line-height: 1.7;
   color: #38bdf8; /* Soft blue console text */
   min-height: 240px;
   overflow-x: auto;
+  text-align: left;
 }
 
 .terminal-line {
   margin-bottom: 0.5rem;
   display: flex;
   gap: 0.75rem;
+  animation: fadeInLine 0.15s ease-out forwards;
+}
+
+@keyframes fadeInLine {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .line-prompt {
-  color: var(--color-secondary);
+  color: var(--text-muted);
   user-select: none;
 }
 
@@ -109,18 +140,16 @@
   color: var(--text-muted);
 }
 
-.cursor {
+.terminal-cursor {
   display: inline-block;
-  width: 8px;
+  width: 7px;
   height: 15px;
   background: var(--color-primary);
   margin-left: 2px;
-  animation: blink 1s step-end infinite;
+  animation: blink 0.8s step-end infinite;
   vertical-align: middle;
 }
 
 @keyframes blink {
-  50% {
-    opacity: 0;
-  }
+  50% { opacity: 0; }
 }

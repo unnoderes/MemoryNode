@@ -28,6 +28,9 @@
 .footer-brand .logo-dot {
   width: 8px;
   height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  box-shadow: 0 0 6px var(--color-primary);
 }
 
 .footer-text {

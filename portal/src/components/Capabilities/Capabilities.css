@@ -32,36 +32,58 @@
   overflow: hidden;
 }
 
-.cap-icon {
-  font-size: 2rem;
-  width: 50px;
-  height: 50px;
+.cap-icon-box {
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-color);
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  color: var(--color-primary);
+  transition: var(--transition-smooth);
+}
+
+.cap-card:hover .cap-icon-box {
+  background: var(--color-primary-glow);
+  border-color: var(--color-primary);
+  color: #ffffff;
+  box-shadow: 0 0 15px var(--color-primary-glow);
+  transform: scale(1.05);
 }
 
 .cap-name {
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   font-weight: 700;
+  text-align: left;
 }
 
 .cap-desc {
   font-size: 0.9rem;
   color: var(--text-secondary);
   line-height: 1.6;
+  text-align: left;
 }
 
 .cap-badge {
   position: absolute;
   top: 1.25rem;
   right: 1.25rem;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-family: var(--font-mono);
-  color: var(--color-primary);
-  opacity: 0.8;
+  color: var(--color-secondary);
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-smooth);
+}
+
+.cap-card:hover .cap-badge {
+  color: #ffffff;
+  background: var(--color-secondary);
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
 }

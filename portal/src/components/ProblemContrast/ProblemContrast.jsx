@@ -32,15 +32,64 @@ export default function ProblemContrast() {
         </div>
         <div className="contrast-grid">
           <article className="glass-card contrast-card contrast-card-danger animate-fade-in">
-            <div className="contrast-card-header"><span>黑箱记忆</span></div>
+            <div className="contrast-card-header">
+              <span className="contrast-header-dot danger-dot"></span>
+              <span>黑箱记忆 (Black-box Memory)</span>
+            </div>
+            
+            <div className="mock-terminal danger-terminal">
+              <div className="terminal-bar"><span>unmanaged_memory.log</span></div>
+              <pre className="terminal-code">
+                <code>{`[FATAL_INJECTION] Writing raw text directly
+> "Project must use Qwen Cloud..."
+Saved key: "project_setting" -> "qwen"
+[WARN] Origin source context deleted.
+[WARN] 0 audit logs created.`}</code>
+              </pre>
+            </div>
+
             <ul className="contrast-list">
-              {opaqueRisks.map(([title, desc]) => <li className="contrast-item" key={title}><span className="item-bullet danger-bullet">—</span><div><div className="item-title">{title}</div><div className="item-desc">{desc}</div></div></li>)}
+              {opaqueRisks.map(([title, desc]) => (
+                <li className="contrast-item" key={title}>
+                  <span className="item-bullet danger-bullet">—</span>
+                  <div>
+                    <div className="item-title">{title}</div>
+                    <div className="item-desc">{desc}</div>
+                  </div>
+                </li>
+              ))}
             </ul>
           </article>
+
           <article className="glass-card contrast-card contrast-card-success animate-fade-in">
-            <div className="contrast-card-header"><span>MemoryNode 的治理记忆</span></div>
+            <div className="contrast-card-header">
+              <span className="contrast-header-dot success-dot"></span>
+              <span>治理记忆 (Governed Memory)</span>
+            </div>
+
+            <div className="mock-terminal success-terminal">
+              <div className="terminal-bar"><span>memory_proposal.json</span></div>
+              <pre className="terminal-code">
+                <code>{`{
+  "id": "proposal_99",
+  "status": "pending_approval",
+  "source_quote": "This project must use Qwen...",
+  "confidence": 0.94,
+  "audit_trail": [{ "event": "extracted", "by": "FastAPI/v1" }]
+}`}</code>
+              </pre>
+            </div>
+
             <ul className="contrast-list">
-              {governedBenefits.map(([title, desc]) => <li className="contrast-item" key={title}><span className="item-bullet success-bullet">+</span><div><div className="item-title">{title}</div><div className="item-desc">{desc}</div></div></li>)}
+              {governedBenefits.map(([title, desc]) => (
+                <li className="contrast-item" key={title}>
+                  <span className="item-bullet success-bullet">+</span>
+                  <div>
+                    <div className="item-title">{title}</div>
+                    <div className="item-desc">{desc}</div>
+                  </div>
+                </li>
+              ))}
             </ul>
           </article>
         </div>

@@ -151,6 +151,7 @@ def test_mcp_ensure_api_health_requires_memorynode_identity(monkeypatch):
 def test_mcp_ensure_api_reuses_verified_api_without_stdout(tmp_path, monkeypatch, capsys):
     home, called = paths(tmp_path), []
     monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18000, console_port=13000))
+    monkeypatch.delenv("MEMORYNODE_API_URL", raising=False)
     monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda _url: True)
     monkeypatch.setattr(cli, "start", lambda *_a, **_k: pytest.fail("must not start"))
     monkeypatch.setattr("memorynode.mcp_server.main", lambda: called.append(True))
@@ -163,6 +164,7 @@ def test_mcp_ensure_api_reuses_verified_api_without_stdout(tmp_path, monkeypatch
 def test_mcp_ensure_api_starts_once_with_stderr_only_reporting(tmp_path, monkeypatch, capsys):
     home, called = paths(tmp_path), []
     monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18001, console_port=13001))
+    monkeypatch.delenv("MEMORYNODE_API_URL", raising=False)
     healthy = iter([False, True])
     monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda _url: next(healthy))
 
@@ -179,6 +181,73 @@ def test_mcp_ensure_api_starts_once_with_stderr_only_reporting(tmp_path, monkeyp
     assert called == ["start", "mcp"] and captured.out == "" and "governance console" in captured.err
 
 
+def test_mcp_ensure_api_reuses_verified_explicit_override_without_overwriting(tmp_path, monkeypatch, capsys):
+    home, called = paths(tmp_path), []
+    endpoint = "http://127.0.0.1:18005"
+    monkeypatch.setenv("MEMORYNODE_API_URL", endpoint)
+    monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18000, console_port=13000))
+    verified = []
+    monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda url: verified.append(url) or url == endpoint)
+    monkeypatch.setattr(cli, "start", lambda *_a, **_k: pytest.fail("must not start"))
+    monkeypatch.setattr("memorynode.mcp_server.main", lambda: called.append("mcp"))
+
+    assert cli.dispatch(args("mcp", ensure_api=True), home) == 0
+    captured = capsys.readouterr()
+    assert called == ["mcp"]
+    assert verified == [endpoint]
+    assert cli.os.environ["MEMORYNODE_API_URL"] == endpoint
+    assert captured.out == "" and "Explicit MemoryNode API override verified" in captured.err
+
+
+@pytest.mark.parametrize("health", [False, True])
+def test_mcp_ensure_api_refuses_unavailable_or_wrong_identity_explicit_override(tmp_path, monkeypatch, capsys, health):
+    home, started = paths(tmp_path), []
+    endpoint = "http://127.0.0.1:18006"
+    monkeypatch.setenv("MEMORYNODE_API_URL", endpoint)
+    monkeypatch.setattr(cli.Paths, "current", classmethod(lambda _cls: home))
+    monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18000, console_port=13000))
+    if health:
+        class Response:
+            status_code = 200
+            def json(self): return {"ok": True, "service": "other"}
+        monkeypatch.setitem(sys.modules, "httpx", SimpleNamespace(get=lambda *_a, **_k: Response()))
+    else:
+        monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda _url: False)
+    monkeypatch.setattr(cli, "start", lambda *_a, **_k: started.append(True))
+
+    assert cli.main(["mcp", "--ensure-api"]) == 2
+    captured = capsys.readouterr()
+    assert started == []
+    assert cli.os.environ["MEMORYNODE_API_URL"] == endpoint
+    assert captured.out == "" and "could not be verified" in captured.err and endpoint not in captured.err
+
+
+@pytest.mark.parametrize("endpoint", [
+    "",
+    "http://127.0.0.1:18007/",
+    "http://127.0.0.1:18007/?token=never-print-this",
+    "http://user:never-print-this@127.0.0.1:18007",
+    "http://localhost:18007",
+    "https://127.0.0.1:18007",
+    "http://127.0.0.1:18007#never-print-this",
+])
+def test_mcp_ensure_api_refuses_malformed_or_non_loopback_explicit_override(tmp_path, monkeypatch, capsys, endpoint):
+    home, started = paths(tmp_path), []
+    monkeypatch.setenv("MEMORYNODE_API_URL", endpoint)
+    monkeypatch.setattr(cli.Paths, "current", classmethod(lambda _cls: home))
+    monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18000, console_port=13000))
+    monkeypatch.setattr(cli, "start", lambda *_a, **_k: started.append(True))
+
+    assert cli.main(["mcp", "--ensure-api"]) == 2
+    captured = capsys.readouterr()
+    assert started == []
+    assert cli.os.environ["MEMORYNODE_API_URL"] == endpoint
+    assert "safe local HTTP endpoint" in captured.err
+    assert not endpoint or endpoint not in captured.err
+    assert "never-print-this" not in captured.out + captured.err
+    assert captured.out == ""
+
+
 @pytest.mark.parametrize("states", [
     {"api": "stale", "console": "stale"},
     {"api": "foreign", "console": "foreign"},
@@ -186,6 +255,7 @@ def test_mcp_ensure_api_starts_once_with_stderr_only_reporting(tmp_path, monkeyp
 ])
 def test_mcp_ensure_api_refuses_unsafe_records_without_starting(tmp_path, monkeypatch, states):
     home = paths(tmp_path); home.create()
+    monkeypatch.delenv("MEMORYNODE_API_URL", raising=False)
     monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18002, console_port=13002))
     monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda _url: False)
     monkeypatch.setattr(cli, "_backend_available", lambda: True)
@@ -198,6 +268,7 @@ def test_mcp_ensure_api_refuses_unsafe_records_without_starting(tmp_path, monkey
 
 def test_mcp_ensure_api_refuses_occupied_ports_without_starting(tmp_path, monkeypatch):
     home = paths(tmp_path); home.create()
+    monkeypatch.delenv("MEMORYNODE_API_URL", raising=False)
     monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18003, console_port=13003))
     monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda _url: False)
     monkeypatch.setattr(cli, "_backend_available", lambda: True)
@@ -211,6 +282,7 @@ def test_mcp_ensure_api_refuses_occupied_ports_without_starting(tmp_path, monkey
 
 def test_mcp_ensure_api_rejects_corrupt_record_without_starting(tmp_path, monkeypatch):
     home = paths(tmp_path); home.create(); home.process_file.write_text("not-json")
+    monkeypatch.delenv("MEMORYNODE_API_URL", raising=False)
     monkeypatch.setattr(cli, "load_config", lambda *_a, **_k: Config(api_port=18004, console_port=13004))
     monkeypatch.setattr(cli, "_memorynode_api_healthy", lambda _url: False)
     monkeypatch.setattr(cli, "_backend_available", lambda: True)

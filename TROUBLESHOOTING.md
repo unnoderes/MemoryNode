@@ -25,6 +25,12 @@ resolve it deliberately—MemoryNode will not kill the process, overwrite the
 record, or select a different port. Bootstrap messages belong on stderr; stdout
 must remain MCP protocol-only.
 
+If an MCP client explicitly sets `MEMORYNODE_API_URL`, it must be exactly
+`http://127.0.0.1:<port>` and pass MemoryNode's `/health` identity check.
+Bootstrap reuses a verified override unchanged; an invalid, unavailable, or
+wrong service is refused without fallback, process start, port changes, or
+environment replacement.
+
 Configure model settings and keys in the governance console (or documented
 local environment variables), not in MCP JSON or command arguments. The console
 remains the human approval surface for pending proposals.

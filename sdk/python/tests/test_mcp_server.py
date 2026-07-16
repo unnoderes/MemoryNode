@@ -126,7 +126,12 @@ def test_api_unavailable_is_actionable_sanitized_and_traced(tmp_path):
 def test_memory_propose_preserves_pending_only_behavior(monkeypatch):
     class Proposals:
         def extract(self, **kwargs):
-            assert kwargs == {"actor_id": "actor", "project_id": "project", "content": "candidate"}
+            assert kwargs == {
+                "actor_id": "actor",
+                "project_id": "project",
+                "content": "candidate",
+                "timeout": mcp_server.MODEL_EXTRACTION_API_TIMEOUT_SECONDS,
+            }
             return {"proposals": [{"id": "proposal_1", "status": "pending"}]}
 
     class Client:

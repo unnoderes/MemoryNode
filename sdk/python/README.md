@@ -39,7 +39,7 @@ discovery exposes `memory_propose`, `memory_search`, `memory_get`,
 hidden unless true TOML booleans in local `config.toml` enable them.
 
 The `memorynode` CLI provides `init`, `start`, `stop`, `restart`, `status`,
-`doctor`, `mcp`, data commands, and `version`. The 0.7.1 wheel includes the
+`doctor`, `mcp`, data commands, and `version`. The 0.8.0 wheel includes the
 FastAPI backend and static governance console:
 
 ```powershell

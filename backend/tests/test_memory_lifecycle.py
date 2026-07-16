@@ -127,6 +127,9 @@ def test_fts_search_empty_query_and_rebuild():
         empty_response = client.get("/v1/memories/search", params={"q": "   "})
         assert empty_response.status_code == 400
 
+        punctuation_response = client.get("/v1/memories/search", params={"q": "!!!"})
+        assert punctuation_response.status_code == 400
+
         db = session_local()
         try:
             fts_tables = db.execute(
@@ -147,6 +150,101 @@ def test_fts_search_empty_query_and_rebuild():
         assert [item["id"] for item in rebuilt_response.json()["memories"]] == [
             memory["id"]
         ]
+
+
+def test_cjk_partial_search_uses_content_fallback_and_preserves_visibility():
+    content = "MemoryNode \u5ba1\u6838\u8005\u6279\u51c6\u540e\u624d\u80fd\u6210\u4e3a active memory."
+    with TestClient(app) as client:
+        proposal = create_proposal(client, content, actor_id="cjk-search", project_id="cjk-search")
+        assert proposal["status"] == "pending"
+        memory = client.post(f"/v1/proposals/{proposal['id']}/approve").json()
+        assert memory["status"] == "active"
+
+        for query in ("\u5ba1\u6838\u8005\u6279\u51c6", "\u6279\u51c6\u540e\u624d\u80fd"):
+            response = client.get("/v1/memories/search", params={"q": query})
+            assert [item["id"] for item in response.json()["memories"]] == [memory["id"]]
+            assert "score" not in response.json()["memories"][0]
+
+        mixed = client.get("/v1/memories/search", params={"q": "MemoryNode \u5ba1\u6838\u8005\u6279\u51c6"})
+        assert [item["id"] for item in mixed.json()["memories"]] == [memory["id"]]
+        assert "score" in mixed.json()["memories"][0]
+
+        explanation = client.get(f"/v1/memories/{memory['id']}/explain").json()
+        assert explanation["proposal"]["id"] == proposal["id"]
+        assert explanation["events"][0]["event_type"] == "approve"
+
+        assert client.post(f"/v1/memories/{memory['id']}/revoke").status_code == 200
+        assert client.get("/v1/memories/search", params={"q": "\u5ba1\u6838\u8005\u6279\u51c6"}).json()["memories"] == []
+        inactive = client.get(
+            "/v1/memories/search",
+            params={"q": "\u5ba1\u6838\u8005\u6279\u51c6", "include_inactive": "true"},
+        ).json()["memories"]
+        assert [item["id"] for item in inactive] == [memory["id"]]
+
+
+def test_cjk_only_search_is_newest_first_and_literal_safe():
+    with TestClient(app) as client:
+        def create_cjk_proposal(content):
+            return create_proposal(client, content, actor_id="cjk-search", project_id="cjk-search")
+
+        older_proposal = create_cjk_proposal("older \u53d1\u5e03\u5ba1\u6838\u6d41\u7a0b")
+        older = client.post(f"/v1/proposals/{older_proposal['id']}/approve").json()
+        newer_proposal = create_cjk_proposal("newer \u53d1\u5e03\u5ba1\u6838\u6d41\u7a0b")
+        newer = client.post(f"/v1/proposals/{newer_proposal['id']}/approve").json()
+        db = session_local()
+        try:
+            db.query(models.Memory).filter(models.Memory.id == older["id"]).update(
+                {models.Memory.created_at: models.now() - timedelta(days=1)}
+            )
+            db.commit()
+        finally:
+            db.close()
+
+        results = client.get("/v1/memories/search", params={"q": "\u5ba1\u6838\u6d41\u7a0b"}).json()["memories"]
+        assert [item["id"] for item in results] == [newer["id"], older["id"]]
+        assert all("score" not in item for item in results)
+
+        exact_proposal = create_cjk_proposal("MemoryNode \u5ba1\u6838\u8005\u6279\u51c6")
+        exact = client.post(f"/v1/proposals/{exact_proposal['id']}/approve").json()
+        decoy_proposal = create_cjk_proposal("MemoryNode \u5ba1\u6838\u8005\u5f85\u5b9a")
+        decoy = client.post(f"/v1/proposals/{decoy_proposal['id']}/approve").json()
+        for query in ("\u5ba1\u6838\u8005%\u6279\u51c6", "\u5ba1\u6838\u8005_\u6279\u51c6", "\u5ba1\u6838\u8005/\u6279\u51c6"):
+            matches = client.get("/v1/memories/search", params={"q": query}).json()["memories"]
+            matched_ids = [item["id"] for item in matches]
+            assert set(matched_ids) <= {exact["id"]}
+            assert decoy["id"] not in matched_ids
+
+
+def test_non_cjk_search_keeps_fts_bm25_ordering():
+    with TestClient(app) as client:
+        first_proposal = create_proposal(
+            client, "rankmarker alpha rankmarker", actor_id="cjk-search", project_id="cjk-search"
+        )
+        first = client.post(f"/v1/proposals/{first_proposal['id']}/approve").json()
+        second_proposal = create_proposal(
+            client, "rankmarker beta", actor_id="cjk-search", project_id="cjk-search"
+        )
+        second = client.post(f"/v1/proposals/{second_proposal['id']}/approve").json()
+        db = session_local()
+        try:
+            expected = [
+                row.memory_id
+                for row in db.execute(
+                    text(
+                        "SELECT memory_id, bm25(memory_fts) AS score "
+                        "FROM memory_fts WHERE memory_fts MATCH :q ORDER BY score"
+                    ),
+                    {"q": "rankmarker"},
+                ).fetchall()
+                if row.memory_id in {first["id"], second["id"]}
+            ]
+        finally:
+            db.close()
+
+        results = client.get("/v1/memories/search", params={"q": "rankmarker"}).json()["memories"]
+        found = [item["id"] for item in results if item["id"] in {first["id"], second["id"]}]
+        assert found == expected
+        assert all("score" in item for item in results)
 
 
 def test_extract_creates_source_and_pending_proposals(monkeypatch):

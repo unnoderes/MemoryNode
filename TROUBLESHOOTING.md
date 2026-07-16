@@ -15,6 +15,20 @@ anything. Verify the PID, command, working directory, and port owner manually;
 only then resolve the process record or port conflict. `restart` stops verified
 managed processes before starting again.
 
+For copy-paste stdio MCP, ensure `uv`/`uvx` is on `PATH` and use
+`uvx --from memorynode memorynode mcp --ensure-api`. First use downloads and
+caches the package. This requires a PyPI release that contains `--ensure-api`;
+before that release, install the package from source and use
+`memorynode mcp --ensure-api`. If bootstrap refuses an occupied port or an
+unsafe, partial, stale, corrupt, or foreign process record, inspect it and
+resolve it deliberately—MemoryNode will not kill the process, overwrite the
+record, or select a different port. Bootstrap messages belong on stderr; stdout
+must remain MCP protocol-only.
+
+Configure model settings and keys in the governance console (or documented
+local environment variables), not in MCP JSON or command arguments. The console
+remains the human approval surface for pending proposals.
+
 For HTTP MCP, rerun `memorynode mcp --transport http --print-token-once` to
 rotate a lost token, update the client `Authorization: Bearer <token>` header,
 then start the loopback endpoint again. Missing or invalid tokens return 401

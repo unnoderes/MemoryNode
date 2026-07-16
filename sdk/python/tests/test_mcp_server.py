@@ -121,3 +121,20 @@ def test_api_unavailable_is_actionable_sanitized_and_traced(tmp_path):
     assert rows[-1]["outcome"] == "error"
     assert rows[-1]["capability"] == "memory_search"
     assert "secret-query" not in log and "content" not in log and "raw_text" not in log
+
+
+def test_memory_propose_preserves_pending_only_behavior(monkeypatch):
+    class Proposals:
+        def extract(self, **kwargs):
+            assert kwargs == {"actor_id": "actor", "project_id": "project", "content": "candidate"}
+            return {"proposals": [{"id": "proposal_1", "status": "pending"}]}
+
+    class Client:
+        proposals = Proposals()
+        def __init__(self, **_kwargs): pass
+        def __enter__(self): return self
+        def __exit__(self, *_args): return False
+
+    monkeypatch.setattr(mcp_server, "MemoryNodeClient", Client)
+    result = mcp_server.memory_propose("candidate", "actor", "project")
+    assert result["proposals"][0]["status"] == "pending"

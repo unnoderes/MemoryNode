@@ -83,20 +83,48 @@ Extraction uses a Qwen/OpenAI-compatible endpoint. Configure it from the governa
 
 ### Stdio MCP
 
-Add MemoryNode to your MCP client. Standard output is reserved for MCP protocol frames.
+With `uv`/`uvx` on your `PATH`, paste this into a compatible MCP client. On first
+use, `uvx` downloads and caches the package, then starts stdio MCP and safely
+reuses a verified local MemoryNode API or starts the managed API and governance
+console when its configured ports and process records are safe. Standard output
+is reserved for MCP protocol frames.
+
+```json
+{
+  "mcpServers": {
+    "memorynode": {
+      "command": "uvx",
+      "args": ["--from", "memorynode", "memorynode", "mcp", "--ensure-api"]
+    }
+  }
+}
+```
+
+This command is explicitly stdio-only: it never starts HTTP MCP, generates an
+HTTP token, changes ports, kills unknown processes, or creates a competing
+runtime. It requires a published PyPI release containing this feature; until
+then, use an installed package from this source checkout.
+
+For an already installed package, use the same safe bootstrap without `uvx`:
 
 ```json
 {
   "mcpServers": {
     "memorynode": {
       "command": "memorynode",
-      "args": ["mcp"]
+      "args": ["mcp", "--ensure-api"]
     }
   }
 }
 ```
 
-The default tools can propose, search, retrieve, explain, list, and provide feedback. Governance-changing tools—approval, rejection, revocation, supersession, and expiry—are hidden unless a local administrator explicitly enables them.
+Configure any model provider and key in the local governance console (or with
+the documented local environment variables), never in MCP configuration or
+command arguments. `memory_propose` creates pending proposals only; the console
+remains the human approval and rejection surface. The default tools can propose,
+search, retrieve, explain, list, and provide feedback. Governance-changing
+tools—approval, rejection, revocation, supersession, and expiry—are hidden unless
+a local administrator explicitly enables them.
 
 ### Local HTTP MCP
 

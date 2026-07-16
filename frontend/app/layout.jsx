@@ -18,6 +18,8 @@ export default function RootLayout({ children }) {
       <head>
         <title>{t("MemoryNode - AI 记忆管理", "MemoryNode - AI Memory Management")}</title>
         <meta name="description" content={t("提取、审核、查找和管理 AI 记忆", "Extract, review, search, and manage AI memories")} />
+        <link rel="icon" type="image/png" href="/memorynode-logo-mark.png" />
+        <link rel="apple-touch-icon" href="/memorynode-logo-mark.png" />
         <script src="/memorynode-config.js"></script>
       </head>
       <body>
@@ -25,7 +27,7 @@ export default function RootLayout({ children }) {
           <aside className="sidebar">
             <div>
               <div className="logo-container">
-                <span className="logo-pulse"></span>
+                <img className="logo-mark" src="/memorynode-logo-mark.png" alt="" />
                 <span className="logo-text">MemoryNode</span>
               </div>
               <div className="sidebar-subtitle">{t("AI 记忆管理", "AI Memory Management")}</div>
@@ -72,7 +74,7 @@ export default function RootLayout({ children }) {
 
             <div className="sidebar-footer">
               <button className="language-toggle" type="button" onClick={() => setLanguage(language === "zh" ? "en" : "zh")}>
-                {language === "zh" ? "EN  English" : "中  中文"}
+                {language === "zh" ? "EN" : "CN"}
               </button>
               <div className="status-indicator">
                 <span className="status-dot"></span>
@@ -212,27 +214,11 @@ export default function RootLayout({ children }) {
             margin-bottom: 8px;
             padding-left: 4px;
           }
-          .logo-pulse {
-            width: 10px;
-            height: 10px;
-            background-color: var(--color-accent);
-            border-radius: 50%;
-            box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.7);
-            animation: pulse 2s infinite;
-          }
-          @keyframes pulse {
-            0% {
-              transform: scale(0.95);
-              box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.5);
-            }
-            70% {
-              transform: scale(1);
-              box-shadow: 0 0 0 10px rgba(6, 182, 212, 0);
-            }
-            100% {
-              transform: scale(0.95);
-              box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);
-            }
+          .logo-mark {
+            width: 30px;
+            height: 30px;
+            object-fit: contain;
+            flex: 0 0 auto;
           }
           .logo-text {
             font-size: 22px;

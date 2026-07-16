@@ -71,8 +71,8 @@ export default function ProposalsPage() {
   const [modelError, setModelError] = useState("");
   const [extractNeedsSettings, setExtractNeedsSettings] = useState(false);
   const [modelForm, setModelForm] = useState({
-    base_url: "https://dashscope.aliyuncs.com/compatible-mode",
-    model: "qwen-plus",
+    base_url: "",
+    model: "qwen3.7-plus",
     wire_api: "chat",
     reasoning_effort: "medium",
     api_key: "",
@@ -318,8 +318,8 @@ export default function ProposalsPage() {
               <div className="model-settings-content">
                 {modelSettings?.env_override ? <p className="model-settings-warning">{t("当前环境变量配置优先生效；界面保存的配置不会覆盖它。", "Environment variables currently take precedence; saved settings will not override them.")}</p> : null}
                 <p className="model-settings-note">{t("API Key 仅保存在本机 MemoryNode 配置中，界面不会再次显示完整 Key。", "The API key is stored only in local MemoryNode configuration and is never shown in full again.")}</p>
-                <label>Base URL<input value={modelForm.base_url} onChange={(event) => updateModelField("base_url", event.target.value)} placeholder="https://..." /></label>
-                <label>{t("模型", "Model")}<input value={modelForm.model} onChange={(event) => updateModelField("model", event.target.value)} placeholder="qwen-plus" /></label>
+                <label>Base URL<input value={modelForm.base_url} onChange={(event) => updateModelField("base_url", event.target.value)} placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" /></label>
+                <label>{t("模型", "Model")}<input value={modelForm.model} onChange={(event) => updateModelField("model", event.target.value)} placeholder="qwen3.7-plus" /></label>
                 <div className="two-col">
                   <label>Wire API<select value={modelForm.wire_api} onChange={(event) => updateModelField("wire_api", event.target.value)}><option value="chat">chat</option><option value="responses">responses</option></select></label>
                   <label>{t("推理强度", "Reasoning effort")}<input value={modelForm.reasoning_effort} onChange={(event) => updateModelField("reasoning_effort", event.target.value)} disabled={modelForm.wire_api !== "responses"} placeholder="medium" /></label>

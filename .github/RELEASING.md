@@ -24,11 +24,14 @@ OIDC credential and has no repository write permission.
    build version source.
 2. If dependencies changed, run `uv lock --project sdk/python` and commit the
    updated `sdk/python/uv.lock`.
-3. Update human-facing release text where appropriate, including the public
+3. Pin frontend direct dependencies. Any frontend dependency change must keep
+   `frontend/package.json` and `frontend/package-lock.json` synchronized;
+   `scripts/build_release.py` verifies this with `npm ci`.
+4. Update human-facing release text where appropriate, including the public
    README and portal.
-4. Run `python scripts/check_release_version.py`.
-5. Merge the release preparation commit to `main` and wait for SDK CI to pass.
-6. Tag that exact commit and push the tag:
+5. Run `python scripts/check_release_version.py`.
+6. Merge the release preparation commit to `main` and wait for SDK CI to pass.
+7. Tag that exact commit and push the tag:
 
    ```powershell
    git tag v0.8.0

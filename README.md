@@ -48,97 +48,116 @@ Approved memories are searchable by keyword. Revoked, expired, and superseded me
 
 ![Memory search console](assets/readme/memory-search.png)
 
-## Quick start
+## Standard local workflow
 
-MemoryNode runs as the `memorynode` Python package and requires Python 3.10 or later.
+This is the recommended first-use path for one person and one local machine. MemoryNode requires Python 3.10+ and runs entirely on loopback addresses. The installed package includes the FastAPI API, governance console, SDK, CLI, stdio MCP, and local HTTP MCP; everyday use does not require Git, Node.js, or a frontend build.
+
+### 1. Install and initialize
+
+Install the released package, verify the version, then initialize local directories and configuration:
 
 ```bash
-uv tool install memorynode
+uv tool install memorynode==0.8.0
+memorynode version
 memorynode init
+```
+
+`memorynode init` prints an HTTP MCP bearer token once. Store it securely if you intend to use the optional local HTTP MCP transport. Stdio MCP does **not** use this token.
+
+### 2. Start the local runtime and open the console
+
+```bash
 memorynode start
 memorynode status
 ```
 
-Open the governance console at <http://127.0.0.1:3000/>. The API defaults to <http://127.0.0.1:8000>.
+When `status` reports both services as healthy, open the governance console at <http://127.0.0.1:3000/>. The API is at <http://127.0.0.1:8000>.
 
-`memorynode init` creates local configuration and directories and prints the HTTP MCP token once. Store it securely.
+`memorynode start` manages the API and console processes that it starts: it records their identities, checks their health, and lets `status`, `restart`, and `stop` act on those recorded processes. It never takes over or kills an unknown process that happens to use the same port. If a port is occupied, inspect it deliberately rather than terminating it blindly.
 
-```bash
-memorynode stop
-```
+If you previously started a development `uvicorn` manually on port `8000`, stop that known development process before expecting the MCP bootstrap to start the managed console on `3000`. A bootstrap that finds a healthy existing API safely reuses it and does not take ownership of it or start a competing console.
 
-The installed package includes the FastAPI API, governance console, SDK, CLI, stdio MCP, and local HTTP MCP. Everyday use does not require Git, Node.js, or a frontend build.
+### 3. Configure model extraction only when you need it
 
-## Workflow
+`memory_propose` uses a Qwen/OpenAI-compatible model to turn content into one or more pending proposals. Before using it, open **Proposals → Model extraction** in the governance console and enter the Base URL, model, wire API, and API key, then choose **Test connection**.
 
-1. Extract proposals from a conversation, or create a manual proposal through the API.
-2. Review its content, type, source quote, rationale, and confidence.
-3. Approve it to create an active memory, or reject it without creating one.
-4. Search memory and use the explanation endpoint to inspect its source and history.
-5. Revoke it, give it an expiry, or approve a newer proposal to replace it when necessary.
+- Enter provider keys in the local console, never in MCP client configuration, command arguments, or chat.
+- Complete `QWEN_API_KEY`, `QWEN_BASE_URL`, and `QWEN_MODEL` environment variables take precedence over saved local settings.
+- Manual proposal creation remains available without model configuration; model-backed extraction does not.
 
-Extraction uses a Qwen/OpenAI-compatible endpoint. Configure it from the governance console on the proposals page, or set `QWEN_API_KEY`, `QWEN_BASE_URL`, `QWEN_MODEL`, `QWEN_WIRE_API`, and `QWEN_REASONING_EFFORT`; environment variables take precedence over console-saved settings. The console stores a UI-entered key only in local sensitive MemoryNode configuration, never in browser storage, and the settings API never returns the full key. Manual proposal creation remains available without model configuration. Never commit real credentials.
+### 4. Connect an MCP client
 
-## MCP
-
-### Stdio MCP
-
-With `uv`/`uvx` on your `PATH`, paste this into a compatible MCP client. On first
-use, `uvx` downloads and caches the package, then starts stdio MCP and safely
-reuses a verified local MemoryNode API or starts the managed API and governance
-console when its configured ports and process records are safe. Standard output
-is reserved for MCP protocol frames.
+For a stdio-compatible client such as Codex Desktop, add this server configuration and restart the client:
 
 ```json
 {
   "mcpServers": {
     "memorynode": {
       "command": "uvx",
-      "args": ["--from", "memorynode", "memorynode", "mcp", "--ensure-api"]
+      "args": ["--from", "memorynode==0.8.0", "memorynode", "mcp", "--ensure-api", "--open-console"]
     }
   }
 }
 ```
 
-This command is explicitly stdio-only: it never starts HTTP MCP, generates an
-HTTP token, changes ports, kills unknown processes, or creates a competing
-runtime. It requires a published PyPI release containing this feature; until
-then, use an installed package from this source checkout.
+`--ensure-api` safely reuses a verified local MemoryNode API or starts the managed API and console when no API is running. `--open-console` opens a browser only when that bootstrap starts the managed pair. If an existing API is reused, open the console URL yourself; the bootstrap will not take over its lifecycle or start a competing console.
 
-To open the governance console in the default browser only when this bootstrap
-starts a managed API and console pair, add `--open-console` after `--ensure-api`.
-It never opens a browser when reusing an existing API or an explicit
-`MEMORYNODE_API_URL` override.
-
-If an MCP client explicitly sets `MEMORYNODE_API_URL`, bootstrap accepts only an
-exact `http://127.0.0.1:<port>` origin. It reuses that exact endpoint only after
-its `/health` response identifies MemoryNode; otherwise it refuses without
-starting or redirecting to a different instance.
-
-For an already installed package, use the same safe bootstrap without `uvx`:
+For an already installed package, the same configuration can use:
 
 ```json
 {
   "mcpServers": {
     "memorynode": {
       "command": "memorynode",
-      "args": ["mcp", "--ensure-api"]
+      "args": ["mcp", "--ensure-api", "--open-console"]
     }
   }
 }
 ```
 
-Configure any model provider and key in the local governance console (or with
-the documented local environment variables), never in MCP configuration or
-command arguments. `memory_propose` creates pending proposals only; the console
-remains the human approval and rejection surface. The default tools can propose,
-search, retrieve, explain, list, and provide feedback. Governance-changing
-tools—approval, rejection, revocation, supersession, and expiry—are hidden unless
-a local administrator explicitly enables them.
+### 5. Run the governed-memory loop
+
+Use the following sequence in your MCP client. It is deliberately not an automatic-write workflow.
+
+| Step | MCP action | Expected result |
+| --- | --- | --- |
+| Inspect safely | `memory_list` or `memory_search` | Reads active memories only; it does not change data. |
+| Propose | `memory_propose(content, actor_id, project_id)` | Uses the configured model and creates **pending** proposal(s), never active memory. |
+| Review | Governance console → Pending proposals | A human checks content, source quote, rationale, confidence, and related-memory candidates, then approves or rejects. |
+| Search | `memory_search(query)` | Returns approved, effective memories by default. |
+| Explain | `memory_explain(memory_id)` | Returns the memory, proposal, source, audit events, and replacement links. |
+| Feedback | `memory_feedback(...)` | Adds an audit event but does not change memory state. |
+
+Do not enable agent approval, rejection, revocation, supersession, or expiry tools for an initial test. They are hidden by default and require a local administrator to explicitly enable them.
+
+For a first proposal test, ask the MCP client to call `memory_propose` with a disposable `actor_id` such as `codex-manual-test` and `project_id` such as `mcp-smoke-001`, and explicitly say “do not approve this proposal.” Then complete the approval or rejection only in the governance console.
+
+Model extraction can take longer than an MCP client's local request timeout. If `memory_propose` reports a timeout, wait briefly and refresh the Pending proposals page before retrying; the backend may have finished creating a pending proposal after the client stopped waiting. Do not repeatedly submit the same content until you have checked the review queue.
+
+### 6. Day-to-day operation and safe recovery
+
+```bash
+memorynode status   # show managed API/console health
+memorynode doctor   # read-only installation and configuration checks; never prints secret values
+memorynode restart  # restart only verified managed processes
+memorynode stop     # stop only verified managed processes
+```
+
+Backups and exports can contain source text, proposals, memories, and audit events. Treat them as sensitive. See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for port conflicts, model configuration, and recovery guidance.
+
+## MCP transport reference
+
+### Stdio MCP
+
+Use the configuration in step 4 above for the normal one-client workflow. Standard output is reserved for MCP protocol frames; operational messages are written to standard error.
+
+The stdio bootstrap never starts HTTP MCP, generates an HTTP token, changes ports, kills unknown processes, or creates a competing runtime. If a client explicitly sets `MEMORYNODE_API_URL`, it must be the exact local origin `http://127.0.0.1:<port>` and its `/health` response must identify MemoryNode. Otherwise bootstrap refuses instead of redirecting to a different instance.
+
+Configure model providers and keys in the local governance console (or documented local environment variables), never in MCP configuration or command arguments. Default tools can propose, search, retrieve, explain, list, and provide feedback. Governance-changing tools—approval, rejection, revocation, supersession, and expiry—are hidden unless a local administrator explicitly enables them.
 
 ### Local HTTP MCP
 
-For several local MCP clients, run the shared endpoint in another foreground terminal:
+Use this optional, loopback-only transport only when several local MCP clients need to share one endpoint. It is not required for the standard Codex/Desktop stdio setup. Run the shared endpoint in another foreground terminal:
 
 ```powershell
 memorynode start

@@ -14,12 +14,15 @@ policy permits only that origin, and static-console paths reject traversal.
 Stdio reserves stdout for MCP protocol frames; operational output and safe
 warnings use stderr or local files.
 
-`memorynode mcp --ensure-api` is an explicit stdio-only bootstrap. It verifies
-that the configured loopback `/health` response identifies MemoryNode before
-reuse; otherwise it uses the managed lifecycle preflight and refuses occupied
-ports or unsafe process records. It never starts HTTP MCP or creates an HTTP
-token. Do not put model-provider keys, HTTP MCP tokens, or other credentials in
-MCP client JSON, command arguments, diagnostics, or logs.
+`memorynode mcp --ensure-api` is an explicit stdio-only bootstrap. An explicit
+`MEMORYNODE_API_URL` must be the exact local `http://127.0.0.1:<port>` origin;
+it is reused only when its `/health` response identifies MemoryNode, otherwise
+bootstrap safely refuses without fallback or process changes. Without an
+override, it verifies the configured loopback endpoint before reuse, otherwise
+uses the managed lifecycle preflight and refuses occupied ports or unsafe
+process records. It never starts HTTP MCP or creates an HTTP token. Do not put
+model-provider keys, HTTP MCP tokens, or other credentials in MCP client JSON,
+command arguments, diagnostics, or logs.
 
 Local databases, backups, and JSONL exports can contain raw source text,
 proposals, memories, reviewer notes, and audit events. Treat each as sensitive:

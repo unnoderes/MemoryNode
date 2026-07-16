@@ -5,6 +5,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from ._version import __version__ as VERSION
 from .config import Paths, initialize, load_config, load_mcp_http_config, rotate_mcp_http_token
@@ -75,8 +76,9 @@ def dispatch(args, paths=None):
         if getattr(args, "transport", "stdio") == "stdio":
             endpoint = f"http://{config.api_host}:{config.api_port}"
             if getattr(args, "ensure_api", False):
-                endpoint = ensure_api(args, paths, config)
-                os.environ["MEMORYNODE_API_URL"] = endpoint
+                endpoint, explicit_override = ensure_api(args, paths, config)
+                if not explicit_override:
+                    os.environ["MEMORYNODE_API_URL"] = endpoint
             else:
                 os.environ.setdefault("MEMORYNODE_API_URL", endpoint)
             from .mcp_server import main as mcp_main
@@ -135,19 +137,54 @@ def _wait_memorynode_api(url, timeout=20):
     return False
 
 
+def _resolve_ensure_api_endpoint(config, environ=None):
+    """Return the bootstrap endpoint and whether it is an explicit override."""
+    environ = os.environ if environ is None else environ
+    if "MEMORYNODE_API_URL" not in environ:
+        return f"http://{config.api_host}:{config.api_port}", False
+
+    endpoint = environ["MEMORYNODE_API_URL"]
+    try:
+        parsed = urlsplit(endpoint)
+        port = parsed.port
+    except (TypeError, ValueError):
+        port = None
+        parsed = None
+    if (
+        not isinstance(endpoint, str)
+        or parsed is None
+        or parsed.scheme != "http"
+        or parsed.hostname != "127.0.0.1"
+        or not port
+        or parsed.netloc != f"127.0.0.1:{port}"
+        or parsed.path
+        or parsed.query
+        or parsed.fragment
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise ValueError("explicit MemoryNode API override is not a safe local HTTP endpoint")
+    return endpoint, True
+
+
 def ensure_api(args, paths=None, config=None):
     """Safely resolve the configured API before stdio MCP writes protocol frames."""
     paths = paths or Paths.current()
     config = config or load_config(args, paths)
-    endpoint = f"http://{config.api_host}:{config.api_port}"
+    endpoint, explicit_override = _resolve_ensure_api_endpoint(config)
+    if explicit_override:
+        if not _memorynode_api_healthy(endpoint):
+            raise ValueError("explicit MemoryNode API override could not be verified")
+        print("Explicit MemoryNode API override verified; starting stdio MCP.", file=sys.stderr)
+        return endpoint, True
     if _memorynode_api_healthy(endpoint):
         print("MemoryNode API verified; starting stdio MCP.", file=sys.stderr)
-        return endpoint
+        return endpoint, False
     start(args, paths, output=sys.stderr)
     if not _memorynode_api_healthy(endpoint):
         raise ValueError("managed MemoryNode API did not pass its identity check")
     print("MemoryNode API and governance console are ready; starting stdio MCP.", file=sys.stderr)
-    return endpoint
+    return endpoint, False
 
 
 def status(paths=None):

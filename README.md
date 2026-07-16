@@ -105,6 +105,11 @@ HTTP token, changes ports, kills unknown processes, or creates a competing
 runtime. It requires a published PyPI release containing this feature; until
 then, use an installed package from this source checkout.
 
+If an MCP client explicitly sets `MEMORYNODE_API_URL`, bootstrap accepts only an
+exact `http://127.0.0.1:<port>` origin. It reuses that exact endpoint only after
+its `/health` response identifies MemoryNode; otherwise it refuses without
+starting or redirecting to a different instance.
+
 For an already installed package, use the same safe bootstrap without `uvx`:
 
 ```json

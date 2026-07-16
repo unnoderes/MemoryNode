@@ -34,8 +34,8 @@ OIDC credential and has no repository write permission.
 7. Tag that exact commit and push the tag:
 
    ```powershell
-   git tag v0.8.0
-   git push origin v0.8.0
+   git tag v0.8.1
+   git push origin v0.8.1
    ```
 
 The tag must exactly equal `v` plus the package version. `sdk-release.yml`

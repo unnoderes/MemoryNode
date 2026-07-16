@@ -320,21 +320,21 @@ export default function Simulator() {
                 <span className="badge badge-revoked">第 5 步：撤销与审计</span>
                 <div className="revoke-card">
                   <h3 className="revoke-title">🔒 记忆已安全撤销 (Revoked)</h3>
-                  <p>该记忆已正式退出 SQLite FTS5 检索库，Agent 将无法再次查阅。但其提取时的来源上下文、人工审核决策及此次撤销事件将永久保存在不可篡改的变更日志中，提供开箱即用的系统审计追溯。</p>
+                  <p>该记忆已退出默认 SQLite FTS5 检索，Agent 不会在默认搜索中再次获得它。来源上下文、审核决策与此次撤销仍可通过解释接口和审计事件追溯。</p>
                 </div>
 
                 <div className="audit-ledger-box">
                   <div className="ledger-header">
                     <span className="ledger-dot"></span>
-                    <span>memory_ledger_integrity.log</span>
-                    <span className="ledger-sha">SHA-256 Verified</span>
+                    <span>memory_audit_events.log</span>
+                    <span className="ledger-sha">Event history</span>
                   </div>
                   <div className="ledger-entries">
-                    <div className="ledger-line"><code>[OK] block#0 - source context registered (hash: 8f9b...a1b2)</code></div>
-                    <div className="ledger-line"><code>[OK] block#1 - proposal proposal_demo_01 created (hash: 4c3d...ef56)</code></div>
-                    <div className="ledger-line"><code>[OK] block#2 - human review approved: active memory written (hash: 2a9e...01df)</code></div>
-                    <div className="ledger-line"><code>[OK] block#3 - human review revoked: memory status updated (hash: 7c5d...34ea)</code></div>
-                    <div className="ledger-line ledger-success-line"><code>[VALID] Cryptographic audit chain verified. Integrity 100% intact.</code></div>
+                    <div className="ledger-line"><code>[EVENT] source context registered</code></div>
+                    <div className="ledger-line"><code>[EVENT] proposal proposal_demo_01 created</code></div>
+                    <div className="ledger-line"><code>[EVENT] reviewer approved: active memory created</code></div>
+                    <div className="ledger-line"><code>[EVENT] reviewer revoked: memory status updated</code></div>
+                    <div className="ledger-line ledger-success-line"><code>[READY] Explanation can retrieve the related source and audit events.</code></div>
                   </div>
                 </div>
 
@@ -349,8 +349,8 @@ export default function Simulator() {
             )}
 
             <div className="simulator-footer">
-              <span>MemoryNode Governance Engine v0.8.0</span>
-              <span>SQLite FTS5 · Cryptographic Ledger</span>
+              <span>MemoryNode Governance Engine · Browser-only demo</span>
+              <span>SQLite FTS5 · Explainable audit events</span>
             </div>
           </div>
         </div>

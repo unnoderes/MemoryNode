@@ -20,7 +20,7 @@ const capabilities = [
   { 
     label: '02', 
     name: '人工审核 (Human-in-the-Loop)', 
-    desc: '系统默认通过可信界限阻断直写。提取内容必须经过审核者（或策略层）显式 Approve 创建 active memory 才能被最终检索。', 
+    desc: '系统默认通过可信边界阻断直写。提取内容必须由审核者显式批准后创建 active memory，才能进入默认检索。',
     tech: 'Review',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -67,7 +67,7 @@ const capabilities = [
   { 
     label: '06', 
     name: '本地 MCP + CLI 分发', 
-    desc: 'Python 分发包直接提供 stdio MCP、Bearer Token 保护的本地 HTTP MCP、命令行管理终端（CLI）与预置静态治理面板。', 
+    desc: '安装运行时提供 stdio MCP、Bearer Token 保护的本地 HTTP MCP、命令行管理终端（CLI）与预置静态治理面板；模型密钥不写入 MCP 配置。',
     tech: 'Local tools',
     icon: (
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -9,9 +9,10 @@ export default function CLIStart() {
 
   const tabLines = {
     install: [
-      { comment: "# 安装发布版 Python 包" },
+      { comment: "# 安装 PyPI 上当前可用的 Python 包；随后核对版本" },
       { command: "uv tool install memorynode" },
-      { output: "Installed memorynode 0.8.0" },
+      { output: "Installed memorynode" },
+      { command: "memorynode version" },
       { comment: "# 初始化、启动并检查本地服务" },
       { command: "memorynode init" },
       { command: "memorynode start" },
@@ -20,9 +21,9 @@ export default function CLIStart() {
       { command: "memorynode doctor" }
     ],
     mcp: [
-      { comment: "# stdio MCP：在 MCP 客户端配置 memorynode mcp" },
-      { command: "memorynode mcp" },
-      { comment: "# 本地 HTTP MCP：启用认证，生成 API token" },
+      { comment: "# stdio MCP：确认已安装版本支持 --ensure-api 后，在客户端配置此命令" },
+      { command: "memorynode mcp --ensure-api" },
+      { comment: "# 本地 HTTP MCP：令牌由 memorynode init 只显示一次；仅监听回环地址" },
       { command: "memorynode start" },
       { command: "memorynode mcp --transport http --host 127.0.0.1 --port 8765" },
       { output: "Connect to http://127.0.0.1:8765/mcp with Authorization: Bearer <token>" }

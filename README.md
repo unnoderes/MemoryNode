@@ -77,7 +77,7 @@ The installed package includes the FastAPI API, governance console, SDK, CLI, st
 4. Search memory and use the explanation endpoint to inspect its source and history.
 5. Revoke it, give it an expiry, or approve a newer proposal to replace it when necessary.
 
-Extraction uses a Qwen-compatible endpoint. Set `QWEN_API_KEY`, `QWEN_BASE_URL`, `QWEN_MODEL`, and related variables as needed; see [.env.example](.env.example). Never commit real credentials.
+Extraction uses a Qwen/OpenAI-compatible endpoint. Configure it from the governance console on the proposals page, or set `QWEN_API_KEY`, `QWEN_BASE_URL`, `QWEN_MODEL`, `QWEN_WIRE_API`, and `QWEN_REASONING_EFFORT`; environment variables take precedence over console-saved settings. The console stores a UI-entered key only in local sensitive MemoryNode configuration, never in browser storage, and the settings API never returns the full key. Manual proposal creation remains available without model configuration. Never commit real credentials.
 
 ## MCP
 

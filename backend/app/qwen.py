@@ -1,11 +1,12 @@
 import json
-import os
-from typing import List
-from urllib.error import HTTPError, URLError
+from typing import List, Optional
 from urllib.request import Request, urlopen
 
 
-__all__ = ["extract_memory_proposals"]
+from .model_settings import ModelConfig, ModelConfigError, resolve_model_config
+
+
+__all__ = ["extract_memory_proposals", "test_model_config"]
 
 _ALLOWED_TYPES = {
     "user_preference",
@@ -17,23 +18,12 @@ _ALLOWED_TYPES = {
 }
 
 
-class _QwenError(Exception):
-    def __init__(self, status_code: int, message: str):
-        super().__init__(message)
-        self.status_code = status_code
+_QwenError = ModelConfigError
 
 
 def _config():
-    api_key = os.getenv("QWEN_API_KEY")
-    base_url = os.getenv("QWEN_BASE_URL")
-    model = os.getenv("QWEN_MODEL")
-    if not api_key or not base_url or not model:
-        raise _QwenError(503, "Qwen config missing: set QWEN_API_KEY, QWEN_BASE_URL, QWEN_MODEL")
-    wire_api = os.getenv("QWEN_WIRE_API", "chat").strip().lower()
-    if wire_api not in {"chat", "responses"}:
-        raise _QwenError(503, "QWEN_WIRE_API must be chat or responses")
-    reasoning_effort = os.getenv("QWEN_REASONING_EFFORT", "medium").strip()
-    return api_key, base_url.rstrip("/"), model, wire_api, reasoning_effort
+    config = resolve_model_config()
+    return config.api_key, config.base_url, config.model, config.wire_api, config.reasoning_effort
 
 
 def _chat_url(base_url: str) -> str:
@@ -90,8 +80,14 @@ def _validate(data):
     return items
 
 
-def extract_memory_proposals(actor_id: str, project_id: str, messages: List[dict]):
-    api_key, base_url, model, wire_api, reasoning_effort = _config()
+def _extract_with_config(config: ModelConfig, actor_id: str, project_id: str, messages: List[dict]):
+    api_key, base_url, model, wire_api, reasoning_effort = (
+        config.api_key,
+        config.base_url,
+        config.model,
+        config.wire_api,
+        config.reasoning_effort,
+    )
     prompt = (
         "Extract candidate long-term memories from the messages. "
         "Return strict JSON only: {\"proposals\":[{\"content\":\"...\",\"type\":\"fact\","
@@ -137,10 +133,24 @@ def extract_memory_proposals(actor_id: str, project_id: str, messages: List[dict
             body,
         )
         content = _response_text(data) if wire_api == "responses" else data["choices"][0]["message"]["content"]
-    except (HTTPError, URLError, TimeoutError, KeyError, IndexError, TypeError, json.JSONDecodeError) as exc:
+    except Exception as exc:
         raise _QwenError(502, "Qwen request failed") from exc
 
     try:
         return _validate(json.loads(content))
     except (TypeError, json.JSONDecodeError, ValueError) as exc:
         raise _QwenError(502, "Qwen returned malformed JSON") from exc
+
+
+def extract_memory_proposals(actor_id: str, project_id: str, messages: List[dict]):
+    return _extract_with_config(resolve_model_config(), actor_id, project_id, messages)
+
+
+def test_model_config(config: Optional[ModelConfig] = None) -> None:
+    config = config or resolve_model_config()
+    _extract_with_config(
+        config,
+        actor_id="model-settings-test",
+        project_id="model-settings-test",
+        messages=[{"role": "user", "content": "Return no long-term memories."}],
+    )

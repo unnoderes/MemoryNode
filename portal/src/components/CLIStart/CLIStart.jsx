@@ -47,7 +47,8 @@ export default function CLIStart() {
     const printNextLine = () => {
       if (!active) return;
       if (currentIndex < lines.length) {
-        setVisibleLines(prev => [...prev, lines[currentIndex]]);
+        const lineToAdd = lines[currentIndex];
+        setVisibleLines(prev => [...prev, lineToAdd]);
         currentIndex++;
         
         let delay = 350;

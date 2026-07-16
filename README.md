@@ -61,7 +61,9 @@ memorynode status
 
 Open the governance console at <http://127.0.0.1:3000/>. The API defaults to <http://127.0.0.1:8000>.
 
-`memorynode init` creates local configuration and directories and prints the HTTP MCP token once. Store it securely.
+`memorynode init` creates local configuration and directories and prints the HTTP MCP token once. Store it securely; it is only for the optional local HTTP MCP transport, not stdio MCP.
+
+`uv tool install memorynode` resolves the version currently published on PyPI. Run `memorynode version` after installing to confirm that it contains the MCP behavior you intend to use.
 
 ```bash
 memorynode stop
@@ -103,12 +105,29 @@ is reserved for MCP protocol frames.
 This command is explicitly stdio-only: it never starts HTTP MCP, generates an
 HTTP token, changes ports, kills unknown processes, or creates a competing
 runtime. It requires a published PyPI release containing this feature; until
-then, use an installed package from this source checkout.
+then, run it from a source checkout instead:
+
+```bash
+cd sdk/python
+uv run --locked memorynode mcp --ensure-api
+```
 
 To open the governance console in the default browser only when this bootstrap
 starts a managed API and console pair, add `--open-console` after `--ensure-api`.
 It never opens a browser when reusing an existing API or an explicit
-`MEMORYNODE_API_URL` override.
+`MEMORYNODE_API_URL` override. This optional configuration also requires a
+published package containing `--open-console`.
+
+```json
+{
+  "mcpServers": {
+    "memorynode": {
+      "command": "uvx",
+      "args": ["--from", "memorynode", "memorynode", "mcp", "--ensure-api", "--open-console"]
+    }
+  }
+}
+```
 
 If an MCP client explicitly sets `MEMORYNODE_API_URL`, bootstrap accepts only an
 exact `http://127.0.0.1:<port>` origin. It reuses that exact endpoint only after
@@ -222,7 +241,7 @@ Build release artifacts with:
 python scripts/build_release.py
 ```
 
-See [.github/RELEASING.md](.github/RELEASING.md) for the CI and trusted-publishing procedure. The current release is `memorynode==0.8.0`.
+See [.github/RELEASING.md](.github/RELEASING.md) for the CI and trusted-publishing procedure. This source checkout has package version `0.8.0`; use `memorynode version` after installation to verify the version resolved from PyPI.
 
 ## Current scope
 

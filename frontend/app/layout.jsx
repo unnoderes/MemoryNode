@@ -18,6 +18,8 @@ export default function RootLayout({ children }) {
       <head>
         <title>{t("MemoryNode - AI 记忆管理", "MemoryNode - AI Memory Management")}</title>
         <meta name="description" content={t("提取、审核、查找和管理 AI 记忆", "Extract, review, search, and manage AI memories")} />
+        <link rel="icon" type="image/png" href="/memorynode-logo-mark.png" />
+        <link rel="apple-touch-icon" href="/memorynode-logo-mark.png" />
         <script src="/memorynode-config.js"></script>
       </head>
       <body>

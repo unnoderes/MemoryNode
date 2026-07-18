@@ -1,0 +1,21 @@
+[Unit]
+Description=MemoryNode Governance Console
+After=network-online.target memorynode-api.service
+Wants=network-online.target
+Requires=memorynode-api.service
+
+[Service]
+Type=simple
+User=memorynode
+Group=memorynode
+WorkingDirectory=/var/lib/memorynode
+Environment=MEMORYNODE_HOME=/var/lib/memorynode
+UMask=0077
+ExecStart=/opt/memorynode/venv/bin/python -m memorynode.console --host 127.0.0.1 --port 3000 --api-port 8000
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

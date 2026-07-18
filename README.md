@@ -201,6 +201,10 @@ FastAPI `/v1` is the lifecycle boundary. SQLite is the local source of truth and
 
 The API covers proposals, memories, sources, and audit events: create/extract/review proposals; list/search/explain/revoke/expire memories; and inspect sources and events.
 
+## Alibaba Cloud ECS Deployment
+
+The [Alibaba Cloud ECS deployment package](deploy/alibaba-cloud/README.md) provides auditable systemd, Nginx, bootstrap, and runtime-verification artifacts for a single-instance deployment. It preserves the local FastAPI lifecycle boundary and keeps application ports private behind Nginx.
+
 ## Security and privacy
 
 - The API, console, and HTTP MCP bind to `127.0.0.1` by default.

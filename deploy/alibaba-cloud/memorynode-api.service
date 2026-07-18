@@ -1,0 +1,21 @@
+[Unit]
+Description=MemoryNode FastAPI API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=memorynode
+Group=memorynode
+WorkingDirectory=/var/lib/memorynode
+Environment=MEMORYNODE_HOME=/var/lib/memorynode
+Environment=MEMORYNODE_DB_PATH=/var/lib/memorynode/data/memorynode.db
+UMask=0077
+ExecStart=/opt/memorynode/venv/bin/python -m uvicorn memorynode.backend.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
